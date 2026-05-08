@@ -1,0 +1,53 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* ---- Logvale Brand ---- */
+    --primary:             215 87% 22%;   /* #08366D — azul corporativo */
+    --primary-foreground:  0   0%  100%;
+    --accent:              352 88% 56%;   /* #F12D46 — vermelho */
+    --accent-foreground:   0   0%  100%;
+
+    /* ---- Shadcn base tokens ---- */
+    --background:          0   0%  100%;
+    --foreground:          222 47% 11%;
+    --card:                0   0%  100%;
+    --card-foreground:     222 47% 11%;
+    --popover:             0   0%  100%;
+    --popover-foreground:  222 47% 11%;
+    --secondary:           210 40% 96%;
+    --secondary-foreground:222 47% 11%;
+    --muted:               210 40% 96%;
+    --muted-foreground:    215 16% 47%;
+    --destructive:         352 88% 56%;
+    --destructive-foreground: 0 0% 100%;
+    --border:              214 32% 91%;
+    --input:               214 32% 91%;
+    --ring:                215 87% 22%;
+    --radius:              0.5rem;
+
+    /* ---- Sidebar tokens ---- */
+    --sidebar:             0   0%  98%;
+    --sidebar-foreground:  222 47% 11%;
+    --sidebar-primary:     215 87% 22%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent:      210 40% 96%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border:      214 32% 91%;
+    --sidebar-ring:        215 87% 22%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+  }
+  html {
+    @apply font-sans;
+  }
+}
