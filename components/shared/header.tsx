@@ -9,7 +9,6 @@ interface HeaderProps {
 export default function Header({ user }: HeaderProps) {
   return (
     <header className="h-14 bg-primary text-white flex items-center px-6 gap-4 shadow-md flex-shrink-0">
-      {/* Logo */}
       <div className="flex items-center gap-2 flex-shrink-0">
         <div className="w-8 h-8 bg-white/20 rounded flex items-center justify-center">
           <span className="text-white font-bold text-sm">L</span>
@@ -19,10 +18,8 @@ export default function Header({ user }: HeaderProps) {
         </span>
       </div>
 
-      {/* Spacer */}
       <div className="flex-1" />
 
-      {/* Usuário + role + sign out */}
       <div className="flex items-center gap-3">
         <span className="text-sm text-white/80 hidden md:block truncate max-w-[200px]">
           {user.profile.full_name}

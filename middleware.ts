@@ -5,13 +5,7 @@ import type { UserRole } from '@/types'
 import { ROLE_HOME } from '@/types'
 
 const PUBLIC_ROUTES = ['/login', '/auth/callback', '/privacidade', '/termos']
-const TERMS_EXEMPT  = ['/aceite-termos', '/auth/callback', '/login', '/privacidade', '/termos']
-
-const ROLE_PREFIXES: Record<UserRole, string> = {
-  operator: '/operador',
-  client:   '/cliente',
-  manager:  '/admin',
-}
+const TERMS_EXEMPT  = ['/aceite-termos', ...PUBLIC_ROUTES]
 
 function isPublicRoute(pathname: string) {
   return PUBLIC_ROUTES.some((r) => pathname.startsWith(r))
@@ -23,7 +17,7 @@ function isTermsExempt(pathname: string) {
 
 function isAllowedForRole(pathname: string, role: UserRole) {
   if (role === 'manager') return true
-  return pathname.startsWith(ROLE_PREFIXES[role])
+  return pathname.startsWith(ROLE_HOME[role])
 }
 
 export async function middleware(request: NextRequest) {

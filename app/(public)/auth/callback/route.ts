@@ -6,46 +6,24 @@ import type { UserRole } from '@/types'
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
-  const next = searchParams.get('next') ?? '/'
 
-  if (code) {
-    const supabase = createClient()
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
+  if (!code) return NextResponse.redirect(`${origin}/login?error=auth_callback_error`)
 
-    if (!error) {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+  const supabase = createClient()
+  const { error } = await supabase.auth.exchangeCodeForSession(code)
+  if (error) return NextResponse.redirect(`${origin}/login?error=auth_callback_error`)
 
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role, terms_accepted_at')
-          .eq('id', user.id)
-          .single()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.redirect(`${origin}/login?error=auth_callback_error`)
 
-        if (profile) {
-          if (!profile.terms_accepted_at) {
-            return NextResponse.redirect(`${origin}/aceite-termos`)
-          }
-          const homeUrl = ROLE_HOME[profile.role as UserRole]
-          return NextResponse.redirect(`${origin}${homeUrl}`)
-        }
-      }
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role, terms_accepted_at')
+    .eq('id', user.id)
+    .single()
 
-      // Fallback: raiz (middleware cuida do redirect)
-      const forwardedHost = request.headers.get('x-forwarded-host')
-      const isLocal = process.env.NODE_ENV === 'development'
+  if (!profile) return NextResponse.redirect(`${origin}/`)
 
-      if (isLocal) {
-        return NextResponse.redirect(`${origin}${next}`)
-      } else if (forwardedHost) {
-        return NextResponse.redirect(`https://${forwardedHost}${next}`)
-      } else {
-        return NextResponse.redirect(`${origin}${next}`)
-      }
-    }
-  }
-
-  return NextResponse.redirect(`${origin}/login?error=auth_callback_error`)
+  if (!profile.terms_accepted_at) return NextResponse.redirect(`${origin}/aceite-termos`)
+  return NextResponse.redirect(`${origin}${ROLE_HOME[profile.role as UserRole]}`)
 }
