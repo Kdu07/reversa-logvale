@@ -84,6 +84,47 @@ export const ptBR = {
     postal_code: 'Código Postal',
     illegible:   'Ilegível',
   },
+
+  client: {
+    pending: {
+      title:           'Devoluções Pendentes',
+      banner:          'Devoluções sem decisão em 72h são automaticamente armazenadas para tratativas.',
+      emptyState:      'Nenhuma devolução pendente.',
+      filterDepositor: 'Depositante',
+      filterAll:       'Todos',
+      filterFrom:      'De',
+      filterTo:        'Até',
+      colDate:         'Data',
+      colIdentifier:   'Identificador',
+      colNF:           'NF',
+      colRv:           'RV',
+      colItems:        'Itens',
+      colBoxPhotos:    'Fotos Caixa',
+      colItemPhotos:   'Fotos Itens',
+      colDecision:     'Decisão',
+      colTime:         'Tempo Restante',
+      downloadXml:     'XML',
+    },
+    decision: {
+      modalTitle:        'Confirmar Decisão',
+      irreversible:      'Esta decisão é irreversível.',
+      returnSummary:     'Resumo da Devolução',
+      xmlUploadLabel:    'XML da NF de Devolução (obrigatório)',
+      xmlUploadHint:     'Arquivo .xml',
+      confirming:        'Confirmando...',
+      successMsg:        'Decisão registrada com sucesso.',
+    },
+    history: {
+      title:       'Histórico de Decisões',
+      emptyState:  'Nenhuma decisão registrada.',
+      colDecision: 'Decisão',
+      colDecidedAt:'Decidido em',
+      colAuto:     'Auto',
+    },
+    countdown: {
+      expired: 'Expirado',
+    },
+  },
 } as const
 
 export type Messages = typeof ptBR

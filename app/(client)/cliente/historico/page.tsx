@@ -1,5 +1,5 @@
-import { getClientReturnsAction } from './actions'
-import { ReturnsTable } from './components/returns-table'
+import { getClientHistoryAction } from '../actions'
+import { ReturnsTable } from '../components/returns-table'
 import Link from 'next/link'
 
 interface SearchParams {
@@ -9,7 +9,7 @@ interface SearchParams {
   to?:          string
 }
 
-export default async function ClientHomePage({
+export default async function ClientHistoricoPage({
   searchParams,
 }: {
   searchParams: SearchParams
@@ -19,23 +19,23 @@ export default async function ClientHomePage({
   const from        = searchParams.from ?? ''
   const to          = searchParams.to ?? ''
 
-  const result = await getClientReturnsAction({ page, depositorId: depositorId || undefined, from: from || undefined, to: to || undefined })
+  const result = await getClientHistoryAction({ page, depositorId: depositorId || undefined, from: from || undefined, to: to || undefined })
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <h1 className="text-2xl font-bold text-primary">Devoluções Pendentes</h1>
+        <h1 className="text-2xl font-bold text-primary">Histórico de Decisões</h1>
         <Link
-          href="/cliente/historico"
+          href="/cliente"
           className="text-sm text-primary hover:underline"
         >
-          Ver histórico →
+          ← Pendentes
         </Link>
       </div>
 
       {'error' in result ? (
         <div className="rounded-lg border bg-card p-6 text-center text-destructive text-sm">
-          Erro ao carregar devoluções: {result.error}
+          Erro ao carregar histórico: {result.error}
         </div>
       ) : (
         <ReturnsTable
@@ -46,7 +46,7 @@ export default async function ClientHomePage({
           currentDepositor={depositorId}
           currentFrom={from}
           currentTo={to}
-          mode="pending"
+          mode="history"
         />
       )}
     </div>
