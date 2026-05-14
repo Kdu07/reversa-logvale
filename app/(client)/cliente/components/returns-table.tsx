@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { CountdownTimer } from './countdown-timer'
 import { DecisionModal } from './decision-modal'
-import { PhotoGallery } from './photo-gallery'
+import { PhotoGallery } from '@/components/shared/photo-gallery'
 import type { ReturnRow, DepositorOption } from '../actions'
 import type { ReturnDecision } from '@/types'
 

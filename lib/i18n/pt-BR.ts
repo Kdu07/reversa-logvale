@@ -125,6 +125,27 @@ export const ptBR = {
       expired: 'Expirado',
     },
   },
+  tratativas: {
+    title:               'Tratativas',
+    emptyState:          'Nenhuma tratativa pendente.',
+    emptySearch:         'Nenhuma tratativa encontrada para este RV.',
+    searchPlaceholder:   'Buscar por RV...',
+    colRv:               'RV',
+    colDecision:         'Decisão',
+    colDecidedAt:        'Data Decisão',
+    colDepositor:        'Depositante',
+    colClient:           'Cliente',
+    autoLabel:           'Auto',
+    detailsBtn:          'Ver detalhes',
+    detailsTitle:        'Detalhes da Tratativa',
+    completeBtn:         'Concluir',
+    completeConfirmTitle:'Confirmar conclusão?',
+    completeConfirmDesc: 'A tratativa será marcada como concluída e removida desta lista.',
+    completing:          'Concluindo...',
+    sectionInfo:         'Informações',
+    sectionBoxPhotos:    'Fotos da Caixa',
+    sectionItemPhotos:   'Fotos dos Itens',
+  },
 } as const
 
 export type Messages = typeof ptBR
