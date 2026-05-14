@@ -3,6 +3,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { assertManager } from '@/lib/supabase/assert-role'
+import { sendAccountCreatedEmail } from '@/lib/integrations/resend'
+import { env } from '@/lib/env'
 import { revalidatePath } from 'next/cache'
 import type { User } from '@supabase/auth-js'
 import type { UserRole } from '@/types'
@@ -93,12 +95,25 @@ export async function createUserAction(payload: {
     const supabase = createClient()
     const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? ''
 
-    const { data: inviteData, error: inviteErr } = await admin.auth.admin.inviteUserByEmail(
-      payload.email,
-      { redirectTo: `${appUrl}/auth/callback` },
-    )
-    if (inviteErr) throw inviteErr
-    const userId = inviteData.user.id
+    const { data: createData, error: createErr } = await admin.auth.admin.createUser({
+      email:         payload.email,
+      email_confirm: true,
+    })
+    if (createErr) throw createErr
+    const userId = createData.user.id
+
+    const { data: linkData, error: linkErr } = await admin.auth.admin.generateLink({
+      type:    'magiclink',
+      email:   payload.email,
+      options: { redirectTo: `${appUrl}/auth/callback` },
+    })
+    if (linkErr) throw linkErr
+    const magicLink = (linkData as { properties?: { action_link?: string } }).properties?.action_link
+
+    if (magicLink && env.resendApiKey) {
+      await sendAccountCreatedEmail({ to: payload.email, name: payload.full_name, magicLink })
+        .catch((e) => console.error('[resend] createUser email failed:', e))
+    }
 
     const { error: profileErr } = await supabase.from('profiles').insert({
       id:        userId,
@@ -181,8 +196,9 @@ export async function resendMagicLinkAction(
 ): Promise<{ link: string } | { error: string }> {
   try {
     await assertManager()
-    const admin  = createAdminClient()
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? ''
+    const admin    = createAdminClient()
+    const supabase = createClient()
+    const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? ''
 
     const { data, error } = await admin.auth.admin.generateLink({
       type:    'magiclink',
@@ -193,6 +209,16 @@ export async function resendMagicLinkAction(
 
     const link = (data as { properties?: { action_link?: string } }).properties?.action_link
     if (!link) throw new Error('Link não gerado')
+
+    if (env.resendApiKey) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', data.user.id)
+        .single()
+      await sendAccountCreatedEmail({ to: email, name: profile?.full_name ?? '', magicLink: link })
+        .catch((e) => console.error('[resend] resendMagicLink email failed:', e))
+    }
 
     return { link }
   } catch (err) {
