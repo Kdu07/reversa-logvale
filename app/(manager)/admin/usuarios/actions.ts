@@ -6,6 +6,7 @@ import { assertManager } from '@/lib/supabase/assert-role'
 import { sendAccountCreatedEmail } from '@/lib/integrations/resend'
 import { env } from '@/lib/env'
 import { revalidatePath } from 'next/cache'
+import JSZip from 'jszip'
 import type { User } from '@supabase/auth-js'
 import type { UserRole } from '@/types'
 
@@ -237,6 +238,83 @@ export async function getDepositorsListAction(): Promise<DepositorOption[] | { e
       .order('razao_social')
     if (error) throw error
     return (data ?? []) as DepositorOption[]
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'Erro interno' }
+  }
+}
+
+export async function exportUserDataAction(
+  userId: string,
+): Promise<{ base64: string; filename: string } | { error: string }> {
+  try {
+    await assertManager()
+    const admin    = createAdminClient()
+    const supabase = createClient()
+
+    const [
+      { data: { user: authUser }, error: authErr },
+      { data: profile,           error: profErr },
+      { data: returns,           error: retErr },
+    ] = await Promise.all([
+      admin.auth.admin.getUserById(userId),
+      supabase.from('profiles').select('full_name, phone, role, created_at, terms_accepted_at').eq('id', userId).single(),
+      supabase.from('returns').select('rv, received_at, status, decision, decided_at, decided_by_type, processed_at').eq('client_id', userId),
+    ])
+
+    if (authErr) throw authErr
+    if (profErr) throw profErr
+    if (retErr)  throw retErr
+
+    const zip = new JSZip()
+
+    zip.file('perfil.json', JSON.stringify({
+      full_name:         profile?.full_name ?? null,
+      phone:             profile?.phone ?? null,
+      role:              profile?.role ?? null,
+      email:             authUser?.email ?? null,
+      last_sign_in_at:   authUser?.last_sign_in_at ?? null,
+      created_at:        profile?.created_at ?? null,
+    }, null, 2))
+
+    zip.file('devolucoes.json', JSON.stringify(returns ?? [], null, 2))
+
+    zip.file('consentimento.json', JSON.stringify({
+      terms_accepted_at: profile?.terms_accepted_at ?? null,
+      exported_at:       new Date().toISOString(),
+    }, null, 2))
+
+    const base64   = await zip.generateAsync({ type: 'base64' })
+    const prefix   = userId.slice(0, 8)
+    const date     = new Date().toISOString().slice(0, 10)
+    const filename = `export_${prefix}_${date}.zip`
+
+    return { base64, filename }
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'Erro interno' }
+  }
+}
+
+export async function anonymizeUserAction(
+  userId: string,
+): Promise<{ ok: true } | { error: string }> {
+  try {
+    await assertManager()
+    const admin    = createAdminClient()
+    const supabase = createClient()
+
+    const { error: profErr } = await supabase
+      .from('profiles')
+      .update({ full_name: '[ANONIMIZADO]', phone: null, active: false })
+      .eq('id', userId)
+    if (profErr) throw profErr
+
+    const { error: authErr } = await admin.auth.admin.updateUserById(userId, {
+      email: `anon-${userId}@logvale.local`,
+    })
+    if (authErr) throw authErr
+
+    revalidatePath('/admin/usuarios')
+    return { ok: true }
   } catch (err) {
     return { error: err instanceof Error ? err.message : 'Erro interno' }
   }

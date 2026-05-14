@@ -9,6 +9,8 @@ import {
   updateUserAction,
   toggleActiveAction,
   resendMagicLinkAction,
+  exportUserDataAction,
+  anonymizeUserAction,
 } from '../actions'
 import type { UserRow, DepositorOption } from '../actions'
 import type { UserRole } from '@/types'
@@ -121,6 +123,25 @@ export function UsersTable({ users, depositors }: Props) {
     })
   }
 
+  function handleExport(u: UserRow) {
+    startTransition(async () => {
+      const result = await exportUserDataAction(u.id)
+      if ('error' in result) { setError(result.error); return }
+      const a = document.createElement('a')
+      a.href = `data:application/zip;base64,${result.base64}`
+      a.download = result.filename
+      a.click()
+    })
+  }
+
+  function handleAnonymize(u: UserRow) {
+    if (!confirm(`Anonimizar ${u.full_name}? Esta ação não pode ser desfeita.`)) return
+    startTransition(async () => {
+      const result = await anonymizeUserAction(u.id)
+      if ('error' in result) { setError(result.error); return }
+    })
+  }
+
   return (
     <>
       {/* Header */}
@@ -208,6 +229,24 @@ export function UsersTable({ users, depositors }: Props) {
                     >
                       {t.resendLinkBtn}
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => handleExport(u)}
+                      disabled={isPending}
+                      className="text-xs text-muted-foreground hover:underline"
+                    >
+                      Exportar dados
+                    </button>
+                    {u.active && (
+                      <button
+                        type="button"
+                        onClick={() => handleAnonymize(u)}
+                        disabled={isPending}
+                        className="text-xs text-destructive hover:underline"
+                      >
+                        Anonimizar
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>
