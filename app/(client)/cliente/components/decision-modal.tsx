@@ -64,6 +64,15 @@ export function DecisionModal({ row, decision, onClose, onSuccess }: DecisionMod
     })
 
     if ('error' in result) {
+      // Se o return já foi decidido por outra fonte (auto-decisão concorrente), fechar modal
+      const alreadyDecided =
+        result.error.toLowerCase().includes('0 rows') ||
+        result.error.toLowerCase().includes('nenhum registro')
+      if (alreadyDecided) {
+        onClose()
+        window.location.reload()
+        return
+      }
       setError(result.error)
       setSubmitting(false)
       return

@@ -183,6 +183,21 @@ export async function toggleActiveAction(
   try {
     await assertManager()
     const supabase = createClient()
+
+    if (!active) {
+      const { count, error: countErr } = await supabase
+        .from('returns')
+        .select('*', { count: 'exact', head: true })
+        .eq('client_id', userId)
+        .eq('status', 'awaiting_decision')
+      if (countErr) throw countErr
+      if ((count ?? 0) > 0) {
+        return {
+          error: `Usuário tem ${count} devolução(ões) pendente(s) de decisão. Desative após resolução ou aguarde a auto-decisão automática.`,
+        }
+      }
+    }
+
     const { error } = await supabase.from('profiles').update({ active }).eq('id', userId)
     if (error) throw error
     revalidatePath('/admin/usuarios')
