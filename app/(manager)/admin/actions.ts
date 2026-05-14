@@ -7,9 +7,9 @@ import type { ReturnStatus, ReturnDecision } from '@/types'
 export type DashboardPeriod = 'today' | '7d' | '30d'
 
 export interface DashboardStats {
-  totals: { today: number; last7d: number; last30d: number }
-  byStatus: { status: ReturnStatus; count: number }[]
-  byDecision: { decision: ReturnDecision; count: number }[]
+  totals:           { today: number; last7d: number; last30d: number }
+  byStatus:         { status: ReturnStatus; count: number }[]
+  byDecision:       { decision: ReturnDecision; count: number }[]
   avgDecisionHours: number | null
   avgProcessHours:  number | null
   autoRate:         number | null
@@ -24,8 +24,8 @@ export async function getDashboardStatsAction(): Promise<DashboardStats | { erro
 
     const supabase = createClient()
     const now = new Date()
-    const d1  = new Date(now.getTime() - 1  * 24 * 60 * 60 * 1000).toISOString()
-    const d7  = new Date(now.getTime() - 7  * 24 * 60 * 60 * 1000).toISOString()
+    const d1  = new Date(now.getTime() -  1 * 24 * 60 * 60 * 1000).toISOString()
+    const d7  = new Date(now.getTime() -  7 * 24 * 60 * 60 * 1000).toISOString()
     const d30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString()
     const d48 = new Date(now.getTime() - 48 * 60 * 60 * 1000).toISOString()
 
@@ -40,9 +40,9 @@ export async function getDashboardStatsAction(): Promise<DashboardStats | { erro
       { count: sfh },
       { count: disc },
       { count: repk },
-      { data: timingRows },
-      { data: autoRows },
-      { data: clientRows },
+      { data: decisionTimingRows },
+      { data: processTimingRows },
+      { data: decidedRows },
       { data: urgentRows },
     ] = await Promise.all([
       supabase.from('returns').select('*', { count: 'exact', head: true }).gte('received_at', d1),
@@ -55,15 +55,18 @@ export async function getDashboardStatsAction(): Promise<DashboardStats | { erro
       supabase.from('returns').select('*', { count: 'exact', head: true }).eq('decision', 'store_for_handling'),
       supabase.from('returns').select('*', { count: 'exact', head: true }).eq('decision', 'discard'),
       supabase.from('returns').select('*', { count: 'exact', head: true }).eq('decision', 'repackage'),
-      supabase.from('returns').select('received_at, decided_at, processed_at').not('decided_at', 'is', null).limit(500),
-      supabase.from('returns').select('decided_by_type').not('decided_at', 'is', null).limit(1000),
-      supabase.from('returns').select('profiles!decided_by(full_name)').eq('decided_by_type', 'client').not('decided_by', 'is', null).limit(1000),
+      // Decision timing: rows with decided_at (for avgDecisionHours)
+      supabase.from('returns').select('received_at, decided_at').not('decided_at', 'is', null).limit(500),
+      // Process timing: only rows with both timestamps (for avgProcessHours)
+      supabase.from('returns').select('decided_at, processed_at').not('decided_at', 'is', null).not('processed_at', 'is', null).limit(500),
+      // Single query for both autoRate and topClients
+      supabase.from('returns').select('decided_by_type, profiles!decided_by(full_name)').not('decided_at', 'is', null).limit(1000),
       supabase.from('returns').select('id, rv, received_at, depositors!depositor_id(razao_social)').eq('status', 'awaiting_decision').lt('received_at', d48).order('received_at').limit(20),
     ])
 
     const byStatus: DashboardStats['byStatus'] = [
-      { status: 'awaiting_decision', count: awaiting ?? 0 },
-      { status: 'decided',           count: decided  ?? 0 },
+      { status: 'awaiting_decision', count: awaiting  ?? 0 },
+      { status: 'decided',           count: decided   ?? 0 },
       { status: 'processed',         count: processed ?? 0 },
     ]
 
@@ -75,32 +78,34 @@ export async function getDashboardStatsAction(): Promise<DashboardStats | { erro
     ]
 
     let avgDecisionHours: number | null = null
-    let avgProcessHours:  number | null = null
-    if (timingRows && timingRows.length > 0) {
-      const decisionMs = timingRows
-        .filter((r) => r.decided_at)
-        .map((r) => new Date(r.decided_at as string).getTime() - new Date(r.received_at).getTime())
-      if (decisionMs.length > 0)
-        avgDecisionHours = Math.round(decisionMs.reduce((a, b) => a + b, 0) / decisionMs.length / 3600000 * 10) / 10
+    if (decisionTimingRows && decisionTimingRows.length > 0) {
+      const ms = decisionTimingRows.map(
+        (r) => new Date(r.decided_at as string).getTime() - new Date(r.received_at).getTime()
+      )
+      avgDecisionHours = Math.round(ms.reduce((a, b) => a + b, 0) / ms.length / 3600000 * 10) / 10
+    }
 
-      const processMs = timingRows
-        .filter((r) => r.processed_at && r.decided_at)
-        .map((r) => new Date(r.processed_at as string).getTime() - new Date(r.decided_at as string).getTime())
-      if (processMs.length > 0)
-        avgProcessHours = Math.round(processMs.reduce((a, b) => a + b, 0) / processMs.length / 3600000 * 10) / 10
+    let avgProcessHours: number | null = null
+    if (processTimingRows && processTimingRows.length > 0) {
+      const ms = processTimingRows.map(
+        (r) => new Date(r.processed_at as string).getTime() - new Date(r.decided_at as string).getTime()
+      )
+      avgProcessHours = Math.round(ms.reduce((a, b) => a + b, 0) / ms.length / 3600000 * 10) / 10
     }
 
     let autoRate: number | null = null
-    if (autoRows && autoRows.length > 0) {
-      const autoCount = autoRows.filter((r) => r.decided_by_type === 'auto').length
-      autoRate = Math.round(autoCount / autoRows.length * 1000) / 10
+    const clientCounts = new Map<string, number>()
+    if (decidedRows && decidedRows.length > 0) {
+      const autoCount = decidedRows.filter((r) => r.decided_by_type === 'auto').length
+      autoRate = Math.round(autoCount / decidedRows.length * 1000) / 10
+
+      for (const r of decidedRows) {
+        if (r.decided_by_type !== 'client') continue
+        const name = (r.profiles as unknown as { full_name: string } | null)?.full_name ?? 'Desconhecido'
+        clientCounts.set(name, (clientCounts.get(name) ?? 0) + 1)
+      }
     }
 
-    const clientCounts = new Map<string, number>()
-    for (const r of clientRows ?? []) {
-      const name = (r.profiles as unknown as { full_name: string } | null)?.full_name ?? 'Desconhecido'
-      clientCounts.set(name, (clientCounts.get(name) ?? 0) + 1)
-    }
     const topClients = Array.from(clientCounts.entries())
       .sort((a, b) => b[1] - a[1])
       .slice(0, 10)

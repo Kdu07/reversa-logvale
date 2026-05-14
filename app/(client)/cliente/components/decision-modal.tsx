@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { DECISION_META } from '@/lib/decisions'
+import { formatDate, identifierLabel } from '@/lib/format'
 import { submitDecisionAction } from '../actions'
 import type { ReturnRow } from '../actions'
 import type { ReturnDecision } from '@/types'
@@ -15,31 +17,14 @@ interface DecisionModalProps {
   onSuccess: () => void
 }
 
-const DECISION_META: Record<ReturnDecision, { label: string; bg: string; text: string; border: string }> = {
-  return_to_stock:    { label: 'Voltar pro Estoque',      bg: 'bg-green-100', text: 'text-green-800', border: 'border-green-400' },
-  store_for_handling: { label: 'Armazenar p/ Tratativas', bg: 'bg-amber-100', text: 'text-amber-800', border: 'border-amber-400' },
-  discard:            { label: 'Descarte',                bg: 'bg-red-100',   text: 'text-red-800',   border: 'border-red-400'   },
-  repackage:          { label: 'Reembalagem',             bg: 'bg-blue-100',  text: 'text-blue-800',  border: 'border-blue-400'  },
-}
-
 const needsXml = (d: ReturnDecision) => d !== 'store_for_handling'
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-}
-
-function identifierLabel(row: ReturnRow) {
-  if (row.identifierType === 'access_key')  return `Chave: ${row.accessKey}`
-  if (row.identifierType === 'postal_code') return `CEP: ${row.postalCode}`
-  return `Ilegível: ${row.illegibleToken}`
-}
-
 export function DecisionModal({ row, decision, onClose, onSuccess }: DecisionModalProps) {
-  const [countdown, setCountdown]   = useState(2)
-  const [xmlFile, setXmlFile]       = useState<File | null>(null)
+  const [countdown, setCountdown]     = useState(2)
+  const [xmlFile, setXmlFile]         = useState<File | null>(null)
   const [isSubmitting, setSubmitting] = useState(false)
-  const [error, setError]           = useState<string | null>(null)
-  const inputRef                    = useRef<HTMLInputElement>(null)
+  const [error, setError]             = useState<string | null>(null)
+  const inputRef                      = useRef<HTMLInputElement>(null)
 
   const meta = DECISION_META[decision]
 
@@ -95,7 +80,7 @@ export function DecisionModal({ row, decision, onClose, onSuccess }: DecisionMod
           <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground text-lg leading-none">✕</button>
         </div>
 
-        <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${meta.bg} ${meta.text} ${meta.border} text-sm font-medium`}>
+        <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${meta.badge} text-sm font-medium`}>
           {meta.label}
         </div>
 
@@ -137,13 +122,7 @@ export function DecisionModal({ row, decision, onClose, onSuccess }: DecisionMod
         )}
 
         <div className="flex gap-3 pt-1">
-          <Button
-            type="button"
-            variant="ghost"
-            className="flex-1"
-            onClick={onClose}
-            disabled={isSubmitting}
-          >
+          <Button type="button" variant="ghost" className="flex-1" onClick={onClose} disabled={isSubmitting}>
             Cancelar
           </Button>
           <Button

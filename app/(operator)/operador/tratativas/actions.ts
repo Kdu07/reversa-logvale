@@ -3,12 +3,13 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/supabase/get-current-user'
-import type { ReturnDecision } from '@/types'
+import { buildSignedUrlMap } from '@/lib/supabase/storage'
+import type { ReturnDecision, IdentifierType } from '@/types'
 
 export interface TrativaRow {
   id:             string
   rv:             string
-  identifierType: 'access_key' | 'postal_code' | 'illegible'
+  identifierType: IdentifierType
   accessKey:      string | null
   postalCode:     string | null
   illegibleToken: string | null
@@ -31,20 +32,6 @@ export interface GetTrativasFilters {
 }
 
 const PAGE_SIZE = 50
-
-async function buildSignedUrlMap(
-  supabase: ReturnType<typeof createClient>,
-  bucket:   string,
-  paths:    string[],
-): Promise<Map<string, string>> {
-  if (paths.length === 0) return new Map()
-  const { data } = await supabase.storage.from(bucket).createSignedUrls(paths, 3600)
-  const map = new Map<string, string>()
-  data?.forEach((entry) => {
-    if (entry.path && entry.signedUrl) map.set(entry.path, entry.signedUrl)
-  })
-  return map
-}
 
 export async function getTrativasAction(
   filters: GetTrativasFilters = {},

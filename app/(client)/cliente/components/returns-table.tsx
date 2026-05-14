@@ -6,18 +6,21 @@ import { Button } from '@/components/ui/button'
 import { CountdownTimer } from './countdown-timer'
 import { DecisionModal } from './decision-modal'
 import { PhotoGallery } from '@/components/shared/photo-gallery'
+import { PhotoThumbs } from '@/components/shared/photo-thumbs'
+import { DECISION_LABELS, DECISION_BADGE } from '@/lib/decisions'
+import { formatDate } from '@/lib/format'
 import type { ReturnRow, DepositorOption } from '../actions'
-import type { ReturnDecision } from '@/types'
+import type { ReturnDecision, IdentifierType } from '@/types'
 
 interface ReturnsTableProps {
-  rows:              ReturnRow[]
-  total:             number
-  depositors:        DepositorOption[]
-  currentPage:       number
-  currentDepositor:  string
-  currentFrom:       string
-  currentTo:         string
-  mode:              'pending' | 'history'
+  rows:             ReturnRow[]
+  total:            number
+  depositors:       DepositorOption[]
+  currentPage:      number
+  currentDepositor: string
+  currentFrom:      string
+  currentTo:        string
+  mode:             'pending' | 'history'
 }
 
 const DECISION_BUTTONS: { decision: ReturnDecision; label: string; className: string }[] = [
@@ -27,79 +30,27 @@ const DECISION_BUTTONS: { decision: ReturnDecision; label: string; className: st
   { decision: 'repackage',          label: 'Reembalar', className: 'bg-primary   hover:bg-primary/90 text-white' },
 ]
 
-const DECISION_BADGE: Record<string, string> = {
-  return_to_stock:    'bg-green-100 text-green-800 border-green-300',
-  store_for_handling: 'bg-amber-100 text-amber-800 border-amber-300',
-  discard:            'bg-red-100   text-red-800   border-red-300',
-  repackage:          'bg-blue-100  text-blue-800  border-blue-300',
-}
-
-const DECISION_LABELS: Record<string, string> = {
-  return_to_stock:    'Voltar pro Estoque',
-  store_for_handling: 'Armazenar p/ Tratativas',
-  discard:            'Descarte',
-  repackage:          'Reembalagem',
-}
-
 const PAGE_SIZE = 50
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleString('pt-BR', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  })
+const IDENTIFIER_TYPE_LABEL: Record<IdentifierType, string> = {
+  access_key:  'Chave NF',
+  postal_code: 'CEP',
+  illegible:   'Ilegível',
 }
 
 function IdentifierTag({ row }: { row: ReturnRow }) {
-  if (row.identifierType === 'access_key') {
-    return (
-      <span className="inline-flex flex-col gap-0.5">
-        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Chave NF</span>
-        <span className="font-mono text-xs break-all">{row.accessKey?.slice(0, 20)}…</span>
-      </span>
-    )
-  }
-  if (row.identifierType === 'postal_code') {
-    return (
-      <span className="inline-flex flex-col gap-0.5">
-        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">CEP</span>
-        <span className="font-mono text-xs">{row.postalCode}</span>
-      </span>
-    )
-  }
+  const label = IDENTIFIER_TYPE_LABEL[row.identifierType]
+  const value = row.identifierType === 'access_key'
+    ? `${row.accessKey?.slice(0, 20)}…`
+    : row.identifierType === 'postal_code'
+    ? row.postalCode
+    : row.illegibleToken
+
   return (
     <span className="inline-flex flex-col gap-0.5">
-      <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Ilegível</span>
-      <span className="font-mono text-xs">{row.illegibleToken}</span>
+      <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">{label}</span>
+      <span className="font-mono text-xs break-all">{value}</span>
     </span>
-  )
-}
-
-function PhotoThumbs({ urls, onOpen }: { urls: string[]; onOpen: (i: number) => void }) {
-  if (urls.length === 0) return <span className="text-xs text-muted-foreground">—</span>
-  return (
-    <div className="flex gap-1 flex-wrap">
-      {urls.slice(0, 3).map((url, i) => (
-        <button
-          key={i}
-          type="button"
-          onClick={() => onOpen(i)}
-          className="w-10 h-10 rounded overflow-hidden border hover:ring-2 hover:ring-primary focus:ring-2 focus:ring-primary focus:outline-none"
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={url} alt={`foto ${i + 1}`} className="w-full h-full object-cover" />
-        </button>
-      ))}
-      {urls.length > 3 && (
-        <button
-          type="button"
-          onClick={() => onOpen(0)}
-          className="w-10 h-10 rounded border bg-muted flex items-center justify-center text-xs text-muted-foreground hover:bg-muted/80"
-        >
-          +{urls.length - 3}
-        </button>
-      )}
-    </div>
   )
 }
 
@@ -120,22 +71,18 @@ export function ReturnsTable({
   const totalPages = Math.ceil(total / PAGE_SIZE)
 
   function buildUrl(overrides: Record<string, string | number>) {
-    const params = new URLSearchParams()
-    const merged = { depositorId: currentDepositor, from: currentFrom, to: currentTo, page: currentPage, ...overrides }
-    if (merged.depositorId) params.set('depositorId', String(merged.depositorId))
-    if (merged.from)         params.set('from',        String(merged.from))
-    if (merged.to)           params.set('to',           String(merged.to))
-    if (Number(merged.page) > 1) params.set('page', String(merged.page))
+    const params  = new URLSearchParams()
+    const merged  = { depositorId: currentDepositor, from: currentFrom, to: currentTo, page: currentPage, ...overrides }
+    if (merged.depositorId)          params.set('depositorId', String(merged.depositorId))
+    if (merged.from)                 params.set('from',        String(merged.from))
+    if (merged.to)                   params.set('to',          String(merged.to))
+    if (Number(merged.page) > 1)     params.set('page',        String(merged.page))
     const qs = params.toString()
     return qs ? `?${qs}` : ''
   }
 
   function applyFilter(key: string, value: string) {
     router.push(buildUrl({ [key]: value, page: 1 }))
-  }
-
-  function clearFilters() {
-    router.push('')
   }
 
   const hasFilters = currentDepositor || currentFrom || currentTo
@@ -185,7 +132,7 @@ export function ReturnsTable({
           />
         </div>
         {hasFilters && (
-          <Button type="button" variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground">
+          <Button type="button" variant="ghost" size="sm" onClick={() => router.push('')} className="text-muted-foreground">
             Limpar filtros
           </Button>
         )}
@@ -236,12 +183,7 @@ export function ReturnsTable({
                   </td>
                   <td className="px-3 py-2">
                     {row.invoiceXmlUrl ? (
-                      <a
-                        href={row.invoiceXmlUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline text-xs"
-                      >
+                      <a href={row.invoiceXmlUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-xs">
                         XML
                       </a>
                     ) : (
@@ -256,12 +198,18 @@ export function ReturnsTable({
                     <PhotoThumbs
                       urls={row.boxPhotoUrls}
                       onOpen={(i) => setGallery({ urls: row.boxPhotoUrls, index: i })}
+                      size="sm"
+                      maxVisible={3}
+                      emptyText="—"
                     />
                   </td>
                   <td className="px-3 py-2">
                     <PhotoThumbs
                       urls={row.itemPhotoUrls}
                       onOpen={(i) => setGallery({ urls: row.itemPhotoUrls, index: i })}
+                      size="sm"
+                      maxVisible={3}
+                      emptyText="—"
                     />
                   </td>
                   {mode === 'pending' && (
@@ -289,8 +237,8 @@ export function ReturnsTable({
                     <>
                       <td className="px-3 py-2">
                         {row.decision ? (
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-medium ${DECISION_BADGE[row.decision] ?? ''}`}>
-                            {DECISION_LABELS[row.decision] ?? row.decision}
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-medium ${DECISION_BADGE[row.decision]}`}>
+                            {DECISION_LABELS[row.decision]}
                             {row.decidedByType === 'auto' && (
                               <span className="ml-1 text-[10px] opacity-70">Auto</span>
                             )}
@@ -336,7 +284,6 @@ export function ReturnsTable({
         </div>
       )}
 
-      {/* Modals */}
       {selectedDecision && (
         <DecisionModal
           row={selectedDecision.row}

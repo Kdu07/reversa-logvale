@@ -1,7 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { getCurrentUser } from '@/lib/supabase/get-current-user'
+import { assertManager } from '@/lib/supabase/assert-role'
 import { revalidatePath } from 'next/cache'
 
 export interface DepositorRow {
@@ -10,11 +10,6 @@ export interface DepositorRow {
   razao_social: string
   active:       boolean
   clientNames:  string[]
-}
-
-async function assertManager() {
-  const user = await getCurrentUser()
-  if (user.profile.role !== 'manager') throw new Error('Acesso negado')
 }
 
 export async function getDepositorsAction(filters?: {

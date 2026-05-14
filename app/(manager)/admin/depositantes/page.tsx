@@ -26,7 +26,7 @@ export default async function DepositorsPage({
 
   return (
     <div className="space-y-6">
-      <DepositorsTable rows={result.rows} total={result.total} />
+      <DepositorsTable rows={result.rows} />
     </div>
   )
 }

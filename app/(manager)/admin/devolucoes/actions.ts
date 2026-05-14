@@ -1,36 +1,34 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { getCurrentUser } from '@/lib/supabase/get-current-user'
+import { assertManager } from '@/lib/supabase/assert-role'
+import { buildSignedUrlMap } from '@/lib/supabase/storage'
 import { revalidatePath } from 'next/cache'
-import type { ReturnStatus, ReturnDecision } from '@/types'
+import type { ReturnStatus, ReturnDecision, IdentifierType } from '@/types'
 
 export interface AdminReturnRow {
-  id:            string
-  rv:            string
-  status:        ReturnStatus
-  decision:      ReturnDecision | null
-  decidedByType: 'client' | 'auto' | null
-  receivedAt:    string
-  decidedAt:     string | null
-  processedAt:   string | null
-  depositorName: string | null
-  operatorName:  string | null
-  identifierType: string
-  accessKey:      string | null
-  postalCode:     string | null
-  illegibleToken: string | null
-  itemCount:      number
-  invoiceXmlUrl:  string | null
+  id:                  string
+  rv:                  string
+  status:              ReturnStatus
+  decision:            ReturnDecision | null
+  decidedByType:       'client' | 'auto' | null
+  receivedAt:          string
+  decidedAt:           string | null
+  processedAt:         string | null
+  depositorName:       string | null
+  operatorName:        string | null
+  identifierType:      IdentifierType
+  accessKey:           string | null
+  postalCode:          string | null
+  illegibleToken:      string | null
+  itemCount:           number
+  invoiceXmlUrl:       string | null
   returnInvoiceXmlUrl: string | null
-  boxPhotoUrls:   string[]
-  itemPhotoUrls:  string[]
+  boxPhotoUrls:        string[]
+  itemPhotoUrls:       string[]
 }
 
-async function assertManager() {
-  const user = await getCurrentUser()
-  if (user.profile.role !== 'manager') throw new Error('Acesso negado')
-}
+type RawPhoto = { photo_type: string; storage_path: string; position: number }
 
 export async function getAdminReturnsAction(filters?: {
   rv?:     string
@@ -65,48 +63,45 @@ export async function getAdminReturnsAction(filters?: {
     const { data, count, error } = await query
     if (error) throw error
 
-    const pathsByReturn = new Map<string, { box: string[]; item: string[] }>()
-    const allPaths: string[] = []
+    const boxPaths:  string[] = []
+    const itemPaths: string[] = []
+    const photosByReturn = new Map<string, { box: RawPhoto[]; item: RawPhoto[] }>()
     for (const r of data ?? []) {
-      const photos = r.return_photos as unknown as { photo_type: string; storage_path: string; position: number }[]
-      const box  = (photos ?? []).filter((p) => p.photo_type === 'box').sort((a,b) => a.position-b.position).map((p) => p.storage_path)
-      const item = (photos ?? []).filter((p) => p.photo_type === 'item').sort((a,b) => a.position-b.position).map((p) => p.storage_path)
-      pathsByReturn.set(r.id, { box, item })
-      allPaths.push(...box, ...item)
+      const photos = (r.return_photos as unknown as RawPhoto[]) ?? []
+      const box  = photos.filter((p) => p.photo_type === 'box').sort((a, b) => a.position - b.position)
+      const item = photos.filter((p) => p.photo_type === 'item').sort((a, b) => a.position - b.position)
+      photosByReturn.set(r.id, { box, item })
+      box.forEach((p)  => boxPaths.push(p.storage_path))
+      item.forEach((p) => itemPaths.push(p.storage_path))
     }
 
-    const signedMap = new Map<string, string>()
-    if (allPaths.length > 0) {
-      const { data: signed } = await supabase.storage
-        .from('return-photos')
-        .createSignedUrls(allPaths, 3600)
-      for (const entry of signed ?? []) {
-        if (entry.path && entry.signedUrl) signedMap.set(entry.path, entry.signedUrl)
-      }
-    }
+    const [boxMap, itemMap] = await Promise.all([
+      buildSignedUrlMap(supabase, 'box-photos',  boxPaths),
+      buildSignedUrlMap(supabase, 'item-photos', itemPaths),
+    ])
 
     const rows: AdminReturnRow[] = (data ?? []).map((r) => {
-      const photos = pathsByReturn.get(r.id) ?? { box: [], item: [] }
+      const photos = photosByReturn.get(r.id) ?? { box: [], item: [] }
       return {
-        id:              r.id,
-        rv:              r.rv,
-        status:          r.status as ReturnStatus,
-        decision:        r.decision as ReturnDecision | null,
-        decidedByType:   r.decided_by_type as 'client' | 'auto' | null,
-        receivedAt:      r.received_at,
-        decidedAt:       r.decided_at,
-        processedAt:     r.processed_at,
-        depositorName:   (r.depositors as unknown as { razao_social: string } | null)?.razao_social ?? null,
-        operatorName:    (r.profiles as unknown as { full_name: string } | null)?.full_name ?? null,
-        identifierType:  r.identifier_type,
-        accessKey:       r.access_key,
-        postalCode:      r.postal_code,
-        illegibleToken:  r.illegible_token,
-        itemCount:       r.item_count,
-        invoiceXmlUrl:   r.invoice_xml_url,
+        id:                  r.id,
+        rv:                  r.rv,
+        status:              r.status as ReturnStatus,
+        decision:            r.decision as ReturnDecision | null,
+        decidedByType:       r.decided_by_type as 'client' | 'auto' | null,
+        receivedAt:          r.received_at,
+        decidedAt:           r.decided_at,
+        processedAt:         r.processed_at,
+        depositorName:       (r.depositors as unknown as { razao_social: string } | null)?.razao_social ?? null,
+        operatorName:        (r.profiles   as unknown as { full_name:   string } | null)?.full_name   ?? null,
+        identifierType:      r.identifier_type as IdentifierType,
+        accessKey:           r.access_key,
+        postalCode:          r.postal_code,
+        illegibleToken:      r.illegible_token,
+        itemCount:           r.item_count,
+        invoiceXmlUrl:       r.invoice_xml_url,
         returnInvoiceXmlUrl: r.return_invoice_xml_url,
-        boxPhotoUrls:    photos.box.map((p) => signedMap.get(p) ?? '').filter(Boolean),
-        itemPhotoUrls:   photos.item.map((p) => signedMap.get(p) ?? '').filter(Boolean),
+        boxPhotoUrls:        photos.box.map((p)  => boxMap.get(p.storage_path)  ?? '').filter(Boolean),
+        itemPhotoUrls:       photos.item.map((p) => itemMap.get(p.storage_path) ?? '').filter(Boolean),
       }
     })
 

@@ -2,18 +2,19 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { getCurrentUser } from '@/lib/supabase/get-current-user'
+import { assertManager } from '@/lib/supabase/assert-role'
 import { revalidatePath } from 'next/cache'
+import type { User } from '@supabase/auth-js'
 import type { UserRole } from '@/types'
 
 export interface UserRow {
-  id:          string
-  email:       string
-  full_name:   string
-  phone:       string | null
-  role:        UserRole
-  active:      boolean
-  createdAt:   string
+  id:           string
+  email:        string
+  full_name:    string
+  phone:        string | null
+  role:         UserRole
+  active:       boolean
+  createdAt:    string
   depositorIds: string[]
 }
 
@@ -22,19 +23,21 @@ export interface DepositorOption {
   razao_social: string
 }
 
-async function assertManager() {
-  const user = await getCurrentUser()
-  if (user.profile.role !== 'manager') throw new Error('Acesso negado')
-}
-
 export async function getUsersAction(): Promise<UserRow[] | { error: string }> {
   try {
     await assertManager()
     const admin    = createAdminClient()
     const supabase = createClient()
 
-    const { data: authUsers, error: authErr } = await admin.auth.admin.listUsers({ perPage: 200 })
-    if (authErr) throw authErr
+    const allAuthUsers: User[] = []
+    let page = 1
+    while (true) {
+      const { data, error } = await admin.auth.admin.listUsers({ perPage: 200, page })
+      if (error) throw error
+      allAuthUsers.push(...data.users)
+      if (!data.nextPage) break
+      page = data.nextPage
+    }
 
     const { data: profiles, error: profErr } = await supabase
       .from('profiles')
@@ -53,7 +56,7 @@ export async function getUsersAction(): Promise<UserRow[] | { error: string }> {
       depMap.get(cd.client_id)!.push(cd.depositor_id)
     }
 
-    const rows: UserRow[] = (authUsers.users ?? [])
+    const rows: UserRow[] = allAuthUsers
       .map((u) => {
         const p = profileMap.get(u.id)
         if (!p) return null
@@ -88,8 +91,7 @@ export async function createUserAction(payload: {
     await assertManager()
     const admin    = createAdminClient()
     const supabase = createClient()
-
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? ''
+    const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? ''
 
     const { data: inviteData, error: inviteErr } = await admin.auth.admin.inviteUserByEmail(
       payload.email,
@@ -98,19 +100,16 @@ export async function createUserAction(payload: {
     if (inviteErr) throw inviteErr
     const userId = inviteData.user.id
 
-    const { error: profErr } = await supabase.from('profiles').insert({
+    const { error: profileErr } = await supabase.from('profiles').insert({
       id:        userId,
       role:      payload.role,
       full_name: payload.full_name,
       phone:     payload.phone || null,
     })
-    if (profErr) throw profErr
+    if (profileErr) throw profileErr
 
     if (payload.role === 'client' && payload.depositorIds.length > 0) {
-      const rows = payload.depositorIds.map((did) => ({
-        client_id:    userId,
-        depositor_id: did,
-      }))
+      const rows = payload.depositorIds.map((did) => ({ client_id: userId, depositor_id: did }))
       const { error: cdErr } = await supabase.from('client_depositors').insert(rows)
       if (cdErr) throw cdErr
     }

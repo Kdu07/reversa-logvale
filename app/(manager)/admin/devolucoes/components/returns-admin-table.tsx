@@ -5,10 +5,13 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { PhotoGallery } from '@/components/shared/photo-gallery'
+import { PhotoThumbs } from '@/components/shared/photo-thumbs'
+import { DECISION_LABELS, DECISION_BADGE } from '@/lib/decisions'
+import { formatDate, identifierLabel } from '@/lib/format'
 import { ptBR } from '@/lib/i18n/pt-BR'
 import { revertReturnStatusAction } from '../actions'
 import type { AdminReturnRow } from '../actions'
-import type { ReturnStatus, ReturnDecision } from '@/types'
+import type { ReturnStatus } from '@/types'
 
 const t = ptBR.admin.returns
 
@@ -24,20 +27,6 @@ const STATUS_BADGE: Record<ReturnStatus, string> = {
   processed:         'bg-green-100 text-green-800 border-green-300',
 }
 
-const DECISION_LABELS: Record<ReturnDecision, string> = {
-  return_to_stock:    ptBR.decisions.return_to_stock,
-  store_for_handling: ptBR.decisions.store_for_handling,
-  discard:            ptBR.decisions.discard,
-  repackage:          ptBR.decisions.repackage,
-}
-
-const DECISION_BADGE: Record<ReturnDecision, string> = {
-  return_to_stock:    'bg-green-100 text-green-800 border-green-300',
-  store_for_handling: 'bg-amber-100 text-amber-800 border-amber-300',
-  discard:            'bg-red-100   text-red-800   border-red-300',
-  repackage:          'bg-blue-100  text-blue-800  border-blue-300',
-}
-
 interface Props {
   rows:          AdminReturnRow[]
   total:         number
@@ -46,28 +35,15 @@ interface Props {
   currentPage:   number
 }
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleString('pt-BR', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  })
-}
-
-function identifierLabel(row: AdminReturnRow) {
-  if (row.identifierType === 'access_key')  return `Chave: ${row.accessKey}`
-  if (row.identifierType === 'postal_code') return `CEP: ${row.postalCode}`
-  return `Ilegível: ${row.illegibleToken}`
-}
-
 export function ReturnsAdminTable({
   rows, total, currentRv, currentStatus, currentPage,
 }: Props) {
-  const router                            = useRouter()
-  const [detailsRow, setDetailsRow]       = useState<AdminReturnRow | null>(null)
-  const [revertTarget, setRevertTarget]   = useState<AdminReturnRow | null>(null)
-  const [revertError, setRevertError]     = useState<string | null>(null)
-  const [gallery, setGallery]             = useState<{ urls: string[]; index: number } | null>(null)
-  const [isPending, startTransition]      = useTransition()
+  const router                        = useRouter()
+  const [detailsRow, setDetailsRow]   = useState<AdminReturnRow | null>(null)
+  const [revertTarget, setRevertTarget] = useState<AdminReturnRow | null>(null)
+  const [revertError, setRevertError] = useState<string | null>(null)
+  const [gallery, setGallery]         = useState<{ urls: string[]; index: number } | null>(null)
+  const [isPending, startTransition]  = useTransition()
 
   const totalPages = Math.max(1, Math.ceil(total / 50))
 
@@ -191,9 +167,7 @@ export function ReturnsAdminTable({
           >
             ← Anterior
           </button>
-          <span className="text-muted-foreground">
-            Página {currentPage} de {totalPages}
-          </span>
+          <span className="text-muted-foreground">Página {currentPage} de {totalPages}</span>
           <button
             type="button"
             disabled={currentPage >= totalPages}
@@ -241,8 +215,8 @@ export function ReturnsAdminTable({
                 <InfoField label="Depositante"  value={detailsRow.depositorName ?? '—'} />
                 <InfoField label="Operador"     value={detailsRow.operatorName ?? '—'} />
                 <InfoField label="Recebido em"  value={formatDate(detailsRow.receivedAt)} />
-                {detailsRow.decidedAt && <InfoField label="Decisão em" value={formatDate(detailsRow.decidedAt)} />}
-                {detailsRow.processedAt && <InfoField label="Processado em" value={formatDate(detailsRow.processedAt)} />}
+                {detailsRow.decidedAt   && <InfoField label="Decisão em"     value={formatDate(detailsRow.decidedAt)} />}
+                {detailsRow.processedAt && <InfoField label="Processado em"  value={formatDate(detailsRow.processedAt)} />}
                 <InfoField label="Itens"        value={String(detailsRow.itemCount)} />
                 <div className="col-span-2">
                   <p className="text-xs text-muted-foreground">Identificador</p>
@@ -271,14 +245,20 @@ export function ReturnsAdminTable({
               {detailsRow.boxPhotoUrls.length > 0 && (
                 <div>
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Fotos da Caixa</p>
-                  <PhotoThumbs urls={detailsRow.boxPhotoUrls} onOpen={(i) => setGallery({ urls: detailsRow.boxPhotoUrls, index: i })} />
+                  <PhotoThumbs
+                    urls={detailsRow.boxPhotoUrls}
+                    onOpen={(i) => setGallery({ urls: detailsRow.boxPhotoUrls, index: i })}
+                  />
                 </div>
               )}
 
               {detailsRow.itemPhotoUrls.length > 0 && (
                 <div>
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Fotos dos Itens</p>
-                  <PhotoThumbs urls={detailsRow.itemPhotoUrls} onOpen={(i) => setGallery({ urls: detailsRow.itemPhotoUrls, index: i })} />
+                  <PhotoThumbs
+                    urls={detailsRow.itemPhotoUrls}
+                    onOpen={(i) => setGallery({ urls: detailsRow.itemPhotoUrls, index: i })}
+                  />
                 </div>
               )}
             </div>
@@ -315,20 +295,14 @@ export function ReturnsAdminTable({
             )}
             <div className="flex gap-3">
               <Button
-                type="button"
-                variant="ghost"
-                className="flex-1"
-                onClick={() => setRevertTarget(null)}
-                disabled={isPending}
+                type="button" variant="ghost" className="flex-1"
+                onClick={() => setRevertTarget(null)} disabled={isPending}
               >
                 {ptBR.common.cancel}
               </Button>
               <Button
-                type="button"
-                variant="destructive"
-                onClick={handleRevert}
-                disabled={isPending}
-                className="flex-1"
+                type="button" variant="destructive"
+                onClick={handleRevert} disabled={isPending} className="flex-1"
               >
                 {isPending ? 'Revertendo...' : 'Confirmar'}
               </Button>
@@ -354,24 +328,6 @@ function InfoField({ label, value }: { label: string; value: string }) {
     <div>
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className="font-medium text-foreground">{value}</p>
-    </div>
-  )
-}
-
-function PhotoThumbs({ urls, onOpen }: { urls: string[]; onOpen: (i: number) => void }) {
-  return (
-    <div className="flex gap-1 flex-wrap">
-      {urls.map((url, i) => (
-        <button
-          key={i}
-          type="button"
-          onClick={() => onOpen(i)}
-          className="w-14 h-14 rounded overflow-hidden border hover:ring-2 hover:ring-primary focus:outline-none"
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={url} alt={`foto ${i + 1}`} className="w-full h-full object-cover" />
-        </button>
-      ))}
     </div>
   )
 }

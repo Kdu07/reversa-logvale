@@ -10,10 +10,11 @@ import { StepPhotos } from './steps/step-photos'
 import { StepReview } from './steps/step-review'
 import { StepSubmit } from './steps/step-submit'
 import type { InvoiceData } from './actions'
+import type { IdentifierType } from '@/types'
 
 export interface ReceivingState {
   step:           number
-  identifierType: 'access_key' | 'postal_code' | 'illegible' | null
+  identifierType: IdentifierType | null
   accessKey:      string | null
   postalCode:     string | null
   illegibleToken: string | null
@@ -26,7 +27,7 @@ export interface ReceivingState {
 
 type ReceivingAction =
   | { type: 'SET_STEP'; step: number }
-  | { type: 'SET_IDENTIFIER'; identifierType: 'access_key' | 'postal_code' | 'illegible'; accessKey?: string; postalCode?: string; illegibleToken?: string }
+  | { type: 'SET_IDENTIFIER'; identifierType: IdentifierType; accessKey?: string; postalCode?: string; illegibleToken?: string }
   | { type: 'SET_INVOICE_DATA'; data: InvoiceData | null }
   | { type: 'SET_RV'; rv: string }
   | { type: 'SET_ITEM_COUNT'; count: number }
@@ -83,7 +84,6 @@ function reducer(state: ReceivingState, action: ReceivingAction): ReceivingState
 }
 
 interface ReceivingFlowProps {
-  receivedBy:   string
   operatorName: string
 }
 

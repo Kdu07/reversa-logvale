@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/supabase/get-current-user'
 import { lookupInvoice } from '@/lib/integrations/webmania'
 import type { InvoiceData } from '@/lib/integrations/webmania'
+import type { IdentifierType } from '@/types'
 
 export type { InvoiceData }
 
@@ -20,7 +21,7 @@ export async function lookupInvoiceAction(
 }
 
 interface CreateReturnPayload {
-  identifierType:  'access_key' | 'postal_code' | 'illegible'
+  identifierType:  IdentifierType
   accessKey:       string | null
   postalCode:      string | null
   illegibleToken:  string | null

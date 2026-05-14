@@ -3,11 +3,12 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/supabase/get-current-user'
-import type { ReturnDecision } from '@/types'
+import { buildSignedUrlMap } from '@/lib/supabase/storage'
+import type { ReturnDecision, DecisionSource, IdentifierType } from '@/types'
 
 export interface ReturnRow {
   id:             string
-  identifierType: 'access_key' | 'postal_code' | 'illegible'
+  identifierType: IdentifierType
   accessKey:      string | null
   postalCode:     string | null
   illegibleToken: string | null
@@ -17,9 +18,9 @@ export interface ReturnRow {
   depositorId:    string | null
   depositorName:  string | null
   invoiceXmlUrl:  string | null
-  decision:       string | null
+  decision:       ReturnDecision | null
   decidedAt:      string | null
-  decidedByType:  string | null
+  decidedByType:  DecisionSource | null
   boxPhotoUrls:   string[]
   itemPhotoUrls:  string[]
 }
@@ -44,18 +45,24 @@ type ReturnsResult = {
 
 const PAGE_SIZE = 50
 
-async function buildSignedUrlMap(
-  supabase: ReturnType<typeof createClient>,
-  bucket:   string,
-  paths:    string[],
-): Promise<Map<string, string>> {
-  if (paths.length === 0) return new Map()
-  const { data } = await supabase.storage.from(bucket).createSignedUrls(paths, 3600)
-  const map = new Map<string, string>()
-  data?.forEach((entry) => {
-    if (entry.path && entry.signedUrl) map.set(entry.path, entry.signedUrl)
-  })
-  return map
+type RawPhoto = { storage_path: string; photo_type: string; position: number }
+
+function resolvePhotos(
+  photos: RawPhoto[],
+  boxMap: Map<string, string>,
+  itemMap: Map<string, string>,
+): { boxUrls: string[]; itemUrls: string[] } {
+  const boxUrls = photos
+    .filter((p) => p.photo_type === 'box')
+    .sort((a, b) => a.position - b.position)
+    .map((p) => boxMap.get(p.storage_path) ?? '')
+    .filter(Boolean)
+  const itemUrls = photos
+    .filter((p) => p.photo_type === 'item')
+    .sort((a, b) => a.position - b.position)
+    .map((p) => itemMap.get(p.storage_path) ?? '')
+    .filter(Boolean)
+  return { boxUrls, itemUrls }
 }
 
 export async function getClientReturnsAction(
@@ -86,13 +93,18 @@ export async function getClientReturnsAction(
     if (filters.from)        query = query.gte('received_at', filters.from)
     if (filters.to)          query = query.lte('received_at', filters.to)
 
-    const { data: returns, count, error } = await query
-    if (error) return { error: error.message }
+    const [
+      { data: returns, count, error },
+      { data: cdRows },
+    ] = await Promise.all([
+      query,
+      supabase
+        .from('client_depositors')
+        .select('depositor_id, depositors!depositor_id(razao_social)')
+        .eq('client_id', user.id),
+    ])
 
-    const { data: cdRows } = await supabase
-      .from('client_depositors')
-      .select('depositor_id, depositors!depositor_id(razao_social)')
-      .eq('client_id', user.id)
+    if (error) return { error: error.message }
 
     const depositors: DepositorOption[] = (cdRows ?? []).map((r) => ({
       id:   r.depositor_id,
@@ -100,11 +112,10 @@ export async function getClientReturnsAction(
     }))
 
     const allReturns = returns ?? []
-
     const boxPaths:  string[] = []
     const itemPaths: string[] = []
     for (const r of allReturns) {
-      const photos = (r.return_photos as { storage_path: string; photo_type: string; position: number }[]) ?? []
+      const photos = (r.return_photos as RawPhoto[]) ?? []
       for (const p of photos) {
         if (p.photo_type === 'box')  boxPaths.push(p.storage_path)
         if (p.photo_type === 'item') itemPaths.push(p.storage_path)
@@ -117,21 +128,12 @@ export async function getClientReturnsAction(
     ])
 
     const rows: ReturnRow[] = allReturns.map((r) => {
-      const photos = (r.return_photos as { storage_path: string; photo_type: string; position: number }[]) ?? []
-      const boxUrls = photos
-        .filter((p) => p.photo_type === 'box')
-        .sort((a, b) => a.position - b.position)
-        .map((p) => boxMap.get(p.storage_path) ?? '')
-        .filter(Boolean)
-      const itemUrls = photos
-        .filter((p) => p.photo_type === 'item')
-        .sort((a, b) => a.position - b.position)
-        .map((p) => itemMap.get(p.storage_path) ?? '')
-        .filter(Boolean)
+      const photos = (r.return_photos as RawPhoto[]) ?? []
+      const { boxUrls, itemUrls } = resolvePhotos(photos, boxMap, itemMap)
       const dep = r.depositors as unknown as { razao_social: string } | null
       return {
         id:             r.id,
-        identifierType: r.identifier_type,
+        identifierType: r.identifier_type as IdentifierType,
         accessKey:      r.access_key,
         postalCode:     r.postal_code,
         illegibleToken: r.illegible_token,
@@ -184,13 +186,18 @@ export async function getClientHistoryAction(
     if (filters.from)        query = query.gte('decided_at', filters.from)
     if (filters.to)          query = query.lte('decided_at', filters.to)
 
-    const { data: returns, count, error } = await query
-    if (error) return { error: error.message }
+    const [
+      { data: returns, count, error },
+      { data: cdRows },
+    ] = await Promise.all([
+      query,
+      supabase
+        .from('client_depositors')
+        .select('depositor_id, depositors!depositor_id(razao_social)')
+        .eq('client_id', user.id),
+    ])
 
-    const { data: cdRows } = await supabase
-      .from('client_depositors')
-      .select('depositor_id, depositors!depositor_id(razao_social)')
-      .eq('client_id', user.id)
+    if (error) return { error: error.message }
 
     const depositors: DepositorOption[] = (cdRows ?? []).map((r) => ({
       id:   r.depositor_id,
@@ -201,7 +208,7 @@ export async function getClientHistoryAction(
     const boxPaths:  string[] = []
     const itemPaths: string[] = []
     for (const r of allReturns) {
-      const photos = (r.return_photos as { storage_path: string; photo_type: string; position: number }[]) ?? []
+      const photos = (r.return_photos as RawPhoto[]) ?? []
       for (const p of photos) {
         if (p.photo_type === 'box')  boxPaths.push(p.storage_path)
         if (p.photo_type === 'item') itemPaths.push(p.storage_path)
@@ -214,21 +221,12 @@ export async function getClientHistoryAction(
     ])
 
     const rows: ReturnRow[] = allReturns.map((r) => {
-      const photos = (r.return_photos as { storage_path: string; photo_type: string; position: number }[]) ?? []
-      const boxUrls = photos
-        .filter((p) => p.photo_type === 'box')
-        .sort((a, b) => a.position - b.position)
-        .map((p) => boxMap.get(p.storage_path) ?? '')
-        .filter(Boolean)
-      const itemUrls = photos
-        .filter((p) => p.photo_type === 'item')
-        .sort((a, b) => a.position - b.position)
-        .map((p) => itemMap.get(p.storage_path) ?? '')
-        .filter(Boolean)
+      const photos = (r.return_photos as RawPhoto[]) ?? []
+      const { boxUrls, itemUrls } = resolvePhotos(photos, boxMap, itemMap)
       const dep = r.depositors as unknown as { razao_social: string } | null
       return {
         id:             r.id,
-        identifierType: r.identifier_type,
+        identifierType: r.identifier_type as IdentifierType,
         accessKey:      r.access_key,
         postalCode:     r.postal_code,
         illegibleToken: r.illegible_token,
@@ -238,9 +236,9 @@ export async function getClientHistoryAction(
         depositorId:    r.depositor_id,
         depositorName:  dep?.razao_social ?? null,
         invoiceXmlUrl:  r.invoice_xml_url,
-        decision:       r.decision,
+        decision:       r.decision as ReturnDecision | null,
         decidedAt:      r.decided_at,
-        decidedByType:  r.decided_by_type,
+        decidedByType:  r.decided_by_type as DecisionSource | null,
         boxPhotoUrls:   boxUrls,
         itemPhotoUrls:  itemUrls,
       }

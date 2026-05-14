@@ -10,8 +10,7 @@ import type { DepositorRow } from '../actions'
 const t = ptBR.admin.depositors
 
 interface Props {
-  rows:  DepositorRow[]
-  total: number
+  rows: DepositorRow[]
 }
 
 interface FormState {
