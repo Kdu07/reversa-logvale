@@ -1,7 +1,12 @@
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
 import { getDashboardStatsAction } from './actions'
-import { StatsCharts } from './components/stats-charts'
 import { ptBR } from '@/lib/i18n/pt-BR'
+
+const StatsCharts = dynamic(
+  () => import('./components/stats-charts').then((m) => m.StatsCharts),
+  { ssr: false, loading: () => <div className="h-64 animate-pulse bg-muted rounded-lg" /> }
+)
 
 function formatHours(h: number | null) {
   if (h === null) return '—'

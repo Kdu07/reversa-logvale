@@ -17,6 +17,18 @@ export interface DashboardStats {
   urgentPending:    { id: string; rv: string; receivedAt: string; depositorName: string | null }[]
 }
 
+type StatsRpc = {
+  counts: {
+    today: number; last7d: number; last30d: number
+    cnt_awaiting: number; cnt_decided: number; cnt_processed: number
+    cnt_rts: number; cnt_sfh: number; cnt_disc: number; cnt_repk: number
+    avg_decision_hours: number | null; avg_process_hours: number | null
+    decided_total: number; decided_auto: number
+  }
+  topClients:    { name: string; count: number }[]
+  urgentPending: { id: string; rv: string; receivedAt: string; depositorName: string | null }[]
+}
+
 export async function getDashboardStatsAction(): Promise<DashboardStats | { error: string }> {
   try {
     const user = await getCurrentUser()
@@ -29,101 +41,33 @@ export async function getDashboardStatsAction(): Promise<DashboardStats | { erro
     const d30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString()
     const d48 = new Date(now.getTime() - 48 * 60 * 60 * 1000).toISOString()
 
-    const [
-      { count: today },
-      { count: last7d },
-      { count: last30d },
-      { count: awaiting },
-      { count: decided },
-      { count: processed },
-      { count: rts },
-      { count: sfh },
-      { count: disc },
-      { count: repk },
-      { data: decisionTimingRows },
-      { data: processTimingRows },
-      { data: decidedRows },
-      { data: urgentRows },
-    ] = await Promise.all([
-      supabase.from('returns').select('*', { count: 'exact', head: true }).gte('received_at', d1),
-      supabase.from('returns').select('*', { count: 'exact', head: true }).gte('received_at', d7),
-      supabase.from('returns').select('*', { count: 'exact', head: true }).gte('received_at', d30),
-      supabase.from('returns').select('*', { count: 'exact', head: true }).eq('status', 'awaiting_decision'),
-      supabase.from('returns').select('*', { count: 'exact', head: true }).eq('status', 'decided'),
-      supabase.from('returns').select('*', { count: 'exact', head: true }).eq('status', 'processed'),
-      supabase.from('returns').select('*', { count: 'exact', head: true }).eq('decision', 'return_to_stock'),
-      supabase.from('returns').select('*', { count: 'exact', head: true }).eq('decision', 'store_for_handling'),
-      supabase.from('returns').select('*', { count: 'exact', head: true }).eq('decision', 'discard'),
-      supabase.from('returns').select('*', { count: 'exact', head: true }).eq('decision', 'repackage'),
-      // Decision timing: rows with decided_at (for avgDecisionHours)
-      supabase.from('returns').select('received_at, decided_at').not('decided_at', 'is', null).limit(500),
-      // Process timing: only rows with both timestamps (for avgProcessHours)
-      supabase.from('returns').select('decided_at, processed_at').not('decided_at', 'is', null).not('processed_at', 'is', null).limit(500),
-      // Single query for both autoRate and topClients
-      supabase.from('returns').select('decided_by_type, profiles!decided_by(full_name)').not('decided_at', 'is', null).limit(1000),
-      supabase.from('returns').select('id, rv, received_at, depositors!depositor_id(razao_social)').eq('status', 'awaiting_decision').lt('received_at', d48).order('received_at').limit(20),
-    ])
+    const { data, error } = await supabase.rpc('get_dashboard_stats', {
+      p_d1: d1, p_d7: d7, p_d30: d30, p_d48: d48,
+    })
 
-    const byStatus: DashboardStats['byStatus'] = [
-      { status: 'awaiting_decision', count: awaiting  ?? 0 },
-      { status: 'decided',           count: decided   ?? 0 },
-      { status: 'processed',         count: processed ?? 0 },
-    ]
+    if (error) return { error: error.message }
 
-    const byDecision: DashboardStats['byDecision'] = [
-      { decision: 'return_to_stock',    count: rts  ?? 0 },
-      { decision: 'store_for_handling', count: sfh  ?? 0 },
-      { decision: 'discard',            count: disc ?? 0 },
-      { decision: 'repackage',          count: repk ?? 0 },
-    ]
+    const { counts, topClients, urgentPending } = data as StatsRpc
 
-    let avgDecisionHours: number | null = null
-    if (decisionTimingRows && decisionTimingRows.length > 0) {
-      const ms = decisionTimingRows.map(
-        (r) => new Date(r.decided_at as string).getTime() - new Date(r.received_at).getTime()
-      )
-      avgDecisionHours = Math.round(ms.reduce((a, b) => a + b, 0) / ms.length / 3600000 * 10) / 10
-    }
-
-    let avgProcessHours: number | null = null
-    if (processTimingRows && processTimingRows.length > 0) {
-      const ms = processTimingRows.map(
-        (r) => new Date(r.processed_at as string).getTime() - new Date(r.decided_at as string).getTime()
-      )
-      avgProcessHours = Math.round(ms.reduce((a, b) => a + b, 0) / ms.length / 3600000 * 10) / 10
-    }
-
-    let autoRate: number | null = null
-    const clientCounts = new Map<string, number>()
-    if (decidedRows && decidedRows.length > 0) {
-      const autoCount = decidedRows.filter((r) => r.decided_by_type === 'auto').length
-      autoRate = Math.round(autoCount / decidedRows.length * 1000) / 10
-
-      for (const r of decidedRows) {
-        if (r.decided_by_type !== 'client') continue
-        const name = (r.profiles as unknown as { full_name: string } | null)?.full_name ?? 'Desconhecido'
-        clientCounts.set(name, (clientCounts.get(name) ?? 0) + 1)
-      }
-    }
-
-    const topClients = Array.from(clientCounts.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10)
-      .map(([name, count]) => ({ name, count }))
-
-    const urgentPending = (urgentRows ?? []).map((r) => ({
-      id:            r.id,
-      rv:            r.rv,
-      receivedAt:    r.received_at,
-      depositorName: (r.depositors as unknown as { razao_social: string } | null)?.razao_social ?? null,
-    }))
+    const autoRate = counts.decided_total > 0
+      ? Math.round(counts.decided_auto / counts.decided_total * 1000) / 10
+      : null
 
     return {
-      totals: { today: today ?? 0, last7d: last7d ?? 0, last30d: last30d ?? 0 },
-      byStatus,
-      byDecision,
-      avgDecisionHours,
-      avgProcessHours,
+      totals: { today: counts.today, last7d: counts.last7d, last30d: counts.last30d },
+      byStatus: [
+        { status: 'awaiting_decision', count: counts.cnt_awaiting  },
+        { status: 'decided',           count: counts.cnt_decided   },
+        { status: 'processed',         count: counts.cnt_processed },
+      ],
+      byDecision: [
+        { decision: 'return_to_stock',    count: counts.cnt_rts  },
+        { decision: 'store_for_handling', count: counts.cnt_sfh  },
+        { decision: 'discard',            count: counts.cnt_disc },
+        { decision: 'repackage',          count: counts.cnt_repk },
+      ],
+      avgDecisionHours: counts.avg_decision_hours,
+      avgProcessHours:  counts.avg_process_hours,
       autoRate,
       topClients,
       urgentPending,
