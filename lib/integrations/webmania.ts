@@ -39,7 +39,21 @@ async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
 }
 
 async function fetchWebmania(accessKey: string): Promise<WebmaniaRaw> {
-  if (!env.webmaniaToken) throw new Error('WEBMANIA_API_TOKEN não configurado')
+  if (!env.webmaniaToken) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('Consulta de NF indisponível neste momento')
+    }
+    // Dev mock — permite testar o fluxo sem credenciais Webmania
+    return {
+      status: 'aprovado',
+      nfe: {
+        chNFe: accessKey,
+        emit:  { CNPJ: '12345678000195' },
+        ide:   { nNF: `DEV-${accessKey.slice(-6)}`, dhEmi: new Date().toISOString() },
+      },
+      xml: `<?xml version="1.0" encoding="UTF-8"?><nfeProc><chNFe>${accessKey}</chNFe></nfeProc>`,
+    }
+  }
 
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 10_000)
@@ -49,8 +63,8 @@ async function fetchWebmania(accessKey: string): Promise<WebmaniaRaw> {
       {
         method:  'GET',
         headers: {
-          Authorization:       `Bearer ${env.webmaniaToken}:${env.webmaniaSecret ?? ''}`,
-          'Content-Type':      'application/json',
+          Authorization:  `Bearer ${env.webmaniaToken}:${env.webmaniaSecret ?? ''}`,
+          'Content-Type': 'application/json',
         },
         signal: controller.signal,
       }
