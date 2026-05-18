@@ -34,7 +34,7 @@ export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request: { headers: request.headers } })
 
   // Renova cookies de sessão e obtém o usuário
-  const { user, response: updatedResponse } = await updateSession(request, response)
+  const { supabase, user, response: updatedResponse } = await updateSession(request, response)
   response = updatedResponse
 
   // 1. Não autenticado → /login (exceto rotas públicas)
@@ -46,22 +46,37 @@ export async function middleware(request: NextRequest) {
 
   // 2. Autenticado: ler claims do JWT (injetados via Auth Hook — sem DB hit)
   if (user) {
-    const meta             = user.app_metadata ?? {}
-    const role             = meta.role as UserRole | undefined
-    const active           = meta.active as boolean | undefined
-    const termsAcceptedAt  = meta.terms_accepted_at as string | null | undefined
+    const meta = user.app_metadata ?? {}
+    let role            = meta.role as UserRole | undefined
+    let active          = meta.active as boolean | undefined
+    let termsAcceptedAt = meta.terms_accepted_at as string | null | undefined
 
-    // Claims ausentes = usuário criado antes do hook ser ativado → forçar re-login
+    // Fallback: hook ausente ou claims ainda não injetados → consulta profiles
+    if (!role) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role, active, terms_accepted_at')
+        .eq('id', user.id)
+        .single()
+
+      if (profile) {
+        role            = profile.role as UserRole
+        active          = profile.active as boolean
+        termsAcceptedAt = profile.terms_accepted_at as string | null
+      }
+    }
+
+    // Sem profile cadastrado → deslogar
     if (!role) {
       const url = request.nextUrl.clone()
-      url.pathname = '/login'
+      url.pathname = '/api/auth/signout'
       return NextResponse.redirect(url)
     }
 
-    // Usuário inativo → /login
+    // Usuário inativo → sign out + /login
     if (active === false) {
       const url = request.nextUrl.clone()
-      url.pathname = '/login'
+      url.pathname = '/api/auth/signout'
       return NextResponse.redirect(url)
     }
 
