@@ -17,6 +17,7 @@ import type { UserRole } from '@/types'
 
 const t = ptBR.admin.users
 const ROLES: UserRole[] = ['operator', 'client', 'manager']
+const PAGE_SIZE = 50
 const ROLE_LABELS: Record<UserRole, string> = {
   operator: ptBR.roles.operator,
   client:   ptBR.roles.client,
@@ -42,6 +43,7 @@ const EMPTY_FORM: FormState = {
 
 export function UsersTable({ users, depositors }: Props) {
   const [roleFilter, setRoleFilter]   = useState<UserRole | 'all'>('all')
+  const [currentPage, setCurrentPage] = useState(0)
   const [modalMode, setModalMode]     = useState<'create' | 'edit' | null>(null)
   const [editingUser, setEditingUser] = useState<UserRow | null>(null)
   const [form, setForm]               = useState<FormState>(EMPTY_FORM)
@@ -49,7 +51,14 @@ export function UsersTable({ users, depositors }: Props) {
   const [linkModal, setLinkModal]     = useState<{ email: string; link: string } | null>(null)
   const [isPending, startTransition]  = useTransition()
 
-  const filtered = roleFilter === 'all' ? users : users.filter((u) => u.role === roleFilter)
+  const filtered   = roleFilter === 'all' ? users : users.filter((u) => u.role === roleFilter)
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
+  const paginated  = filtered.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE)
+
+  function changeFilter(f: UserRole | 'all') {
+    setRoleFilter(f)
+    setCurrentPage(0)
+  }
 
   function openCreate() {
     setForm(EMPTY_FORM)
@@ -158,7 +167,7 @@ export function UsersTable({ users, depositors }: Props) {
           <button
             key={r}
             type="button"
-            onClick={() => setRoleFilter(r)}
+            onClick={() => changeFilter(r)}
             className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
               roleFilter === r
                 ? 'bg-primary text-primary-foreground border-primary'
@@ -183,14 +192,14 @@ export function UsersTable({ users, depositors }: Props) {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {filtered.length === 0 && (
+            {paginated.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
                   {ptBR.common.noResults}
                 </td>
               </tr>
             )}
-            {filtered.map((u) => (
+            {paginated.map((u) => (
               <tr key={u.id} className="hover:bg-muted/20 transition-colors">
                 <td className="px-4 py-3 font-medium text-foreground">{u.full_name}</td>
                 <td className="px-4 py-3 text-muted-foreground">{u.email}</td>
@@ -254,6 +263,31 @@ export function UsersTable({ users, depositors }: Props) {
           </tbody>
         </table>
       </div>
+
+      {/* Paginação */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-3 text-sm text-muted-foreground">
+          <span>{filtered.length} usuários · página {currentPage + 1} de {totalPages}</span>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => p - 1)}
+              disabled={currentPage === 0}
+              className="px-3 py-1 rounded border border-border hover:border-primary disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              ‹ Anterior
+            </button>
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => p + 1)}
+              disabled={currentPage >= totalPages - 1}
+              className="px-3 py-1 rounded border border-border hover:border-primary disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Próxima ›
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Create/Edit modal */}
       {modalMode && (
