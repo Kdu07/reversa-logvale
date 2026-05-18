@@ -24,48 +24,16 @@ Este guia cobre tudo que você precisa configurar antes de rodar o projeto.
 ### 1.2 Aplicar Schema
 
 1. Abra SQL Editor no painel do Supabase
-2. Cole o conteúdo de `02_Schema_Supabase.sql`
+2. Cole o conteúdo de `docs/SCHEMA.sql`
 3. Execute. Verifique que todas as tabelas foram criadas em Database → Tables.
 
-### 1.3 Criar Buckets de Storage
+### 1.3 Criar Buckets e Storage Policies
 
-Em Storage → Create new bucket, crie 3 buckets PRIVADOS:
+No SQL Editor do Supabase, cole e execute o conteúdo de `supabase/migrations/001_storage.sql`.
 
-- `box-photos`
-- `item-photos`
-- `invoice-xmls`
+Este arquivo cria os 3 buckets privados (`box-photos`, `item-photos`, `invoice-xmls`) e todas as policies usando as funções auxiliares `is_operator()`, `is_manager()` e `is_client()` (que consultam a tabela `profiles` diretamente — sem depender de JWT claims customizados).
 
-Para cada bucket, vá em Configuration e desabilite "Public bucket".
-
-### 1.4 Storage Policies
-
-No SQL Editor, execute para CADA bucket:
-
-```sql
--- Operadores e managers fazem upload e leitura
-create policy "operators upload to box-photos"
-  on storage.objects for insert
-  with check (
-    bucket_id = 'box-photos'
-    and (auth.jwt() ->> 'role')::text in ('operator', 'manager')
-  );
-
-create policy "authenticated read box-photos"
-  on storage.objects for select
-  using (bucket_id = 'box-photos' and auth.uid() is not null);
-
--- Repita para item-photos e invoice-xmls
--- Para invoice-xmls, clientes também precisam INSERT (NF de devolução)
-create policy "clients upload return invoices"
-  on storage.objects for insert
-  with check (
-    bucket_id = 'invoice-xmls'
-    and auth.uid() is not null
-  );
-```
-
-Ajuste conforme necessidade. Em produção, considere policies mais granulares
-(verificar se o cliente é dono do return antes de permitir upload).
+> **Importante:** Não use `auth.jwt() ->> 'role'` em policies de storage — o JWT padrão do Supabase não carrega claims customizados e a verificação sempre retornará NULL.
 
 ### 1.5 Criar Primeiro Manager
 
@@ -180,9 +148,9 @@ supabase login
 supabase link --project-ref <project-ref>
 
 # Deploy functions
-supabase functions deploy auto-decision
 supabase functions deploy warning-email
 supabase functions deploy photo-cleanup
+# Nota: auto-decision é um job pg_cron (SQL), não uma Edge Function
 ```
 
 Configure secrets das functions:
@@ -236,18 +204,18 @@ Recomendados:
 
 ## 10. Custos Estimados (mensais, em produção)
 
-Com volume de ~2000 devoluções/dia:
+Com volume de ~2.000 devoluções/mês:
 
 | Serviço | Plano | Custo |
 |---|---|---|
-| Supabase | Team | $599 |
-| Vercel | Pro | $20 |
-| Webmania | Por uso (~60k consultas/mês com cache 50%) | ~R$ 1500 |
-| Resend | Pro | $20 |
+| Supabase | Pro | $25 |
+| Vercel | Hobby (Free) | $0 |
+| Webmania | ~2.000 consultas/mês (com cache ~50%) | ~R$ 150 |
+| Resend | Free (3.000 e-mails/mês) | $0 |
 | Domínio | .com.br anual | ~R$ 40 |
-| **Total** | | **~R$ 4500/mês** |
+| **Total** | | **~R$ 300/mês** |
 
-Em volumes menores, Supabase Pro ($25) e Vercel Free são suficientes.
+Se o volume crescer para mais de 10.000 devoluções/mês, considere Supabase Team e Vercel Pro.
 
 ## 11. Próximos Passos Pós-Lançamento
 
