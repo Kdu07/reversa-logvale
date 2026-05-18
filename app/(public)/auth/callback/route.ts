@@ -24,6 +24,6 @@ export async function GET(request: NextRequest) {
 
   if (!profile) return NextResponse.redirect(`${origin}/`)
 
-  if (!profile.terms_accepted_at) return NextResponse.redirect(`${origin}/aceite-termos`)
+  if (!profile.terms_accepted_at) return NextResponse.redirect(`${origin}/primeiro-acesso`)
   return NextResponse.redirect(`${origin}${ROLE_HOME[profile.role as UserRole]}`)
 }

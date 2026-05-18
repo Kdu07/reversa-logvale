@@ -1,11 +1,10 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
 import { updateSession } from '@/lib/supabase/middleware'
 import type { UserRole } from '@/types'
 import { ROLE_HOME } from '@/types'
 
 const PUBLIC_ROUTES = ['/login', '/auth/callback', '/privacidade', '/termos']
-const TERMS_EXEMPT  = ['/aceite-termos', ...PUBLIC_ROUTES]
+const TERMS_EXEMPT  = ['/primeiro-acesso', '/aceite-termos', ...PUBLIC_ROUTES]
 
 function isPublicRoute(pathname: string) {
   return PUBLIC_ROUTES.some((r) => pathname.startsWith(r))
@@ -45,34 +44,32 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // 2. Autenticado: verificar profile para decisões de redirect
+  // 2. Autenticado: ler claims do JWT (injetados via Auth Hook — sem DB hit)
   if (user) {
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { cookies: { getAll: () => request.cookies.getAll(), setAll: () => {} } }
-    )
+    const meta             = user.app_metadata ?? {}
+    const role             = meta.role as UserRole | undefined
+    const active           = meta.active as boolean | undefined
+    const termsAcceptedAt  = meta.terms_accepted_at as string | null | undefined
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role, terms_accepted_at, active')
-      .eq('id', user.id)
-      .single()
-
-    // Usuário inativo → /login
-    if (!profile || !profile.active) {
+    // Claims ausentes = usuário criado antes do hook ser ativado → forçar re-login
+    if (!role) {
       const url = request.nextUrl.clone()
       url.pathname = '/login'
       return NextResponse.redirect(url)
     }
 
-    const role = profile.role as UserRole
+    // Usuário inativo → /login
+    if (active === false) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/login'
+      return NextResponse.redirect(url)
+    }
 
     // Autenticado em /login → home da role (ou aceite-termos)
     if (pathname === '/login') {
-      if (!profile.terms_accepted_at) {
+      if (!termsAcceptedAt) {
         const url = request.nextUrl.clone()
-        url.pathname = '/aceite-termos'
+        url.pathname = '/primeiro-acesso'
         return NextResponse.redirect(url)
       }
       const url = request.nextUrl.clone()
@@ -81,7 +78,7 @@ export async function middleware(request: NextRequest) {
     }
 
     // Termos não aceitos → /aceite-termos
-    if (!profile.terms_accepted_at && !isTermsExempt(pathname)) {
+    if (!termsAcceptedAt && !isTermsExempt(pathname)) {
       const url = request.nextUrl.clone()
       url.pathname = '/aceite-termos'
       return NextResponse.redirect(url)
