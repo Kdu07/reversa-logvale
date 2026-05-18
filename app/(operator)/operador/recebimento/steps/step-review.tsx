@@ -22,7 +22,7 @@ export function StepReview({ state, onConfirm, onGoTo, onBack }: StepReviewProps
       boxUrls.current.forEach((u) => URL.revokeObjectURL(u))
       itemUrls.current.forEach((u) => URL.revokeObjectURL(u))
     }
-  })
+  }, [state.boxPhotos, state.itemPhotos])
 
   const identifierLabel =
     state.identifierType === 'access_key'  ? `Chave: ${state.accessKey}` :
@@ -99,7 +99,7 @@ function PhotoGrid({ urls }: { urls: string[] }) {
     <div className="flex gap-1 flex-wrap">
       {urls.map((url, i) => (
         /* eslint-disable-next-line @next/next/no-img-element */
-        <img key={i} src={url} alt={`foto ${i + 1}`} className="w-16 h-16 object-cover rounded" />
+        <img key={i} src={url} alt={`foto ${i + 1}`} className="w-16 h-16 object-cover rounded" loading="lazy" />
       ))}
     </div>
   )

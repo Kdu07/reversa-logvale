@@ -38,15 +38,10 @@ export function StepSubmit({ state, onBack, onReset }: StepSubmitProps) {
         return path
       }
 
-      const boxPaths: string[]  = []
-      const itemPaths: string[] = []
-
-      for (let i = 0; i < state.boxPhotos.length; i++) {
-        boxPaths.push(await uploadPhoto(state.boxPhotos[i], 'box-photos', i))
-      }
-      for (let i = 0; i < state.itemPhotos.length; i++) {
-        itemPaths.push(await uploadPhoto(state.itemPhotos[i], 'item-photos', i))
-      }
+      const [boxPaths, itemPaths] = await Promise.all([
+        Promise.all(state.boxPhotos.map((f, i) => uploadPhoto(f, 'box-photos', i))),
+        Promise.all(state.itemPhotos.map((f, i) => uploadPhoto(f, 'item-photos', i))),
+      ])
 
       setPhase('saving')
 

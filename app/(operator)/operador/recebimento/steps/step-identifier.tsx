@@ -57,7 +57,7 @@ export function StepIdentifier({ onComplete }: StepIdentifierProps) {
     const result = await lookupInvoiceAction(key)
     setLoading(false)
     if ('error' in result) {
-      setError(`Webmania: ${result.error}. Você pode tentar Código Postal ou marcar como Ilegível.`)
+      setError(`${result.error}. Você pode tentar Código Postal ou marcar como Ilegível.`)
       triggerFlash('error')
       return
     }

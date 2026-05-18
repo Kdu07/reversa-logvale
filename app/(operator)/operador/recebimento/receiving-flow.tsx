@@ -1,6 +1,7 @@
 'use client'
 
 import { useReducer, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { ProgressBar } from './progress-bar'
 import { StepIdentifier } from './steps/step-identifier'
@@ -90,6 +91,7 @@ interface ReceivingFlowProps {
 export function ReceivingFlow({ operatorName }: ReceivingFlowProps) {
   const [state, dispatch]          = useReducer(reducer, initialState)
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+  const router = useRouter()
 
   function goTo(step: number) { dispatch({ type: 'SET_STEP', step }) }
 
@@ -222,6 +224,7 @@ export function ReceivingFlow({ operatorName }: ReceivingFlowProps) {
                 onClick={() => {
                   dispatch({ type: 'RESET' })
                   setShowCancelConfirm(false)
+                  router.push('/operador')
                 }}
               >
                 Descartar

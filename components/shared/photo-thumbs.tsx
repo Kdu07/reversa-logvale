@@ -35,7 +35,7 @@ export function PhotoThumbs({
           className={`${dim} rounded overflow-hidden border hover:ring-2 hover:ring-primary focus:outline-none`}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={url} alt={`foto ${i + 1}`} className="w-full h-full object-cover" />
+          <img src={url} alt={`foto ${i + 1}`} className="w-full h-full object-cover" loading="lazy" />
         </button>
       ))}
       {overflow > 0 && (

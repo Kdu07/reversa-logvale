@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { WebcamCapture } from '@/components/shared/webcam-capture'
 
@@ -29,14 +29,13 @@ export function StepPhotos({
   onNext,
   onBack,
 }: StepPhotosProps) {
-  const previewUrls = useRef<string[]>([])
+  const [previewUrls, setPreviewUrls] = useState<string[]>([])
 
   useEffect(() => {
-    previewUrls.current = photos.map((f) => URL.createObjectURL(f))
-    return () => {
-      previewUrls.current.forEach((url) => URL.revokeObjectURL(url))
-    }
-  })
+    const urls = photos.map((f) => URL.createObjectURL(f))
+    setPreviewUrls(urls)
+    return () => urls.forEach((u) => URL.revokeObjectURL(u))
+  }, [photos])
 
   const atMax  = photos.length >= maxPhotos
   const canNext = photos.length >= minPhotos
@@ -58,7 +57,7 @@ export function StepPhotos({
       {photos.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {photos.map((_, i) => {
-            const url = previewUrls.current[i] ?? ''
+            const url = previewUrls[i] ?? ''
             return (
               <div key={i} className="relative group aspect-video rounded-lg overflow-hidden bg-black">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
