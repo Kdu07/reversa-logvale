@@ -10,13 +10,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { ptBR } from '@/lib/i18n/pt-BR'
 
-const emailSchema = z.string().email(ptBR.auth.login.errorInvalidEmail)
+const schema = z.object({
+  email:    z.string().email(ptBR.auth.login.errorInvalidEmail),
+  password: z.string().min(1, ptBR.auth.login.errorWrongCredentials),
+})
 
 export default function LoginForm({ callbackError }: { callbackError?: string }) {
-  const [email,   setEmail]   = useState('')
-  const [error,   setError]   = useState<string | null>(callbackError ?? null)
-  const [success, setSuccess] = useState(false)
-  const [loading, setLoading] = useState(false)
+  const [email,    setEmail]    = useState('')
+  const [password, setPassword] = useState('')
+  const [error,    setError]    = useState<string | null>(callbackError ?? null)
+  const [loading,  setLoading]  = useState(false)
 
   const t = ptBR.auth.login
 
@@ -24,7 +27,7 @@ export default function LoginForm({ callbackError }: { callbackError?: string })
     e.preventDefault()
     setError(null)
 
-    const parsed = emailSchema.safeParse(email)
+    const parsed = schema.safeParse({ email, password })
     if (!parsed.success) {
       setError(parsed.error.issues[0].message)
       return
@@ -33,37 +36,20 @@ export default function LoginForm({ callbackError }: { callbackError?: string })
     setLoading(true)
     const supabase = createClient()
 
-    const { error: supabaseError } = await supabase.auth.signInWithOtp({
-      email: parsed.data,
-      options: {
-        emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin}/auth/callback`,
-      },
+    const { error: supabaseError } = await supabase.auth.signInWithPassword({
+      email:    parsed.data.email,
+      password: parsed.data.password,
     })
 
     setLoading(false)
 
     if (supabaseError) {
-      setError(t.errorSendFailed)
+      setError(t.errorWrongCredentials)
       return
     }
 
-    setSuccess(true)
-  }
-
-  if (success) {
-    return (
-      <Card>
-        <CardContent className="pt-6">
-          <Alert>
-            <AlertDescription>
-              <strong>{t.successTitle}</strong>
-              <br />
-              {t.successDesc}
-            </AlertDescription>
-          </Alert>
-        </CardContent>
-      </Card>
-    )
+    // Middleware redireciona ao role home (ou /primeiro-acesso se necessário)
+    window.location.href = '/login'
   }
 
   return (
@@ -84,6 +70,19 @@ export default function LoginForm({ callbackError }: { callbackError?: string })
               onChange={(e) => setEmail(e.target.value)}
               autoFocus
               autoComplete="email"
+              disabled={loading}
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="password">{t.passwordLabel}</Label>
+            <Input
+              id="password"
+              type="password"
+              placeholder={t.passwordPlaceholder}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
               disabled={loading}
               required
             />

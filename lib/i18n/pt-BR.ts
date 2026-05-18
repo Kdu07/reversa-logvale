@@ -1,17 +1,29 @@
 export const ptBR = {
   auth: {
     login: {
-      title:            'Acesso ao Sistema',
-      subtitle:         'Digite seu e-mail para receber o link de acesso',
-      emailLabel:       'E-mail',
-      emailPlaceholder: 'seu@email.com.br',
-      submitButton:     'Receber link de acesso',
-      submitting:       'Enviando...',
-      successTitle:     'Link enviado!',
-      successDesc:      'Verifique sua caixa de entrada e spam.',
-      errorInvalidEmail:'E-mail inválido',
-      errorSendFailed:  'Não foi possível enviar o link. Tente novamente.',
-      callbackError:    'Erro ao processar o link de acesso. Tente novamente.',
+      title:                'Acesso ao Sistema',
+      subtitle:             'Entre com seu e-mail e senha',
+      emailLabel:           'E-mail',
+      emailPlaceholder:     'seu@email.com.br',
+      passwordLabel:        'Senha',
+      passwordPlaceholder:  'Sua senha',
+      submitButton:         'Entrar',
+      submitting:           'Entrando...',
+      errorInvalidEmail:    'E-mail inválido',
+      errorWrongCredentials:'E-mail ou senha incorretos.',
+      callbackError:        'Erro ao processar o link de acesso. Tente novamente.',
+    },
+    firstAccess: {
+      title:               'Bem-vindo ao Logvale',
+      subtitle:            'Configure sua senha e aceite os termos para continuar.',
+      passwordLabel:       'Criar senha',
+      confirmLabel:        'Confirmar senha',
+      passwordPlaceholder: 'Mínimo 8 caracteres',
+      confirmPlaceholder:  'Repita a senha',
+      errorPasswordMin:    'A senha deve ter no mínimo 8 caracteres',
+      errorPasswordMatch:  'As senhas não coincidem',
+      submitButton:        'Criar senha e acessar',
+      submitting:          'Salvando...',
     },
     terms: {
       title:         'Termos de Uso',
@@ -147,6 +159,12 @@ export const ptBR = {
     sectionItemPhotos:   'Fotos dos Itens',
   },
   admin: {
+    nav: {
+      dashboard:  'Dashboard',
+      users:      'Usuários',
+      depositors: 'Depositantes',
+      returns:    'Devoluções',
+    },
     dashboard: {
       title:           'Dashboard',
       periodToday:     'Hoje',
