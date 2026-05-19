@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { WebcamCapture } from '@/components/shared/webcam-capture'
+import { WebcamCapture, type WebcamCaptureHandle } from '@/components/shared/webcam-capture'
 
 interface StepPhotosProps {
   photoType:  'box' | 'item'
@@ -29,6 +29,7 @@ export function StepPhotos({
   onNext,
   onBack,
 }: StepPhotosProps) {
+  const webcamRef = useRef<WebcamCaptureHandle>(null)
   const [previewUrls, setPreviewUrls] = useState<string[]>([])
 
   useEffect(() => {
@@ -37,8 +38,17 @@ export function StepPhotos({
     return () => urls.forEach((u) => URL.revokeObjectURL(u))
   }, [photos])
 
-  const atMax  = photos.length >= maxPhotos
+  const atMax   = photos.length >= maxPhotos
   const canNext = photos.length >= minPhotos
+
+  useEffect(() => {
+    if (atMax) return
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Enter') webcamRef.current?.triggerCapture()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [atMax])
 
   return (
     <div className="space-y-6">
@@ -51,7 +61,7 @@ export function StepPhotos({
       </div>
 
       {!atMax && (
-        <WebcamCapture onCapture={onAdd} disabled={atMax} />
+        <WebcamCapture ref={webcamRef} onCapture={onAdd} disabled={atMax} />
       )}
 
       {photos.length > 0 && (

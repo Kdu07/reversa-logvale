@@ -56,21 +56,23 @@ export async function getDepositorsAction(filters?: {
 export async function createDepositorAction(payload: {
   cnpj:         string
   razao_social: string
-}): Promise<{ ok: true } | { error: string }> {
+}): Promise<{ ok: true; id: string; razao_social: string } | { error: string }> {
   try {
     await assertManager()
-    const cnpj = payload.cnpj.replace(/\D/g, '')
+    const cnpj         = payload.cnpj.replace(/\D/g, '')
+    const razao_social = payload.razao_social.trim()
     if (cnpj.length !== 14) return { error: 'CNPJ deve ter 14 dígitos' }
 
     const supabase = createClient()
-    const { error } = await supabase.from('depositors').insert({
-      cnpj,
-      razao_social: payload.razao_social.trim(),
-    })
+    const { data, error } = await supabase
+      .from('depositors')
+      .insert({ cnpj, razao_social })
+      .select('id')
+      .single()
     if (error) throw error
 
     revalidatePath('/admin/depositantes')
-    return { ok: true }
+    return { ok: true, id: data.id, razao_social }
   } catch (err) {
     return { error: err instanceof Error ? err.message : 'Erro interno' }
   }

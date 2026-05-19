@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { ptBR } from '@/lib/i18n/pt-BR'
@@ -12,6 +12,7 @@ import {
   exportUserDataAction,
   anonymizeUserAction,
 } from '../actions'
+import { createDepositorAction } from '@/app/(manager)/admin/depositantes/actions'
 import type { UserRow, DepositorOption } from '../actions'
 import type { UserRole } from '@/types'
 
@@ -42,14 +43,24 @@ const EMPTY_FORM: FormState = {
 }
 
 export function UsersTable({ users, depositors }: Props) {
-  const [roleFilter, setRoleFilter]   = useState<UserRole | 'all'>('all')
-  const [currentPage, setCurrentPage] = useState(0)
-  const [modalMode, setModalMode]     = useState<'create' | 'edit' | null>(null)
-  const [editingUser, setEditingUser] = useState<UserRow | null>(null)
-  const [form, setForm]               = useState<FormState>(EMPTY_FORM)
-  const [error, setError]             = useState<string | null>(null)
-  const [linkModal, setLinkModal]     = useState<{ email: string; link: string } | null>(null)
-  const [isPending, startTransition]  = useTransition()
+  const [roleFilter, setRoleFilter]     = useState<UserRole | 'all'>('all')
+  const [currentPage, setCurrentPage]   = useState(0)
+  const [modalMode, setModalMode]       = useState<'create' | 'edit' | null>(null)
+  const [editingUser, setEditingUser]   = useState<UserRow | null>(null)
+  const [form, setForm]                 = useState<FormState>(EMPTY_FORM)
+  const [error, setError]               = useState<string | null>(null)
+  const [linkModal, setLinkModal]       = useState<{ email: string; link: string } | null>(null)
+  const [anonymizeTarget, setAnonymizeTarget] = useState<UserRow | null>(null)
+  const [anonCountdown, setAnonCountdown]     = useState(2)
+  const [localDepositors, setLocalDepositors] = useState<DepositorOption[]>(depositors)
+  const [newDep, setNewDep] = useState({ open: false, cnpj: '', razao_social: '', error: null as string | null, loading: false })
+  const [isPending, startTransition]    = useTransition()
+
+  useEffect(() => {
+    if (!anonymizeTarget || anonCountdown <= 0) return
+    const id = setTimeout(() => setAnonCountdown((c) => c - 1), 1000)
+    return () => clearTimeout(id)
+  }, [anonymizeTarget, anonCountdown])
 
   const filtered   = roleFilter === 'all' ? users : users.filter((u) => u.role === roleFilter)
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
@@ -93,6 +104,19 @@ export function UsersTable({ users, depositors }: Props) {
         ? f.depositorIds.filter((d) => d !== id)
         : [...f.depositorIds, id],
     }))
+  }
+
+  async function handleCreateDepositor() {
+    setNewDep((d) => ({ ...d, loading: true, error: null }))
+    const result = await createDepositorAction({ cnpj: newDep.cnpj, razao_social: newDep.razao_social })
+    if ('error' in result) {
+      setNewDep((d) => ({ ...d, loading: false, error: result.error }))
+      return
+    }
+    const created = { id: result.id, razao_social: result.razao_social }
+    setLocalDepositors((prev) => [...prev, created])
+    toggleDep(created.id)
+    setNewDep({ open: false, cnpj: '', razao_social: '', error: null, loading: false })
   }
 
   function handleSave() {
@@ -144,9 +168,16 @@ export function UsersTable({ users, depositors }: Props) {
   }
 
   function handleAnonymize(u: UserRow) {
-    if (!confirm(`Anonimizar ${u.full_name}? Esta ação não pode ser desfeita.`)) return
+    setAnonymizeTarget(u)
+    setAnonCountdown(2)
+  }
+
+  function confirmAnonymize() {
+    if (!anonymizeTarget) return
+    const target = anonymizeTarget
+    setAnonymizeTarget(null)
     startTransition(async () => {
-      const result = await anonymizeUserAction(u.id)
+      const result = await anonymizeUserAction(target.id)
       if ('error' in result) { setError(result.error); return }
     })
   }
@@ -343,10 +374,10 @@ export function UsersTable({ users, depositors }: Props) {
               {form.role === 'client' && (
                 <Field label={t.fieldDepositors}>
                   <div className="space-y-2 max-h-40 overflow-y-auto rounded-md border border-input bg-background p-2">
-                    {depositors.length === 0 && (
+                    {localDepositors.length === 0 && !newDep.open && (
                       <p className="text-xs text-muted-foreground p-1">Nenhum depositante cadastrado.</p>
                     )}
-                    {depositors.map((d) => (
+                    {localDepositors.map((d) => (
                       <label key={d.id} className="flex items-center gap-2 cursor-pointer text-sm hover:bg-muted/30 px-1 py-0.5 rounded">
                         <input
                           type="checkbox"
@@ -358,6 +389,48 @@ export function UsersTable({ users, depositors }: Props) {
                       </label>
                     ))}
                   </div>
+                  {newDep.open ? (
+                    <div className="mt-2 space-y-2 rounded-md border border-input p-2 bg-muted/20">
+                      <input
+                        placeholder="CNPJ (14 dígitos)"
+                        value={newDep.cnpj}
+                        onChange={(e) => setNewDep((d) => ({ ...d, cnpj: e.target.value }))}
+                        className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                      <input
+                        placeholder="Razão Social"
+                        value={newDep.razao_social}
+                        onChange={(e) => setNewDep((d) => ({ ...d, razao_social: e.target.value }))}
+                        className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                      {newDep.error && <p className="text-xs text-destructive">{newDep.error}</p>}
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setNewDep({ open: false, cnpj: '', razao_social: '', error: null, loading: false })}
+                          className="flex-1 px-3 py-1.5 rounded-md border border-border text-xs font-medium text-muted-foreground hover:bg-muted"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleCreateDepositor}
+                          disabled={newDep.loading || !newDep.cnpj.trim() || !newDep.razao_social.trim()}
+                          className="flex-1 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-medium disabled:opacity-60"
+                        >
+                          {newDep.loading ? 'Criando...' : 'Criar'}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setNewDep((d) => ({ ...d, open: true }))}
+                      className="mt-1 text-xs text-primary hover:underline"
+                    >
+                      + Novo depositante
+                    </button>
+                  )}
                 </Field>
               )}
 
@@ -382,6 +455,38 @@ export function UsersTable({ users, depositors }: Props) {
                   ? (modalMode === 'create' ? t.creating : t.saving)
                   : ptBR.common.save}
               </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Anonymize confirmation modal */}
+      {anonymizeTarget && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
+            <h2 className="font-semibold text-foreground">Anonimizar usuário</h2>
+            <p className="text-sm text-foreground">
+              Você está prestes a anonimizar <strong>{anonymizeTarget.full_name}</strong>.
+            </p>
+            <p className="text-sm font-medium text-destructive">
+              Ação irreversível — dados pessoais serão apagados permanentemente. Os dados fiscais são mantidos por exigência legal.
+            </p>
+            <div className="flex gap-3 pt-1">
+              <button
+                type="button"
+                onClick={() => setAnonymizeTarget(null)}
+                className="flex-1 px-4 py-2 rounded-md border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmAnonymize}
+                disabled={anonCountdown > 0}
+                className="flex-1 px-4 py-2 rounded-md bg-destructive text-destructive-foreground text-sm font-medium disabled:opacity-60 hover:bg-destructive/90 transition-colors"
+              >
+                {anonCountdown > 0 ? `Anonimizar (${anonCountdown}s)` : 'Anonimizar'}
+              </button>
             </div>
           </div>
         </div>

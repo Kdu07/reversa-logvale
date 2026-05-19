@@ -1,5 +1,6 @@
 import { getClientHistoryAction } from '../actions'
 import { ReturnsTable } from '../components/returns-table'
+import { ExportButton } from './export-button'
 import Link from 'next/link'
 
 interface SearchParams {
@@ -25,12 +26,15 @@ export default async function ClientHistoricoPage({
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h1 className="text-2xl font-bold text-primary">Histórico de Decisões</h1>
-        <Link
-          href="/cliente"
-          className="text-sm text-primary hover:underline"
-        >
-          ← Pendentes
-        </Link>
+        <div className="flex items-center gap-3">
+          <ExportButton />
+          <Link
+            href="/cliente"
+            className="text-sm text-primary hover:underline"
+          >
+            ← Pendentes
+          </Link>
+        </div>
       </div>
 
       {'error' in result ? (
