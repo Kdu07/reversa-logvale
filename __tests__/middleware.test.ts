@@ -20,7 +20,15 @@ function mockUnauthenticated() {
 }
 
 function mockUser(meta: Record<string, unknown>) {
+  const mockSupabase = {
+    from: vi.fn().mockReturnValue({
+      select: vi.fn().mockReturnThis(),
+      eq:     vi.fn().mockReturnThis(),
+      single: vi.fn().mockResolvedValue({ data: null, error: null }),
+    }),
+  }
   vi.mocked(updateSession).mockResolvedValue({
+    supabase: mockSupabase,
     user:     { id: 'u-1', app_metadata: meta },
     response: NextResponse.next(),
   } as never)
@@ -84,16 +92,16 @@ describe('middleware — usuário não autenticado', () => {
 
 // ─────────────────────────────────────────────────────────────────────
 describe('middleware — claims ausentes ou usuário inativo', () => {
-  it('redireciona para /login quando claims não estão no JWT (hook não propagado)', async () => {
-    mockUser({}) // sem role
+  it('redireciona para /api/auth/signout quando claims não estão no JWT (hook não propagado)', async () => {
+    mockUser({}) // sem role → supabase retorna data:null → signout
     const res = await middleware(makeReq('/cliente'))
-    expect(res.headers.get('location')).toContain('/login')
+    expect(res.headers.get('location')).toContain('/api/auth/signout')
   })
 
-  it('redireciona para /login quando active=false', async () => {
+  it('redireciona para /api/auth/signout quando active=false', async () => {
     mockUser({ role: 'client', active: false, terms_accepted_at: '2024-01-01' })
     const res = await middleware(makeReq('/cliente'))
-    expect(res.headers.get('location')).toContain('/login')
+    expect(res.headers.get('location')).toContain('/api/auth/signout')
   })
 })
 

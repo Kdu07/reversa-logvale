@@ -13,10 +13,12 @@ vi.mock('@/lib/supabase/get-current-user', () => ({
   }),
 }))
 
-const mockInsert = vi.fn()
-const mockEq     = vi.fn()
-const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
-const mockFrom   = vi.fn()
+const mockSingle           = vi.fn()
+const mockSelectAfterInsert = vi.fn().mockReturnValue({ single: mockSingle })
+const mockInsert            = vi.fn().mockReturnValue({ select: mockSelectAfterInsert })
+const mockEq                = vi.fn()
+const mockUpdate            = vi.fn().mockReturnValue({ eq: mockEq })
+const mockFrom              = vi.fn()
 
 vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn(() => ({ from: mockFrom })),
@@ -24,7 +26,9 @@ vi.mock('@/lib/supabase/server', () => ({
 
 beforeEach(() => {
   vi.clearAllMocks()
-  mockInsert.mockResolvedValue({ error: null })
+  mockSingle.mockResolvedValue({ data: { id: 'dep-new' }, error: null })
+  mockSelectAfterInsert.mockReturnValue({ single: mockSingle })
+  mockInsert.mockReturnValue({ select: mockSelectAfterInsert })
   mockEq.mockResolvedValue({ error: null })
   mockFrom.mockImplementation((table: string) => {
     if (table === 'depositors') return { insert: mockInsert, update: mockUpdate }
@@ -44,7 +48,7 @@ describe('createDepositorAction', () => {
     const result = await createDepositorAction({ cnpj: '12.345.678/0001-99', razao_social: 'Empresa Y' })
 
     // 12345678000199 tem 14 dígitos → deve inserir
-    expect(result).toEqual({ ok: true })
+    expect(result).toMatchObject({ ok: true })
     expect(mockInsert).toHaveBeenCalledWith(
       expect.objectContaining({ cnpj: '12345678000199' }),
     )
@@ -53,7 +57,7 @@ describe('createDepositorAction', () => {
   it('cria depositante com CNPJ válido e retorna {ok:true}', async () => {
     const result = await createDepositorAction({ cnpj: '12345678000195', razao_social: 'TechStore' })
 
-    expect(result).toEqual({ ok: true })
+    expect(result).toMatchObject({ ok: true })
     expect(mockInsert).toHaveBeenCalledWith(
       expect.objectContaining({ cnpj: '12345678000195', razao_social: 'TechStore' }),
     )
@@ -68,7 +72,7 @@ describe('createDepositorAction', () => {
   })
 
   it('retorna erro quando DB falha', async () => {
-    mockInsert.mockResolvedValue({ error: new Error('unique_violation') })
+    mockSingle.mockResolvedValue({ data: null, error: new Error('unique_violation') })
 
     const result = await createDepositorAction({ cnpj: '12345678000195', razao_social: 'Dup' })
 

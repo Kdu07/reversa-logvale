@@ -173,6 +173,7 @@ export const ptBR = {
       cardTotal:       'Total Devoluções',
       cardPending:     'Aguardando Decisão',
       cardAvgDecision: 'Tempo Médio Decisão',
+      cardAvgProcess:  'Tempo Médio Processamento',
       cardAutoRate:    'Taxa de Auto-decisão',
       chartByStatus:   'Por Status',
       chartByDecision: 'Por Decisão',

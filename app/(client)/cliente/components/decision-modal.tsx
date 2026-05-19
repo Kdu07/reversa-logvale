@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -20,6 +21,7 @@ interface DecisionModalProps {
 const needsXml = (d: ReturnDecision) => d !== 'store_for_handling'
 
 export function DecisionModal({ row, decision, onClose, onSuccess }: DecisionModalProps) {
+  const router                        = useRouter()
   const [countdown, setCountdown]     = useState(2)
   const [xmlFile, setXmlFile]         = useState<File | null>(null)
   const [isSubmitting, setSubmitting] = useState(false)
@@ -70,7 +72,7 @@ export function DecisionModal({ row, decision, onClose, onSuccess }: DecisionMod
         result.error.toLowerCase().includes('nenhum registro')
       if (alreadyDecided) {
         onClose()
-        window.location.reload()
+        router.refresh()
         return
       }
       setError(result.error)
