@@ -2,12 +2,13 @@ import { createClient } from '@supabase/supabase-js'
 import { env } from '@/lib/env'
 
 export interface InvoiceData {
-  accessKey:     string
-  emitterCnpj:   string
-  invoiceNumber: string | null
-  emittedAt:     string | null
+  accessKey:      string
+  emitterCnpj:    string
+  invoiceNumber:  string | null
+  emittedAt:      string | null
   xmlStoragePath: string
-  depositorId:   string | null
+  depositorId:    string | null
+  depositorName:  string | null
 }
 
 interface WebmaniaRaw {
@@ -39,7 +40,7 @@ async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
 }
 
 async function fetchWebmania(accessKey: string): Promise<WebmaniaRaw> {
-  if (!env.webmaniaToken) {
+  if (!env.webmaniaConsumerKey) {
     if (process.env.NODE_ENV === 'production') {
       throw new Error('Consulta de NF indisponível neste momento')
     }
@@ -63,8 +64,11 @@ async function fetchWebmania(accessKey: string): Promise<WebmaniaRaw> {
       {
         method:  'GET',
         headers: {
-          Authorization:  `Bearer ${env.webmaniaToken}:${env.webmaniaSecret ?? ''}`,
-          'Content-Type': 'application/json',
+          'X-Consumer-Key':        env.webmaniaConsumerKey,
+          'X-Consumer-Secret':     env.webmaniaConsumerSecret ?? '',
+          'X-Access-Token':        env.webmaniaAccessToken ?? '',
+          'X-Access-Token-Secret': env.webmaniaAccessTokenSecret ?? '',
+          'Content-Type':          'application/json',
         },
         signal: controller.signal,
       }
@@ -89,7 +93,7 @@ export async function lookupInvoice(accessKey: string): Promise<InvoiceData> {
   if (cached) {
     const { data: depositor } = await supabase
       .from('depositors')
-      .select('id')
+      .select('id, razao_social')
       .eq('cnpj', cached.emitter_cnpj)
       .eq('active', true)
       .single()
@@ -101,6 +105,7 @@ export async function lookupInvoice(accessKey: string): Promise<InvoiceData> {
       emittedAt:      cached.emitted_at ?? null,
       xmlStoragePath: cached.xml_url,
       depositorId:    depositor?.id ?? null,
+      depositorName:  depositor?.razao_social ?? null,
     }
   }
 
@@ -111,11 +116,11 @@ export async function lookupInvoice(accessKey: string): Promise<InvoiceData> {
     throw new Error('NF não encontrada ou resposta Webmania inválida')
   }
 
-  const emitterCnpj  = raw.nfe.emit.CNPJ
-  const invoiceNumber = raw.nfe.ide?.nNF ?? null
-  const emittedAt    = raw.nfe.ide?.dhEmi ?? null
-  const xmlContent   = raw.xml ?? ''
-  const xmlPath      = `${accessKey}.xml`
+  const emitterCnpj   = raw.nfe.emit.CNPJ
+  const invoiceNumber  = raw.nfe.ide?.nNF ?? null
+  const emittedAt      = raw.nfe.ide?.dhEmi ?? null
+  const xmlContent     = raw.xml ?? ''
+  const xmlPath        = `${accessKey}.xml`
 
   // 3. Upload XML to private storage (store path, not public URL)
   await supabase.storage.from('invoice-xmls').upload(
@@ -140,7 +145,7 @@ export async function lookupInvoice(accessKey: string): Promise<InvoiceData> {
   // 5. Find depositor by CNPJ
   const { data: depositor } = await supabase
     .from('depositors')
-    .select('id')
+    .select('id, razao_social')
     .eq('cnpj', emitterCnpj)
     .eq('active', true)
     .single()
@@ -152,5 +157,6 @@ export async function lookupInvoice(accessKey: string): Promise<InvoiceData> {
     emittedAt,
     xmlStoragePath: xmlPath,
     depositorId:    depositor?.id ?? null,
+    depositorName:  depositor?.razao_social ?? null,
   }
 }

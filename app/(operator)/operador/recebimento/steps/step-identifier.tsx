@@ -8,19 +8,28 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { cn } from '@/lib/utils'
 import { useBarcodeScanner } from '@/hooks/use-barcode-scanner'
 import { useAudioFeedback } from '@/hooks/use-audio-feedback'
-import { lookupInvoiceAction } from '../actions'
-import type { InvoiceData } from '../actions'
+import { lookupInvoiceAction, getDepositorsAction } from '../actions'
+import type { InvoiceData, DepositorOption } from '../actions'
 
-type Mode = 'scanner_key' | 'manual_key' | 'scanner_postal' | 'manual_postal' | 'illegible_confirm'
+type Mode = 'scanner_key' | 'manual_key' | 'scanner_postal' | 'manual_postal' | 'illegible_confirm' | 'depositor_picker'
+
+interface PendingComplete {
+  identifierType:  'access_key' | 'postal_code' | 'illegible'
+  accessKey?:      string
+  postalCode?:     string
+  illegibleToken?: string
+  invoiceData?:    InvoiceData | null
+}
 
 interface StepIdentifierProps {
-  onComplete: (params: {
-    identifierType: 'access_key' | 'postal_code' | 'illegible'
-    accessKey?:     string
-    postalCode?:    string
-    illegibleToken?: string
-    invoiceData?:   InvoiceData | null
+  onComplete: (params: PendingComplete & {
+    depositorId?:   string | null
+    depositorName?: string | null
   }) => void
+}
+
+function formatCnpj(cnpj: string) {
+  return cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5')
 }
 
 export function StepIdentifier({ onComplete }: StepIdentifierProps) {
@@ -31,6 +40,13 @@ export function StepIdentifier({ onComplete }: StepIdentifierProps) {
   const [flash, setFlash]     = useState<'success' | 'error' | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const { beep } = useAudioFeedback()
+
+  // Depositor picker state
+  const [pendingComplete, setPendingComplete]         = useState<PendingComplete | null>(null)
+  const [depositors, setDepositors]                   = useState<DepositorOption[]>([])
+  const [depositorsLoading, setDepositorsLoading]     = useState(false)
+  const [selectedDepositorId, setSelectedDepositorId] = useState('')
+  const [selectedDepositorName, setSelectedDepositorName] = useState('')
 
   useEffect(() => {
     if (mode === 'manual_key' || mode === 'manual_postal') {
@@ -44,6 +60,36 @@ export function StepIdentifier({ onComplete }: StepIdentifierProps) {
     setFlash(type)
     beep(type)
     setTimeout(() => setFlash(null), 700)
+  }
+
+  async function enterDepositorPicker(params: PendingComplete) {
+    setPendingComplete(params)
+    setSelectedDepositorId('')
+    setSelectedDepositorName('')
+    setMode('depositor_picker')
+    setDepositorsLoading(true)
+    const result = await getDepositorsAction()
+    setDepositorsLoading(false)
+    if ('data' in result) setDepositors(result.data)
+  }
+
+  function handleDepositorProceed() {
+    if (!pendingComplete) return
+    onComplete({
+      ...pendingComplete,
+      depositorId:   selectedDepositorId   || null,
+      depositorName: selectedDepositorName || null,
+    })
+  }
+
+  function handleDepositorBack() {
+    if (!pendingComplete) { setMode('scanner_key'); return }
+    if (pendingComplete.identifierType === 'postal_code') setMode('scanner_postal')
+    else if (pendingComplete.identifierType === 'illegible') setMode('illegible_confirm')
+    else setMode('scanner_key')
+    setPendingComplete(null)
+    setSelectedDepositorId('')
+    setSelectedDepositorName('')
   }
 
   const handleAccessKey = useCallback(async (key: string) => {
@@ -62,7 +108,11 @@ export function StepIdentifier({ onComplete }: StepIdentifierProps) {
       return
     }
     triggerFlash('success')
-    setTimeout(() => onComplete({ identifierType: 'access_key', accessKey: key, invoiceData: result.data }), 300)
+    if (result.data.depositorId !== null) {
+      setTimeout(() => onComplete({ identifierType: 'access_key', accessKey: key, invoiceData: result.data }), 300)
+    } else {
+      setTimeout(() => enterDepositorPicker({ identifierType: 'access_key', accessKey: key, invoiceData: result.data }), 300)
+    }
   }, [onComplete]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handlePostalCode = useCallback((code: string) => {
@@ -73,8 +123,14 @@ export function StepIdentifier({ onComplete }: StepIdentifierProps) {
       return
     }
     triggerFlash('success')
-    setTimeout(() => onComplete({ identifierType: 'postal_code', postalCode: clean }), 300)
-  }, [onComplete]) // eslint-disable-line react-hooks/exhaustive-deps
+    setTimeout(() => enterDepositorPicker({ identifierType: 'postal_code', postalCode: clean }), 300)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  function handleIllegible() {
+    const token = `ILEG-${Date.now().toString(36).toUpperCase()}`
+    triggerFlash('success')
+    setTimeout(() => enterDepositorPicker({ identifierType: 'illegible', illegibleToken: token }), 300)
+  }
 
   useBarcodeScanner({
     onScan: (value) => {
@@ -91,12 +147,6 @@ export function StepIdentifier({ onComplete }: StepIdentifierProps) {
 
   function handleManualPostalSubmit() {
     handlePostalCode(input.trim())
-  }
-
-  function handleIllegible() {
-    const token = `ILEG-${Date.now().toString(36).toUpperCase()}`
-    triggerFlash('success')
-    setTimeout(() => onComplete({ identifierType: 'illegible', illegibleToken: token }), 300)
   }
 
   return (
@@ -122,10 +172,66 @@ export function StepIdentifier({ onComplete }: StepIdentifierProps) {
         {mode === 'illegible_confirm' && (
           <p className="text-sm text-muted-foreground">NF ilegível — o recebimento será registrado sem vínculo de NF.</p>
         )}
+        {mode === 'depositor_picker' && (
+          <p className="text-sm text-muted-foreground">Selecione o depositante para vincular a esta devolução.</p>
+        )}
       </div>
 
       {loading && (
         <div className="text-sm text-muted-foreground animate-pulse">Consultando NF na Webmania...</div>
+      )}
+
+      {/* Depositor picker */}
+      {mode === 'depositor_picker' && pendingComplete && (
+        <div className="space-y-4">
+          {pendingComplete.invoiceData && !pendingComplete.invoiceData.depositorId && (
+            <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+              CNPJ {formatCnpj(pendingComplete.invoiceData.emitterCnpj)} não está cadastrado no sistema.
+            </p>
+          )}
+
+          {depositorsLoading ? (
+            <p className="text-sm text-muted-foreground animate-pulse">Carregando depositantes...</p>
+          ) : (
+            <div className="space-y-2">
+              <Label htmlFor="depositor-select">Depositante</Label>
+              <select
+                id="depositor-select"
+                className="w-full border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                value={selectedDepositorId}
+                onChange={(e) => {
+                  const dep = depositors.find((d) => d.id === e.target.value)
+                  setSelectedDepositorId(e.target.value)
+                  setSelectedDepositorName(dep?.razao_social ?? '')
+                }}
+              >
+                <option value="">— Nenhum depositante —</option>
+                {depositors.map((dep) => (
+                  <option key={dep.id} value={dep.id}>
+                    {dep.razao_social} ({formatCnpj(dep.cnpj)})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <Button
+            type="button"
+            onClick={handleDepositorProceed}
+            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+          >
+            {selectedDepositorId ? 'Vincular e Avançar' : 'Avançar sem Depositante'}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleDepositorBack}
+            className="w-full"
+          >
+            ← Voltar
+          </Button>
+        </div>
       )}
 
       {(mode === 'manual_key') && (
@@ -198,7 +304,7 @@ export function StepIdentifier({ onComplete }: StepIdentifierProps) {
         </Alert>
       )}
 
-      {mode !== 'illegible_confirm' && (
+      {mode !== 'illegible_confirm' && mode !== 'depositor_picker' && (
         <div className="border-t pt-4 space-y-2">
           {(mode === 'scanner_key' || mode === 'manual_key') && (
             <>

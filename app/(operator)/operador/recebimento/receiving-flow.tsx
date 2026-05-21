@@ -20,6 +20,8 @@ export interface ReceivingState {
   postalCode:     string | null
   illegibleToken: string | null
   invoiceData:    InvoiceData | null
+  depositorId:    string | null
+  depositorName:  string | null
   rv:             string
   itemCount:      number | null
   boxPhotos:      File[]
@@ -30,6 +32,7 @@ type ReceivingAction =
   | { type: 'SET_STEP'; step: number }
   | { type: 'SET_IDENTIFIER'; identifierType: IdentifierType; accessKey?: string; postalCode?: string; illegibleToken?: string }
   | { type: 'SET_INVOICE_DATA'; data: InvoiceData | null }
+  | { type: 'SET_DEPOSITOR'; id: string | null; name: string | null }
   | { type: 'SET_RV'; rv: string }
   | { type: 'SET_ITEM_COUNT'; count: number }
   | { type: 'ADD_BOX_PHOTO'; file: File }
@@ -45,6 +48,8 @@ const initialState: ReceivingState = {
   postalCode:     null,
   illegibleToken: null,
   invoiceData:    null,
+  depositorId:    null,
+  depositorName:  null,
   rv:             '',
   itemCount:      null,
   boxPhotos:      [],
@@ -65,6 +70,8 @@ function reducer(state: ReceivingState, action: ReceivingAction): ReceivingState
       }
     case 'SET_INVOICE_DATA':
       return { ...state, invoiceData: action.data }
+    case 'SET_DEPOSITOR':
+      return { ...state, depositorId: action.id, depositorName: action.name }
     case 'SET_RV':
       return { ...state, rv: action.rv }
     case 'SET_ITEM_COUNT':
@@ -100,9 +107,12 @@ export function ReceivingFlow({ operatorName }: ReceivingFlowProps) {
       case 1:
         return (
           <StepIdentifier
-            onComplete={({ identifierType, accessKey, postalCode, illegibleToken, invoiceData }) => {
+            onComplete={({ identifierType, accessKey, postalCode, illegibleToken, invoiceData, depositorId, depositorName }) => {
               dispatch({ type: 'SET_IDENTIFIER', identifierType, accessKey, postalCode, illegibleToken })
               if (invoiceData) dispatch({ type: 'SET_INVOICE_DATA', data: invoiceData })
+              const finalId   = depositorId   ?? invoiceData?.depositorId   ?? null
+              const finalName = depositorName ?? invoiceData?.depositorName ?? null
+              dispatch({ type: 'SET_DEPOSITOR', id: finalId, name: finalName })
               goTo(2)
             }}
           />

@@ -3,11 +3,13 @@ import { lookupInvoice } from '@/lib/integrations/webmania'
 
 vi.mock('@/lib/env', () => ({
   env: {
-    supabaseUrl:            'https://test.supabase.co',
-    supabaseServiceRoleKey: 'test-service-key',
-    webmaniaToken:          'test-token',
-    webmaniaSecret:         'test-secret',
-    webmaniaBaseUrl:        'https://api.webmaniabr.com',
+    supabaseUrl:               'https://test.supabase.co',
+    supabaseServiceRoleKey:    'test-service-key',
+    webmaniaConsumerKey:       'test-consumer-key',
+    webmaniaConsumerSecret:    'test-consumer-secret',
+    webmaniaAccessToken:       'test-access-token',
+    webmaniaAccessTokenSecret: 'test-access-token-secret',
+    webmaniaBaseUrl:           'https://webmaniabr.com/api',
   },
 }))
 
@@ -41,6 +43,7 @@ const mockClient = {
         }),
       }
     }
+
     return {}
   }),
   storage: { from: mockStorageFrom },
@@ -82,7 +85,7 @@ describe('lookupInvoice', () => {
       },
       error: null,
     }
-    depositorResult = { data: { id: 'dep-1' }, error: null }
+    depositorResult = { data: { id: 'dep-1', razao_social: 'Empresa Teste Ltda' }, error: null }
 
     const result = await lookupInvoice(ACCESS_KEY)
 
@@ -90,6 +93,7 @@ describe('lookupInvoice', () => {
     expect(result.accessKey).toBe(ACCESS_KEY)
     expect(result.emitterCnpj).toBe('12345678000100')
     expect(result.depositorId).toBe('dep-1')
+    expect(result.depositorName).toBe('Empresa Teste Ltda')
   })
 
   it('busca na API quando não há cache', async () => {
@@ -97,12 +101,13 @@ describe('lookupInvoice', () => {
       ok:   true,
       json: vi.fn().mockResolvedValue(WEBMANIA_SUCCESS),
     } as unknown as Response)
-    depositorResult = { data: { id: 'dep-2' }, error: null }
+    depositorResult = { data: { id: 'dep-2', razao_social: 'Empresa B Ltda' }, error: null }
 
     const result = await lookupInvoice(ACCESS_KEY)
 
     expect(global.fetch).toHaveBeenCalledTimes(1)
     expect(result.emitterCnpj).toBe('12345678000100')
+    expect(result.depositorName).toBe('Empresa B Ltda')
     expect(result.xmlStoragePath).toBe(`${ACCESS_KEY}.xml`)
     expect(mockUpload).toHaveBeenCalledWith(
       `${ACCESS_KEY}.xml`,

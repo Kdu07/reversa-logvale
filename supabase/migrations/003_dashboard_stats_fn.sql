@@ -71,7 +71,7 @@ BEGIN
   ) sub;
 
   -- Devoluções urgentes (>48h aguardando decisão)
-  SELECT COALESCE(jsonb_agg(row ORDER BY received_at), '[]'::jsonb)
+  SELECT COALESCE(jsonb_agg(row), '[]'::jsonb)
   INTO urgent
   FROM (
     SELECT jsonb_build_object(

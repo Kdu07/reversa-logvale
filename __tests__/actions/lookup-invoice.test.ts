@@ -18,6 +18,7 @@ const MOCK_INVOICE_DATA = {
   emissionDate:   '2024-01-15',
   xmlStoragePath: 'invoice-xmls/abc.xml',
   depositorId:    'dep-1',
+  depositorName:  'Empresa Teste Ltda',
 }
 
 beforeEach(() => {

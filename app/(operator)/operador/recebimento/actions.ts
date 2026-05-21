@@ -8,6 +8,30 @@ import type { IdentifierType } from '@/types'
 
 export type { InvoiceData }
 
+export interface DepositorOption {
+  id:          string
+  razao_social: string
+  cnpj:        string
+}
+
+export async function getDepositorsAction(): Promise<
+  { data: DepositorOption[] } | { error: string }
+> {
+  try {
+    await getCurrentUser()
+    const supabase = createClient()
+    const { data, error } = await supabase
+      .from('depositors')
+      .select('id, razao_social, cnpj')
+      .eq('active', true)
+      .order('razao_social')
+    if (error) return { error: error.message }
+    return { data: (data ?? []) as DepositorOption[] }
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'Erro ao buscar depositantes' }
+  }
+}
+
 export async function lookupInvoiceAction(
   accessKey: string
 ): Promise<{ data: InvoiceData } | { error: string }> {

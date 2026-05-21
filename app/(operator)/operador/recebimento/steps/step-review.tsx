@@ -44,6 +44,13 @@ export function StepReview({ state, onConfirm, onGoTo, onBack }: StepReviewProps
             {state.invoiceData.invoiceNumber && ` · NF ${state.invoiceData.invoiceNumber}`}
           </p>
         )}
+        {state.depositorName ? (
+          <p className="text-xs text-green-700 mt-0.5">Depositante: {state.depositorName}</p>
+        ) : state.depositorId ? (
+          <p className="text-xs text-blue-700 mt-0.5">Depositante vinculado</p>
+        ) : state.identifierType === 'access_key' ? (
+          <p className="text-xs text-amber-600 mt-0.5">Depositante não cadastrado</p>
+        ) : null}
       </ReviewSection>
 
       <ReviewSection label="RV" onEdit={() => onGoTo(2)}>
