@@ -1,6 +1,6 @@
 # PRD — Sistema Logvale de Gestão de Devoluções
 
-**Versão:** 1.0 | **Status:** Aprovado para implementação
+**Versão:** 1.0 | **Status:** Implementado — v1.0
 
 ## 1. Visão Geral
 
@@ -266,7 +266,7 @@ Templates com identidade Logvale.
 ## 5. Integrações
 
 ### 5.1 Webmania
-- Token via env `WEBMANIA_API_TOKEN`
+- Credenciais OAuth via env: `WEBMANIA_CONSUMER_KEY`, `WEBMANIA_CONSUMER_SECRET`, `WEBMANIA_ACCESS_TOKEN`, `WEBMANIA_ACCESS_TOKEN_SECRET`
 - Retry 3x com backoff
 - Cache em `invoice_cache` (TTL infinito)
 - Fallback: prossegue e tenta em background
@@ -312,7 +312,10 @@ Templates com identidade Logvale.
 - Erro Webmania: < 5%
 - Disponibilidade: > 99.9%
 
-## 8. Roadmap
+## 8. Roadmap (Concluído — v1.0)
+
+> Todas as fases abaixo foram concluídas. Mantido como registro histórico.
+
 | Fase | Duração | Entregáveis |
 |---|---|---|
 | 1. Fundação | 1-2 sem | Setup, auth, schema, RLS, layout |

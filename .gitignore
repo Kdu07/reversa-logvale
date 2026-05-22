@@ -31,6 +31,9 @@ yarn-error.log*
 # Claude Code local settings (contains secrets)
 .claude/settings.local.json
 
+# Dev credentials (seed data com emails e senhas de teste)
+docs/CREDENCIAIS_DEV.md
+
 # vercel
 .vercel
 

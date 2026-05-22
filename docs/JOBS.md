@@ -12,13 +12,15 @@
 
 ## 1. auto-decision-job
 
-Já configurado no `docs/SCHEMA.sql`. Roda diretamente em SQL — nenhuma edge function necessária.
+Definido em `supabase/migrations/000_schema.sql` e criado automaticamente pelo `supabase db push`. Roda diretamente em SQL — nenhuma edge function necessária.
 
 Lógica: atualiza returns com `status = 'awaiting_decision'` e `received_at < now() - 72h` para `decided` com `decision = 'store_for_handling'` e `decided_by_type = 'auto'`.
 
 ---
 
 ## 2. Deploy das Edge Functions
+
+> **Status:** As Edge Functions `warning-email` e `photo-cleanup` ainda não foram criadas em `supabase/functions/`. Este documento descreve o processo de deploy para quando forem implementadas.
 
 ### Pré-requisitos
 
