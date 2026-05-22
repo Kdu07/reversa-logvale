@@ -34,9 +34,11 @@ export default async function PrimeiroAcessoPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
-      <div className="w-full max-w-lg">
-        <LogvaleLogo />
+    <div className="bg-mesh-hero min-h-screen flex items-center justify-center px-4">
+      <div className="w-full max-w-lg space-y-8">
+        <div className="flex flex-col items-center gap-3">
+          <LogvaleLogo variant="full" size="lg" />
+        </div>
         <SetPasswordForm action={setupAccount} />
       </div>
     </div>

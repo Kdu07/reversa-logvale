@@ -18,9 +18,11 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       : undefined
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50">
-      <div className="w-full max-w-md px-6">
-        <LogvaleLogo subtitle="Gestão de Devoluções" />
+    <div className="bg-mesh-hero min-h-screen flex items-center justify-center px-4">
+      <div className="w-full max-w-md space-y-8">
+        <div className="flex flex-col items-center gap-3">
+          <LogvaleLogo variant="full" size="lg" subtitle="Gestão de Devoluções" />
+        </div>
         <LoginForm callbackError={callbackError} />
       </div>
     </div>

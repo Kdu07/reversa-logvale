@@ -1,6 +1,9 @@
 import { getCurrentUser } from '@/lib/supabase/get-current-user'
 import { createClient } from '@/lib/supabase/server'
+import { PageHeader } from '@/components/shared/page-header'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import ProfileSignOut from './profile-sign-out'
+import { User, Building2 } from 'lucide-react'
 
 export default async function ClientProfilePage() {
   const user     = await getCurrentUser()
@@ -17,33 +20,45 @@ export default async function ClientProfilePage() {
   }).filter(Boolean) as { cnpj: string; razao_social: string }[]
 
   return (
-    <div className="container mx-auto px-4 max-w-2xl py-8 space-y-6">
-      <h1 className="text-2xl font-bold text-primary">Meu Perfil</h1>
+    <div className="max-w-2xl space-y-6">
+      <PageHeader title="Meu Perfil" description="Informações da sua conta." />
 
-      <div className="rounded-lg border bg-card p-6 space-y-4">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Dados Pessoais</p>
-        <InfoRow label="Nome" value={user.profile.full_name} />
-        <InfoRow label="E-mail" value={user.email ?? '—'} />
-        <InfoRow label="Telefone" value={user.profile.phone ?? '—'} />
-      </div>
+      <Card className="shadow-elev-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <User className="h-4 w-4 text-muted-foreground" />
+            Dados Pessoais
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-0 divide-y divide-border">
+          <InfoRow label="Nome"     value={user.profile.full_name} />
+          <InfoRow label="E-mail"   value={user.email ?? '—'}      />
+          <InfoRow label="Telefone" value={user.profile.phone ?? '—'} />
+        </CardContent>
+      </Card>
 
-      <div className="rounded-lg border bg-card p-6 space-y-4">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-          Depositantes Vinculados
-        </p>
-        {depositors.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Nenhum depositante vinculado.</p>
-        ) : (
-          <ul className="space-y-2">
-            {depositors.map((d) => (
-              <li key={d.cnpj} className="flex items-center justify-between text-sm border rounded-md px-3 py-2">
-                <span className="font-medium text-foreground">{d.razao_social}</span>
-                <span className="font-mono text-xs text-muted-foreground">{formatCnpj(d.cnpj)}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      <Card className="shadow-elev-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Building2 className="h-4 w-4 text-muted-foreground" />
+            Depositantes Vinculados
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {depositors.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhum depositante vinculado.</p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {depositors.map((d) => (
+                <li key={d.cnpj} className="flex items-center justify-between py-2.5 text-sm first:pt-0 last:pb-0">
+                  <span className="font-medium text-foreground">{d.razao_social}</span>
+                  <span className="font-mono text-xs text-muted-foreground">{formatCnpj(d.cnpj)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="flex justify-end">
         <ProfileSignOut />
@@ -54,7 +69,7 @@ export default async function ClientProfilePage() {
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between text-sm border-b border-border pb-3 last:border-0 last:pb-0">
+    <div className="flex items-center justify-between py-3 text-sm">
       <span className="text-muted-foreground">{label}</span>
       <span className="font-medium text-foreground">{value}</span>
     </div>

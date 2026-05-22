@@ -1,7 +1,10 @@
+import Link from 'next/link'
 import { getClientHistoryAction } from '../actions'
 import { ReturnsTable } from '../components/returns-table'
 import { ExportButton } from './export-button'
-import Link from 'next/link'
+import { PageHeader } from '@/components/shared/page-header'
+import { Button } from '@/components/ui/button'
+import { Inbox } from 'lucide-react'
 
 interface SearchParams {
   page?:        string
@@ -24,21 +27,24 @@ export default async function ClientHistoricoPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <h1 className="text-2xl font-bold text-primary">Histórico de Decisões</h1>
-        <div className="flex items-center gap-3">
-          <ExportButton />
-          <Link
-            href="/cliente"
-            className="text-sm text-primary hover:underline"
-          >
-            ← Pendentes
-          </Link>
-        </div>
-      </div>
+      <PageHeader
+        title="Histórico de Decisões"
+        description="Todas as devoluções com decisão registrada."
+        actions={
+          <div className="flex items-center gap-2">
+            <ExportButton />
+            <Button asChild variant="outline" size="sm" className="gap-2">
+              <Link href="/cliente">
+                <Inbox className="h-4 w-4" />
+                Pendentes
+              </Link>
+            </Button>
+          </div>
+        }
+      />
 
       {'error' in result ? (
-        <div className="rounded-lg border bg-card p-6 text-center text-destructive text-sm">
+        <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-6 text-center text-destructive text-sm">
           Erro ao carregar histórico: {result.error}
         </div>
       ) : (

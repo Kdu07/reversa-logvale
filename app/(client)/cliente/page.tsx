@@ -1,6 +1,9 @@
+import Link from 'next/link'
 import { getClientReturnsAction } from './actions'
 import { ReturnsTable } from './components/returns-table'
-import Link from 'next/link'
+import { PageHeader } from '@/components/shared/page-header'
+import { Button } from '@/components/ui/button'
+import { History } from 'lucide-react'
 
 interface SearchParams {
   page?:        string
@@ -23,18 +26,21 @@ export default async function ClientHomePage({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <h1 className="text-2xl font-bold text-primary">Devoluções Pendentes</h1>
-        <Link
-          href="/cliente/historico"
-          className="text-sm text-primary hover:underline"
-        >
-          Ver histórico →
-        </Link>
-      </div>
+      <PageHeader
+        title="Devoluções Pendentes"
+        description="Revise as devoluções e registre sua decisão."
+        actions={
+          <Button asChild variant="outline" size="sm" className="gap-2">
+            <Link href="/cliente/historico">
+              <History className="h-4 w-4" />
+              Ver histórico
+            </Link>
+          </Button>
+        }
+      />
 
       {'error' in result ? (
-        <div className="rounded-lg border bg-card p-6 text-center text-destructive text-sm">
+        <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-6 text-center text-destructive text-sm">
           Erro ao carregar devoluções: {result.error}
         </div>
       ) : (

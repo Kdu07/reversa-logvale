@@ -1,5 +1,6 @@
 import { getAdminReturnsAction } from './actions'
 import { ReturnsAdminTable } from './components/returns-admin-table'
+import { PageHeader } from '@/components/shared/page-header'
 import type { ReturnStatus } from '@/types'
 
 interface SearchParams {
@@ -29,14 +30,18 @@ export default async function AdminReturnsPage({
 
   if ('error' in result) {
     return (
-      <div className="rounded-lg border bg-card p-6 text-center text-destructive text-sm">
-        Erro ao carregar devoluções: {result.error}
+      <div className="space-y-6">
+        <PageHeader title="Devoluções" description="Histórico e gestão de todas as devoluções." />
+        <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-6 text-center text-destructive text-sm">
+          Erro ao carregar devoluções: {result.error}
+        </div>
       </div>
     )
   }
 
   return (
     <div className="space-y-6">
+      <PageHeader title="Devoluções" description="Histórico e gestão de todas as devoluções." />
       <ReturnsAdminTable
         rows={result.rows}
         total={result.total}

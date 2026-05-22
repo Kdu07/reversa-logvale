@@ -1,9 +1,9 @@
 'use client'
 
+import { LogOut } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
-import { ptBR } from '@/lib/i18n/pt-BR'
 
 export default function SignOutButton() {
   const router = useRouter()
@@ -16,13 +16,9 @@ export default function SignOutButton() {
   }
 
   return (
-    <Button
-      variant="ghost"
-      size="sm"
-      onClick={handleSignOut}
-      className="text-white/80 hover:text-white hover:bg-white/10"
-    >
-      {ptBR.auth.signOut}
+    <Button variant="ghost" size="sm" onClick={handleSignOut} className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground">
+      <LogOut className="h-4 w-4" />
+      <span>Sair</span>
     </Button>
   )
 }

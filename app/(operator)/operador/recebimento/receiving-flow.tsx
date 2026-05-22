@@ -3,6 +3,7 @@
 import { useReducer, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { ProgressBar } from './progress-bar'
 import { StepIdentifier } from './steps/step-identifier'
 import { StepRv } from './steps/step-rv'
@@ -190,7 +191,7 @@ export function ReceivingFlow({ operatorName }: ReceivingFlowProps) {
       {/* Header row */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-primary">Novo Recebimento</h1>
+          <h1 className="text-xl font-bold text-foreground">Novo Recebimento</h1>
           <p className="text-xs text-muted-foreground">{operatorName}</p>
         </div>
         {state.step < 7 && (
@@ -208,41 +209,36 @@ export function ReceivingFlow({ operatorName }: ReceivingFlowProps) {
 
       <ProgressBar step={state.step} />
 
-      <div className="rounded-xl border bg-card p-6">
+      <div className="rounded-xl border border-border bg-card shadow-elev-sm p-6">
         {stepContent}
       </div>
 
-      {/* Cancel confirmation overlay */}
-      {showCancelConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
-          <div className="bg-white rounded-xl p-6 max-w-sm w-full space-y-4 shadow-xl">
-            <p className="font-semibold text-foreground">Cancelar recebimento?</p>
-            <p className="text-sm text-muted-foreground">
+      <Dialog open={showCancelConfirm} onOpenChange={setShowCancelConfirm}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Cancelar recebimento?</DialogTitle>
+            <DialogDescription>
               Todos os dados inseridos serão descartados.
-            </p>
-            <div className="flex gap-3">
-              <Button
-                type="button" variant="ghost"
-                className="flex-1"
-                onClick={() => setShowCancelConfirm(false)}
-              >
-                Continuar
-              </Button>
-              <Button
-                type="button"
-                className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground"
-                onClick={() => {
-                  dispatch({ type: 'RESET' })
-                  setShowCancelConfirm(false)
-                  router.push('/operador')
-                }}
-              >
-                Descartar
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button type="button" variant="outline" onClick={() => setShowCancelConfirm(false)}>
+              Continuar
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => {
+                dispatch({ type: 'RESET' })
+                setShowCancelConfirm(false)
+                router.push('/operador')
+              }}
+            >
+              Descartar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

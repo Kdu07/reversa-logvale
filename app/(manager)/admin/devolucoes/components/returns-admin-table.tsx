@@ -3,13 +3,17 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
+import { DecisionPill } from '@/components/shared/decision-pill'
+import { EmptyState } from '@/components/shared/empty-state'
 import { PhotoGallery } from '@/components/shared/photo-gallery'
 import { PhotoThumbs } from '@/components/shared/photo-thumbs'
-import { DECISION_LABELS, DECISION_BADGE } from '@/lib/decisions'
 import { formatDate, identifierLabel } from '@/lib/format'
 import { ptBR } from '@/lib/i18n/pt-BR'
 import { revertReturnStatusAction } from '../actions'
+import { Boxes, ChevronLeft, ChevronRight, Search } from 'lucide-react'
 import type { AdminReturnRow } from '../actions'
 import type { ReturnStatus } from '@/types'
 
@@ -21,10 +25,10 @@ const STATUS_LABELS: Record<ReturnStatus, string> = {
   processed:         ptBR.returnStatus.processed,
 }
 
-const STATUS_BADGE: Record<ReturnStatus, string> = {
-  awaiting_decision: 'bg-amber-100 text-amber-800 border-amber-300',
-  decided:           'bg-blue-100  text-blue-800  border-blue-300',
-  processed:         'bg-green-100 text-green-800 border-green-300',
+const STATUS_CLASS: Record<ReturnStatus, string> = {
+  awaiting_decision: 'border-warning/40 bg-warning/10 text-warning-foreground dark:text-warning',
+  decided:           'border-info/30 bg-info/10 text-info',
+  processed:         'border-success/30 bg-success/10 text-success',
 }
 
 interface Props {
@@ -38,12 +42,12 @@ interface Props {
 export function ReturnsAdminTable({
   rows, total, currentRv, currentStatus, currentPage,
 }: Props) {
-  const router                        = useRouter()
-  const [detailsRow, setDetailsRow]   = useState<AdminReturnRow | null>(null)
+  const router                          = useRouter()
+  const [detailsRow, setDetailsRow]     = useState<AdminReturnRow | null>(null)
   const [revertTarget, setRevertTarget] = useState<AdminReturnRow | null>(null)
-  const [revertError, setRevertError] = useState<string | null>(null)
-  const [gallery, setGallery]         = useState<{ urls: string[]; index: number } | null>(null)
-  const [isPending, startTransition]  = useTransition()
+  const [revertError, setRevertError]   = useState<string | null>(null)
+  const [gallery, setGallery]           = useState<{ urls: string[]; index: number } | null>(null)
+  const [isPending, startTransition]    = useTransition()
 
   const totalPages = Math.max(1, Math.ceil(total / 50))
 
@@ -71,25 +75,23 @@ export function ReturnsAdminTable({
 
   return (
     <>
-      <div className="flex items-center justify-between gap-3 mb-4">
-        <h1 className="text-2xl font-bold text-primary">{t.title}</h1>
-        <span className="text-sm text-muted-foreground">{total} devoluções</span>
-      </div>
-
-      {/* Filters */}
-      <div className="flex gap-3 mb-4 flex-wrap">
-        <input
-          className="rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary w-48"
-          placeholder="Buscar por RV..."
-          defaultValue={currentRv}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              router.push(buildUrl((e.target as HTMLInputElement).value, currentStatus, 1))
-            }
-          }}
-        />
+      {/* Filtros */}
+      <div className="flex gap-3 flex-wrap items-center">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <input
+            className="h-9 rounded-md border border-input bg-background pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring w-48 placeholder:text-muted-foreground"
+            placeholder="Buscar por RV..."
+            defaultValue={currentRv}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                router.push(buildUrl((e.target as HTMLInputElement).value, currentStatus, 1))
+              }
+            }}
+          />
+        </div>
         <select
-          className="rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          className="h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           value={currentStatus}
           onChange={(e) => router.push(buildUrl(currentRv, e.target.value, 1))}
         >
@@ -99,172 +101,155 @@ export function ReturnsAdminTable({
             </option>
           ))}
         </select>
+        <Badge variant="secondary" className="ml-auto">{total} devoluções</Badge>
       </div>
 
-      {/* Table */}
-      <div className="rounded-lg border bg-card overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-xs text-muted-foreground border-b bg-muted/30">
-              <th className="px-4 py-3 font-medium">{t.colDate}</th>
-              <th className="px-4 py-3 font-medium">{t.colRv}</th>
-              <th className="px-4 py-3 font-medium">{t.colStatus}</th>
-              <th className="px-4 py-3 font-medium">{t.colDecision}</th>
-              <th className="px-4 py-3 font-medium">{t.colOperator}</th>
-              <th className="px-4 py-3 font-medium">{t.colDepositor}</th>
-              <th className="px-4 py-3 font-medium"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {rows.length === 0 && (
-              <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
-                  {ptBR.common.noResults}
-                </td>
+      {/* Tabela */}
+      {rows.length === 0 ? (
+        <EmptyState icon={Boxes} title="Nenhuma devolução" description={ptBR.common.noResults} />
+      ) : (
+        <div className="rounded-lg border border-border overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left border-b bg-muted/30">
+                <th className="px-4 py-2.5 text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">{t.colDate}</th>
+                <th className="px-4 py-2.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">{t.colRv}</th>
+                <th className="px-4 py-2.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">{t.colStatus}</th>
+                <th className="px-4 py-2.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">{t.colDecision}</th>
+                <th className="px-4 py-2.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">{t.colOperator}</th>
+                <th className="px-4 py-2.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">{t.colDepositor}</th>
+                <th className="px-4 py-2.5" />
               </tr>
-            )}
-            {rows.map((r) => (
-              <tr key={r.id} className="hover:bg-muted/20 transition-colors">
-                <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{formatDate(r.receivedAt)}</td>
-                <td className="px-4 py-3 font-mono font-medium">{r.rv}</td>
-                <td className="px-4 py-3">
-                  <span className={`text-xs px-2 py-0.5 rounded-full border ${STATUS_BADGE[r.status]}`}>
-                    {STATUS_LABELS[r.status]}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  {r.decision ? (
-                    <span className={`text-xs px-2 py-0.5 rounded-full border ${DECISION_BADGE[r.decision]}`}>
-                      {DECISION_LABELS[r.decision]}
+            </thead>
+            <tbody className="divide-y divide-border">
+              {rows.map((r) => (
+                <tr key={r.id} className="hover:bg-muted/30 transition-colors ease-quint">
+                  <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap text-xs">{formatDate(r.receivedAt)}</td>
+                  <td className="px-4 py-2.5 font-mono font-medium">{r.rv}</td>
+                  <td className="px-4 py-2.5">
+                    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${STATUS_CLASS[r.status]}`}>
+                      <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                      {STATUS_LABELS[r.status]}
                     </span>
-                  ) : <span className="text-xs text-muted-foreground">—</span>}
-                </td>
-                <td className="px-4 py-3 text-muted-foreground">{r.operatorName ?? '—'}</td>
-                <td className="px-4 py-3 text-muted-foreground">{r.depositorName ?? '—'}</td>
-                <td className="px-4 py-3 text-right">
-                  <button
-                    type="button"
-                    onClick={() => setDetailsRow(r)}
-                    className="text-xs text-primary hover:underline"
-                  >
-                    {t.detailsBtn}
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between gap-2 mt-4 text-sm">
-          <button
-            type="button"
-            disabled={currentPage <= 1}
-            onClick={() => router.push(buildUrl(currentRv, currentStatus, currentPage - 1))}
-            className="px-3 py-1.5 rounded border text-muted-foreground hover:bg-muted disabled:opacity-40"
-          >
-            ← Anterior
-          </button>
-          <span className="text-muted-foreground">Página {currentPage} de {totalPages}</span>
-          <button
-            type="button"
-            disabled={currentPage >= totalPages}
-            onClick={() => router.push(buildUrl(currentRv, currentStatus, currentPage + 1))}
-            className="px-3 py-1.5 rounded border text-muted-foreground hover:bg-muted disabled:opacity-40"
-          >
-            Próxima →
-          </button>
+                  </td>
+                  <td className="px-4 py-2.5">
+                    {r.decision
+                      ? <DecisionPill decision={r.decision} />
+                      : <span className="text-xs text-muted-foreground">—</span>}
+                  </td>
+                  <td className="px-4 py-2.5 text-muted-foreground text-xs">{r.operatorName ?? '—'}</td>
+                  <td className="px-4 py-2.5 text-muted-foreground text-xs">{r.depositorName ?? '—'}</td>
+                  <td className="px-4 py-2.5 text-right">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setDetailsRow(r)}
+                      className="h-7 text-xs"
+                    >
+                      {t.detailsBtn}
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
-      {/* Details modal */}
-      {detailsRow && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col">
-            <div className="flex items-start justify-between gap-3 p-5 border-b">
-              <div className="space-y-1.5">
-                <p className="text-xs text-muted-foreground">RV</p>
-                <p className="text-xl font-bold font-mono text-foreground">{detailsRow.rv}</p>
-                <div className="flex gap-2 flex-wrap">
-                  <span className={`text-xs px-2 py-0.5 rounded-full border ${STATUS_BADGE[detailsRow.status]}`}>
-                    {STATUS_LABELS[detailsRow.status]}
-                  </span>
-                  {detailsRow.decision && (
-                    <span className={`text-xs px-2 py-0.5 rounded-full border ${DECISION_BADGE[detailsRow.decision]}`}>
-                      {DECISION_LABELS[detailsRow.decision]}
-                    </span>
-                  )}
-                  {detailsRow.decidedByType === 'auto' && (
-                    <span className="text-xs px-2 py-0.5 rounded-full border border-slate-300 bg-slate-100 text-slate-600">
-                      Auto
-                    </span>
-                  )}
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setDetailsRow(null)}
-                className="text-muted-foreground hover:text-foreground text-lg leading-none mt-1 shrink-0"
-              >✕</button>
-            </div>
+      {/* Paginação */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={currentPage <= 1}
+            onClick={() => router.push(buildUrl(currentRv, currentStatus, currentPage - 1))}
+            className="gap-1"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Anterior
+          </Button>
+          <span className="text-sm text-muted-foreground px-2">Página {currentPage} de {totalPages}</span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={currentPage >= totalPages}
+            onClick={() => router.push(buildUrl(currentRv, currentStatus, currentPage + 1))}
+            className="gap-1"
+          >
+            Próxima
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
 
-            <div className="flex-1 overflow-y-auto p-5 space-y-5">
-              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+      {/* Modal de detalhes */}
+      <Dialog open={!!detailsRow} onOpenChange={(o) => !o && setDetailsRow(null)}>
+        {detailsRow && (
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="font-mono text-xl">{detailsRow.rv}</DialogTitle>
+              <div className="flex gap-2 flex-wrap pt-1">
+                <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${STATUS_CLASS[detailsRow.status]}`}>
+                  <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                  {STATUS_LABELS[detailsRow.status]}
+                </span>
+                {detailsRow.decision && <DecisionPill decision={detailsRow.decision} />}
+                {detailsRow.decidedByType === 'auto' && (
+                  <Badge variant="secondary" className="text-[10px] px-1.5">Auto</Badge>
+                )}
+              </div>
+            </DialogHeader>
+
+            <div className="space-y-5 py-2">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
                 <InfoField label="Depositante"  value={detailsRow.depositorName ?? '—'} />
                 <InfoField label="Operador"     value={detailsRow.operatorName ?? '—'} />
                 <InfoField label="Recebido em"  value={formatDate(detailsRow.receivedAt)} />
-                {detailsRow.decidedAt   && <InfoField label="Decisão em"     value={formatDate(detailsRow.decidedAt)} />}
-                {detailsRow.processedAt && <InfoField label="Processado em"  value={formatDate(detailsRow.processedAt)} />}
-                <InfoField label="Itens"        value={String(detailsRow.itemCount)} />
+                {detailsRow.decidedAt   && <InfoField label="Decisão em"    value={formatDate(detailsRow.decidedAt)} />}
+                {detailsRow.processedAt && <InfoField label="Processado em" value={formatDate(detailsRow.processedAt)} />}
+                <InfoField label="Itens" value={String(detailsRow.itemCount)} />
                 <div className="col-span-2">
                   <p className="text-xs text-muted-foreground">Identificador</p>
-                  <p className="font-mono text-xs break-all">{identifierLabel(detailsRow)}</p>
+                  <p className="font-mono text-xs break-all mt-0.5">{identifierLabel(detailsRow)}</p>
                 </div>
               </div>
 
               {detailsRow.invoiceXmlUrl && (
                 <div>
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">NF Original</p>
-                  <a href={detailsRow.invoiceXmlUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline">
+                  <a href={detailsRow.invoiceXmlUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline font-medium">
                     Baixar XML
                   </a>
                 </div>
               )}
-
               {detailsRow.returnInvoiceXmlUrl && (
                 <div>
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">NF de Devolução</p>
-                  <a href={detailsRow.returnInvoiceXmlUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline">
+                  <a href={detailsRow.returnInvoiceXmlUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline font-medium">
                     Baixar XML
                   </a>
                 </div>
               )}
-
               {detailsRow.boxPhotoUrls.length > 0 && (
                 <div>
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Fotos da Caixa</p>
-                  <PhotoThumbs
-                    urls={detailsRow.boxPhotoUrls}
-                    onOpen={(i) => setGallery({ urls: detailsRow.boxPhotoUrls, index: i })}
-                  />
+                  <PhotoThumbs urls={detailsRow.boxPhotoUrls} onOpen={(i) => setGallery({ urls: detailsRow.boxPhotoUrls, index: i })} />
                 </div>
               )}
-
               {detailsRow.itemPhotoUrls.length > 0 && (
                 <div>
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Fotos dos Itens</p>
-                  <PhotoThumbs
-                    urls={detailsRow.itemPhotoUrls}
-                    onOpen={(i) => setGallery({ urls: detailsRow.itemPhotoUrls, index: i })}
-                  />
+                  <PhotoThumbs urls={detailsRow.itemPhotoUrls} onOpen={(i) => setGallery({ urls: detailsRow.itemPhotoUrls, index: i })} />
                 </div>
               )}
             </div>
 
-            <div className="flex gap-3 p-5 border-t">
-              <Button type="button" variant="outline" onClick={() => setDetailsRow(null)} className="flex-1">
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button type="button" variant="outline" onClick={() => setDetailsRow(null)}>
                 Fechar
               </Button>
               {(detailsRow.status === 'decided' || detailsRow.status === 'processed') && (
@@ -272,44 +257,37 @@ export function ReturnsAdminTable({
                   type="button"
                   variant="destructive"
                   onClick={() => { setRevertError(null); setRevertTarget(detailsRow) }}
-                  className="flex-1"
                 >
                   {t.revertBtn}
                 </Button>
               )}
-            </div>
-          </div>
-        </div>
-      )}
+            </DialogFooter>
+          </DialogContent>
+        )}
+      </Dialog>
 
-      {/* Revert confirm */}
-      {revertTarget && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] px-4">
-          <div className="bg-white rounded-xl p-6 max-w-sm w-full space-y-4 shadow-xl">
-            <p className="font-semibold text-foreground">{t.revertTitle}</p>
-            <p className="text-sm text-muted-foreground">{t.revertDesc}</p>
-            {revertError && (
-              <Alert variant="destructive">
-                <AlertDescription>{revertError}</AlertDescription>
-              </Alert>
-            )}
-            <div className="flex gap-3">
-              <Button
-                type="button" variant="ghost" className="flex-1"
-                onClick={() => setRevertTarget(null)} disabled={isPending}
-              >
-                {ptBR.common.cancel}
-              </Button>
-              <Button
-                type="button" variant="destructive"
-                onClick={handleRevert} disabled={isPending} className="flex-1"
-              >
-                {isPending ? 'Revertendo...' : 'Confirmar'}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Confirmar reversão */}
+      <Dialog open={!!revertTarget} onOpenChange={(o) => !o && setRevertTarget(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t.revertTitle}</DialogTitle>
+            <DialogDescription>{t.revertDesc}</DialogDescription>
+          </DialogHeader>
+          {revertError && (
+            <Alert variant="destructive">
+              <AlertDescription>{revertError}</AlertDescription>
+            </Alert>
+          )}
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button type="button" variant="outline" onClick={() => setRevertTarget(null)} disabled={isPending}>
+              {ptBR.common.cancel}
+            </Button>
+            <Button type="button" variant="destructive" onClick={handleRevert} disabled={isPending}>
+              {isPending ? 'Revertendo...' : 'Confirmar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {gallery && (
         <PhotoGallery
@@ -327,7 +305,7 @@ function InfoField({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="font-medium text-foreground">{value}</p>
+      <p className="font-medium text-foreground mt-0.5">{value}</p>
     </div>
   )
 }

@@ -8,6 +8,20 @@ export const DECISION_LABELS: Record<ReturnDecision, string> = {
   repackage:          ptBR.decisions.repackage,
 }
 
+export const DECISION_SHORT: Record<ReturnDecision, string> = {
+  return_to_stock:    'Estoque',
+  store_for_handling: 'Armazén.',
+  discard:            'Descarte',
+  repackage:          'Reembal.',
+}
+
+export const DECISION_TONE: Record<ReturnDecision, 'success' | 'warning' | 'destructive' | 'info'> = {
+  return_to_stock:    'success',
+  store_for_handling: 'warning',
+  discard:            'destructive',
+  repackage:          'info',
+}
+
 export const DECISION_BADGE: Record<ReturnDecision, string> = {
   return_to_stock:    'bg-green-100 text-green-800 border-green-300',
   store_for_handling: 'bg-amber-100 text-amber-800 border-amber-300',

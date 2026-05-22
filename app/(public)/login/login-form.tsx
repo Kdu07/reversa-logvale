@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { ptBR } from '@/lib/i18n/pt-BR'
+import { AlertCircle, LogIn } from 'lucide-react'
 
 const schema = z.object({
   email:    z.string().email(ptBR.auth.login.errorInvalidEmail),
@@ -48,14 +49,13 @@ export default function LoginForm({ callbackError }: { callbackError?: string })
       return
     }
 
-    // Middleware redireciona ao role home (ou /primeiro-acesso se necessário)
     window.location.href = '/login'
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t.title}</CardTitle>
+    <Card className="shadow-elev-md border-border/50 bg-card/95 backdrop-blur-sm">
+      <CardHeader className="space-y-1 pb-4">
+        <CardTitle className="text-xl">{t.title}</CardTitle>
         <CardDescription>{t.subtitle}</CardDescription>
       </CardHeader>
       <CardContent>
@@ -89,15 +89,22 @@ export default function LoginForm({ callbackError }: { callbackError?: string })
           </div>
           {error && (
             <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
-          <Button
-            type="submit"
-            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
-            disabled={loading}
-          >
-            {loading ? t.submitting : t.submitButton}
+          <Button type="submit" className="w-full gap-2" disabled={loading}>
+            {loading ? (
+              <>
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                {t.submitting}
+              </>
+            ) : (
+              <>
+                <LogIn className="h-4 w-4" />
+                {t.submitButton}
+              </>
+            )}
           </Button>
         </form>
       </CardContent>

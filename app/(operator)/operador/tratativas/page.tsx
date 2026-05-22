@@ -1,6 +1,7 @@
 import { getCurrentUser } from '@/lib/supabase/get-current-user'
 import { getTrativasAction } from './actions'
 import { TrativasList } from './components/tratativas-list'
+import { PageHeader } from '@/components/shared/page-header'
 
 interface SearchParams {
   rv?:   string
@@ -21,8 +22,12 @@ export default async function TratativasPage({
 
   return (
     <div className="space-y-6">
+      <PageHeader
+        title="Tratativas"
+        description="Devoluções com decisão do cliente pendentes de execução."
+      />
       {'error' in result ? (
-        <div className="rounded-lg border bg-card p-6 text-center text-destructive text-sm">
+        <div className="rounded-lg border bg-destructive/10 border-destructive/30 p-6 text-center text-destructive text-sm">
           Erro ao carregar tratativas: {result.error}
         </div>
       ) : (

@@ -3,12 +3,15 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { CountdownTimer } from './countdown-timer'
+import { Badge } from '@/components/ui/badge'
+import { CountdownTimer } from '@/components/shared/countdown-timer'
+import { DecisionPill } from '@/components/shared/decision-pill'
+import { EmptyState } from '@/components/shared/empty-state'
 import { DecisionModal } from './decision-modal'
 import { PhotoGallery } from '@/components/shared/photo-gallery'
 import { PhotoThumbs } from '@/components/shared/photo-thumbs'
-import { DECISION_LABELS, DECISION_BADGE } from '@/lib/decisions'
 import { formatDate } from '@/lib/format'
+import { Inbox, ChevronLeft, ChevronRight } from 'lucide-react'
 import type { ReturnRow, DepositorOption } from '../actions'
 import type { ReturnDecision, IdentifierType } from '@/types'
 
@@ -23,12 +26,19 @@ interface ReturnsTableProps {
   mode:             'pending' | 'history'
 }
 
-const DECISION_BUTTONS: { decision: ReturnDecision; label: string; className: string }[] = [
-  { decision: 'return_to_stock',    label: 'Estoque',   className: 'bg-green-600 hover:bg-green-700 text-white' },
-  { decision: 'store_for_handling', label: 'Armazenar', className: 'bg-amber-500 hover:bg-amber-600 text-white' },
-  { decision: 'discard',            label: 'Descarte',  className: 'bg-red-600   hover:bg-red-700   text-white' },
-  { decision: 'repackage',          label: 'Reembalar', className: 'bg-primary   hover:bg-primary/90 text-white' },
+const DECISION_BUTTONS: { decision: ReturnDecision; label: string; variant: 'success' | 'warning' | 'destructive' | 'info' }[] = [
+  { decision: 'return_to_stock',    label: 'Estoque',   variant: 'success'     },
+  { decision: 'store_for_handling', label: 'Armazenar', variant: 'warning'     },
+  { decision: 'discard',            label: 'Descarte',  variant: 'destructive' },
+  { decision: 'repackage',          label: 'Reembalar', variant: 'info'        },
 ]
+
+const DECISION_BUTTON_CLASS: Record<string, string> = {
+  success:     'bg-success/10 text-success border border-success/30 hover:bg-success/20',
+  warning:     'bg-warning/10 text-warning-foreground border border-warning/30 hover:bg-warning/20',
+  destructive: 'bg-destructive/10 text-destructive border border-destructive/30 hover:bg-destructive/20',
+  info:        'bg-info/10 text-info border border-info/30 hover:bg-info/20',
+}
 
 const PAGE_SIZE = 50
 
@@ -90,13 +100,13 @@ export function ReturnsTable({
   return (
     <div className="space-y-4">
       {mode === 'pending' && (
-        <div className="flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-          <span className="mt-0.5 shrink-0">ℹ️</span>
+        <div className="flex items-start gap-2.5 rounded-lg border border-info/30 bg-info/10 px-4 py-3 text-sm text-info">
+          <span className="mt-0.5 shrink-0 text-base">ℹ</span>
           <span>Devoluções sem decisão em 72h são automaticamente armazenadas para tratativas.</span>
         </div>
       )}
 
-      {/* Filters */}
+      {/* Filtros */}
       <div className="flex flex-wrap items-end gap-3">
         {depositors.length > 1 && (
           <div className="flex flex-col gap-1">
@@ -136,65 +146,69 @@ export function ReturnsTable({
             Limpar filtros
           </Button>
         )}
-        <div className="ml-auto text-sm text-muted-foreground self-end pb-1">
+        <Badge variant="secondary" className="ml-auto self-end mb-0.5">
           {total} {total === 1 ? 'devolução' : 'devoluções'}
-        </div>
+        </Badge>
       </div>
 
-      {/* Table */}
+      {/* Tabela */}
       {rows.length === 0 ? (
-        <div className="rounded-lg border bg-card p-8 text-center text-muted-foreground text-sm">
-          {mode === 'pending' ? 'Nenhuma devolução pendente.' : 'Nenhuma decisão registrada.'}
-        </div>
+        <EmptyState
+          icon={Inbox}
+          title={mode === 'pending' ? 'Nenhuma devolução pendente' : 'Nenhuma decisão registrada'}
+          description={mode === 'pending'
+            ? 'Quando houver devoluções aguardando sua decisão, elas aparecerão aqui.'
+            : 'O histórico de decisões aparecerá aqui.'}
+        />
       ) : (
-        <div className="overflow-x-auto rounded-lg border">
+        <div className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b bg-muted/40">
-                <th className="px-3 py-2 text-left font-medium text-muted-foreground whitespace-nowrap">Data</th>
-                <th className="px-3 py-2 text-left font-medium text-muted-foreground">Identificador</th>
-                <th className="px-3 py-2 text-left font-medium text-muted-foreground">NF</th>
-                <th className="px-3 py-2 text-left font-medium text-muted-foreground whitespace-nowrap">RV</th>
-                <th className="px-3 py-2 text-left font-medium text-muted-foreground">Itens</th>
-                <th className="px-3 py-2 text-left font-medium text-muted-foreground whitespace-nowrap">Fotos Caixa</th>
-                <th className="px-3 py-2 text-left font-medium text-muted-foreground whitespace-nowrap">Fotos Itens</th>
+              <tr className="border-b bg-muted/30">
+                <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">Data</th>
+                <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Identificador</th>
+                <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">NF</th>
+                <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">RV</th>
+                <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Itens</th>
+                <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">Fotos Caixa</th>
+                <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">Fotos Itens</th>
                 {mode === 'pending' && (
                   <>
-                    <th className="px-3 py-2 text-left font-medium text-muted-foreground">Decisão</th>
-                    <th className="px-3 py-2 text-left font-medium text-muted-foreground whitespace-nowrap">Tempo Restante</th>
+                    <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Decisão</th>
+                    <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">Tempo Restante</th>
                   </>
                 )}
                 {mode === 'history' && (
                   <>
-                    <th className="px-3 py-2 text-left font-medium text-muted-foreground">Decisão</th>
-                    <th className="px-3 py-2 text-left font-medium text-muted-foreground whitespace-nowrap">Decidido em</th>
+                    <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Decisão</th>
+                    <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">Decidido em</th>
                   </>
                 )}
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-border">
               {rows.map((row) => (
-                <tr key={row.id} className="border-b last:border-0 hover:bg-muted/20">
-                  <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">
+                <tr key={row.id} className="hover:bg-muted/30 transition-colors ease-quint">
+                  <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground text-xs">
                     {formatDate(row.receivedAt)}
                   </td>
-                  <td className="px-3 py-2">
+                  <td className="px-3 py-2.5">
                     <IdentifierTag row={row} />
                   </td>
-                  <td className="px-3 py-2">
+                  <td className="px-3 py-2.5">
                     {row.invoiceXmlUrl ? (
-                      <a href={row.invoiceXmlUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-xs">
+                      <a href={row.invoiceXmlUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-xs font-medium">
                         XML
                       </a>
                     ) : (
                       <span className="text-xs text-muted-foreground">—</span>
                     )}
                   </td>
-                  <td className="px-3 py-2">
-                    <span className="font-mono text-xs">{row.rv}</span>
+                  <td className="px-3 py-2.5">
+                    <span className="font-mono text-xs font-medium">{row.rv}</span>
                   </td>
-                  <td className="px-3 py-2 text-center">{row.itemCount}</td>
-                  <td className="px-3 py-2">
+                  <td className="px-3 py-2.5 text-center text-muted-foreground">{row.itemCount}</td>
+                  <td className="px-3 py-2.5">
                     <PhotoThumbs
                       urls={row.boxPhotoUrls}
                       onOpen={(i) => setGallery({ urls: row.boxPhotoUrls, index: i })}
@@ -203,7 +217,7 @@ export function ReturnsTable({
                       emptyText="—"
                     />
                   </td>
-                  <td className="px-3 py-2">
+                  <td className="px-3 py-2.5">
                     <PhotoThumbs
                       urls={row.itemPhotoUrls}
                       onOpen={(i) => setGallery({ urls: row.itemPhotoUrls, index: i })}
@@ -214,38 +228,38 @@ export function ReturnsTable({
                   </td>
                   {mode === 'pending' && (
                     <>
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-2.5">
                         <div className="flex flex-wrap gap-1">
                           {DECISION_BUTTONS.map((btn) => (
                             <button
                               key={btn.decision}
                               type="button"
                               onClick={() => setSelectedDecision({ row, decision: btn.decision })}
-                              className={`px-2 py-1 rounded text-xs font-medium transition-opacity ${btn.className}`}
+                              className={`px-2 py-1 rounded-md text-xs font-medium transition-colors ease-quint ${DECISION_BUTTON_CLASS[btn.variant]}`}
                             >
                               {btn.label}
                             </button>
                           ))}
                         </div>
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap">
+                      <td className="px-3 py-2.5 whitespace-nowrap">
                         <CountdownTimer receivedAt={row.receivedAt} />
                       </td>
                     </>
                   )}
                   {mode === 'history' && (
                     <>
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-2.5">
                         {row.decision ? (
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-medium ${DECISION_BADGE[row.decision]}`}>
-                            {DECISION_LABELS[row.decision]}
+                          <div className="flex items-center gap-1.5">
+                            <DecisionPill decision={row.decision} />
                             {row.decidedByType === 'auto' && (
-                              <span className="ml-1 text-[10px] opacity-70">Auto</span>
+                              <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Auto</Badge>
                             )}
-                          </span>
+                          </div>
                         ) : '—'}
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap text-muted-foreground text-xs">
+                      <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground text-xs">
                         {row.decidedAt ? formatDate(row.decidedAt) : '—'}
                       </td>
                     </>
@@ -257,7 +271,7 @@ export function ReturnsTable({
         </div>
       )}
 
-      {/* Pagination */}
+      {/* Paginação */}
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-2">
           <Button
@@ -266,10 +280,12 @@ export function ReturnsTable({
             size="sm"
             disabled={currentPage <= 1}
             onClick={() => router.push(buildUrl({ page: currentPage - 1 }))}
+            className="gap-1"
           >
-            ← Anterior
+            <ChevronLeft className="h-4 w-4" />
+            Anterior
           </Button>
-          <span className="text-sm text-muted-foreground">
+          <span className="text-sm text-muted-foreground px-2">
             {currentPage} / {totalPages}
           </span>
           <Button
@@ -278,8 +294,10 @@ export function ReturnsTable({
             size="sm"
             disabled={currentPage >= totalPages}
             onClick={() => router.push(buildUrl({ page: currentPage + 1 }))}
+            className="gap-1"
           >
-            Próxima →
+            Próxima
+            <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
       )}
