@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import type { ReceivingState } from '../receiving-flow'
+import { getInvoiceXmlUrlAction } from '../actions'
 
 interface StepReviewProps {
   state:     ReceivingState
@@ -51,6 +52,9 @@ export function StepReview({ state, onConfirm, onGoTo, onBack }: StepReviewProps
         ) : state.identifierType === 'access_key' ? (
           <p className="text-xs text-amber-600 mt-0.5">Depositante não cadastrado</p>
         ) : null}
+        {state.invoiceData?.xmlStoragePath && (
+          <DownloadXmlButton xmlPath={state.invoiceData.xmlStoragePath} />
+        )}
       </ReviewSection>
 
       <ReviewSection label="RV" onEdit={() => onGoTo(2)}>
@@ -98,6 +102,28 @@ function ReviewSection({
         Editar
       </Button>
     </div>
+  )
+}
+
+function DownloadXmlButton({ xmlPath }: { xmlPath: string }) {
+  const [loading, setLoading] = useState(false)
+
+  async function handleClick() {
+    setLoading(true)
+    const url = await getInvoiceXmlUrlAction(xmlPath)
+    setLoading(false)
+    if (url) window.open(url, '_blank')
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={loading}
+      className="mt-1 text-xs text-primary hover:underline disabled:opacity-50"
+    >
+      {loading ? 'Gerando link…' : 'Baixar XML da NF'}
+    </button>
   )
 }
 

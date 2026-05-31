@@ -12,6 +12,7 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar'
 import LogvaleLogo from './logvale-logo'
+import { ReversaIcon } from './reversa-icon'
 import SignOutButton from './sign-out-button'
 import { cn } from '@/lib/utils'
 import type { UserRole } from '@/types'
@@ -90,7 +91,11 @@ export function AppSidebar({ role, fullName, email }: AppSidebarProps) {
           className={cn('flex items-center gap-2.5 px-1.5 py-1.5 rounded-md hover:bg-sidebar-accent transition-colors', collapsed && 'justify-center px-0')}
         >
           {collapsed
-            ? <div className="h-8 w-8 rounded-lg bg-gradient-primary flex items-center justify-center text-primary-foreground font-bold text-sm">L</div>
+            ? (
+              <div className="h-8 w-8 rounded-lg bg-gradient-primary flex items-center justify-center">
+                <ReversaIcon size={18} className="[&_path]:stroke-white" />
+              </div>
+            )
             : <LogvaleLogo variant="full" size="sm" className="ml-1" />
           }
         </Link>

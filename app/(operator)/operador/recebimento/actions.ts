@@ -44,6 +44,16 @@ export async function lookupInvoiceAction(
   }
 }
 
+export async function getInvoiceXmlUrlAction(
+  xmlPath: string
+): Promise<string | null> {
+  const supabase = createClient()
+  const { data } = await supabase.storage
+    .from('invoice-xmls')
+    .createSignedUrl(xmlPath, 3600)
+  return data?.signedUrl ?? null
+}
+
 interface CreateReturnPayload {
   identifierType:  IdentifierType
   accessKey:       string | null

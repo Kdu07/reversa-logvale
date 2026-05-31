@@ -1,3 +1,4 @@
+import { isValidElement } from 'react'
 import { cn } from '@/lib/utils'
 import type { ReactNode } from 'react'
 import type { LucideIcon } from 'lucide-react'
@@ -11,7 +12,7 @@ interface EmptyStateProps {
 }
 
 function isLucideIcon(v: unknown): v is LucideIcon {
-  return typeof v === 'function'
+  return !!v && !isValidElement(v)
 }
 
 export function EmptyState({ icon, title, description, action, className }: EmptyStateProps) {

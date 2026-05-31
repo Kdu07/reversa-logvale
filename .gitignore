@@ -40,3 +40,27 @@ docs/CREDENCIAIS_DEV.md
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Environment & Secrets (AIOX)
+.env
+.env.local
+.env.*.local
+*.key
+
+# Dependencies (AIOX)
+node_modules/
+
+# Build & Logs (AIOX)
+dist/
+build/
+*.log
+logs/
+
+# IDE & OS (AIOX)
+Thumbs.db
+.idea/
+*.swp
+
+# AIOX Local (AIOX)
+.aiox-core/local/
+.aiox/install-log.txt

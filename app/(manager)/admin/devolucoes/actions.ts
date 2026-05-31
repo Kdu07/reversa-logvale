@@ -65,6 +65,7 @@ export async function getAdminReturnsAction(filters?: {
 
     const boxPaths:  string[] = []
     const itemPaths: string[] = []
+    const xmlPaths:  string[] = []
     const photosByReturn = new Map<string, { box: RawPhoto[]; item: RawPhoto[] }>()
     for (const r of data ?? []) {
       const photos = (r.return_photos as unknown as RawPhoto[]) ?? []
@@ -73,11 +74,14 @@ export async function getAdminReturnsAction(filters?: {
       photosByReturn.set(r.id, { box, item })
       box.forEach((p)  => boxPaths.push(p.storage_path))
       item.forEach((p) => itemPaths.push(p.storage_path))
+      if (r.invoice_xml_url)        xmlPaths.push(r.invoice_xml_url)
+      if (r.return_invoice_xml_url) xmlPaths.push(r.return_invoice_xml_url)
     }
 
-    const [boxMap, itemMap] = await Promise.all([
-      buildSignedUrlMap(supabase, 'box-photos',  boxPaths),
-      buildSignedUrlMap(supabase, 'item-photos', itemPaths),
+    const [boxMap, itemMap, xmlMap] = await Promise.all([
+      buildSignedUrlMap(supabase, 'box-photos',   boxPaths),
+      buildSignedUrlMap(supabase, 'item-photos',  itemPaths),
+      buildSignedUrlMap(supabase, 'invoice-xmls', xmlPaths),
     ])
 
     const rows: AdminReturnRow[] = (data ?? []).map((r) => {
@@ -98,8 +102,8 @@ export async function getAdminReturnsAction(filters?: {
         postalCode:          r.postal_code,
         illegibleToken:      r.illegible_token,
         itemCount:           r.item_count,
-        invoiceXmlUrl:       r.invoice_xml_url,
-        returnInvoiceXmlUrl: r.return_invoice_xml_url,
+        invoiceXmlUrl:       r.invoice_xml_url       ? (xmlMap.get(r.invoice_xml_url)        ?? null) : null,
+        returnInvoiceXmlUrl: r.return_invoice_xml_url ? (xmlMap.get(r.return_invoice_xml_url) ?? null) : null,
         boxPhotoUrls:        photos.box.map((p)  => boxMap.get(p.storage_path)  ?? '').filter(Boolean),
         itemPhotoUrls:       photos.item.map((p) => itemMap.get(p.storage_path) ?? '').filter(Boolean),
       }
