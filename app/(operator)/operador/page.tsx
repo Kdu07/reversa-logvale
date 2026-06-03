@@ -1,12 +1,25 @@
 import Link from 'next/link'
 import { getCurrentUser } from '@/lib/supabase/get-current-user'
+import { getOperatorHomeStatsAction } from './actions'
 import { PageHeader } from '@/components/shared/page-header'
-import { Card, CardContent } from '@/components/ui/card'
-import { PackageCheck, ClipboardList, ArrowRight } from 'lucide-react'
+import { StatCard } from '@/components/shared/stat-card'
+import { DecisionPill } from '@/components/shared/decision-pill'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { PackageCheck, Package, ClipboardList, ArrowRight } from 'lucide-react'
+
+function formatWaiting(decidedAt: string): string {
+  const ms    = Date.now() - new Date(decidedAt).getTime()
+  const hours = Math.floor(ms / (1000 * 60 * 60))
+  if (hours < 24) return `${hours}h`
+  return `${Math.floor(hours / 24)}d`
+}
 
 export default async function OperatorHomePage() {
-  const user = await getCurrentUser()
+  const user      = await getCurrentUser()
   const firstName = user.profile.full_name.split(' ')[0]
+  const stats     = await getOperatorHomeStatsAction()
+
+  const hasStats = !('error' in stats)
 
   return (
     <div className="space-y-8">
@@ -15,6 +28,32 @@ export default async function OperatorHomePage() {
         description="Escolha uma operação para começar."
       />
 
+      {/* Mini-stats */}
+      <div className="grid grid-cols-3 gap-4">
+        <StatCard
+          label="Hoje"
+          value={hasStats ? stats.todayCount : '—'}
+          hint="recebimentos"
+          icon={PackageCheck}
+          tone="default"
+        />
+        <StatCard
+          label="Esta semana"
+          value={hasStats ? stats.weekCount : '—'}
+          hint="recebimentos"
+          icon={Package}
+          tone="default"
+        />
+        <StatCard
+          label="Tratativas"
+          value={hasStats ? stats.pendingCount : '—'}
+          hint="pendentes"
+          icon={ClipboardList}
+          tone={hasStats && stats.pendingCount > 0 ? 'warning' : 'default'}
+        />
+      </div>
+
+      {/* Navigation cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Link href="/operador/recebimento" className="group">
           <Card className="h-full shadow-elev-sm hover:shadow-elev-md transition-all ease-quint border-border/50 hover:border-primary/30">
@@ -54,6 +93,53 @@ export default async function OperatorHomePage() {
           </Card>
         </Link>
       </div>
+
+      {/* Tratativas urgentes */}
+      {hasStats && (
+        <Card className="shadow-elev-sm">
+          <CardHeader className="pb-3 flex flex-row items-center justify-between">
+            <CardTitle className="text-sm font-semibold">Tratativas Pendentes</CardTitle>
+            <Link
+              href="/operador/tratativas"
+              className="text-xs font-medium text-primary hover:underline"
+            >
+              Ver todas →
+            </Link>
+          </CardHeader>
+          <CardContent>
+            {stats.urgentTratativas.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhuma tratativa pendente.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="pb-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">RV</th>
+                      <th className="pb-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Decisão</th>
+                      <th className="pb-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Depositante</th>
+                      <th className="pb-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Aguardando</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {stats.urgentTratativas.map((t) => (
+                      <tr key={t.id}>
+                        <td className="py-2 font-mono font-medium text-foreground">{t.rv}</td>
+                        <td className="py-2">
+                          <DecisionPill decision={t.decision} />
+                        </td>
+                        <td className="py-2 text-muted-foreground">{t.depositorName ?? '—'}</td>
+                        <td className="py-2 font-medium tabular-nums text-amber-600">
+                          {formatWaiting(t.decidedAt)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }
