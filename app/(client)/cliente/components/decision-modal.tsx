@@ -91,9 +91,15 @@ export function DecisionModal({ row, decision, onClose, onSuccess }: DecisionMod
           <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground text-lg leading-none">✕</button>
         </div>
 
-        <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${meta.badge} text-sm font-medium`}>
+        <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${meta.badge} text-sm font-semibold`}>
           {meta.label}
         </div>
+
+        {meta.description && meta.descStyle && (
+          <div className={`rounded-lg border px-4 py-3 text-sm leading-relaxed ${meta.descStyle}`}>
+            {meta.description}
+          </div>
+        )}
 
         <p className="text-sm font-medium text-destructive">Esta decisão é irreversível.</p>
 

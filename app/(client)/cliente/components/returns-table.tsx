@@ -26,19 +26,11 @@ interface ReturnsTableProps {
   mode:             'pending' | 'history'
 }
 
-const DECISION_BUTTONS: { decision: ReturnDecision; label: string; variant: 'success' | 'warning' | 'destructive' | 'info' }[] = [
-  { decision: 'return_to_stock',    label: 'Estoque',   variant: 'success'     },
-  { decision: 'store_for_handling', label: 'Armazenar', variant: 'warning'     },
-  { decision: 'discard',            label: 'Descarte',  variant: 'destructive' },
-  { decision: 'repackage',          label: 'Reembalar', variant: 'info'        },
+const DECISION_BUTTONS: { decision: ReturnDecision; label: string; className: string }[] = [
+  { decision: 'return_to_stock',    label: 'Estoque',   className: 'bg-green-600 hover:bg-green-700 text-white font-semibold shadow-sm' },
+  { decision: 'store_for_handling', label: 'Tratativa', className: 'bg-amber-500 hover:bg-amber-600 text-white font-semibold shadow-sm' },
+  { decision: 'discard',            label: 'Descarte',  className: 'bg-red-600   hover:bg-red-700   text-white font-semibold shadow-sm' },
 ]
-
-const DECISION_BUTTON_CLASS: Record<string, string> = {
-  success:     'bg-success/10 text-success border border-success/30 hover:bg-success/20',
-  warning:     'bg-warning/10 text-warning-foreground border border-warning/30 hover:bg-warning/20',
-  destructive: 'bg-destructive/10 text-destructive border border-destructive/30 hover:bg-destructive/20',
-  info:        'bg-info/10 text-info border border-info/30 hover:bg-info/20',
-}
 
 const PAGE_SIZE = 50
 
@@ -235,7 +227,7 @@ export function ReturnsTable({
                               key={btn.decision}
                               type="button"
                               onClick={() => setSelectedDecision({ row, decision: btn.decision })}
-                              className={`px-2 py-1 rounded-md text-xs font-medium transition-colors ease-quint ${DECISION_BUTTON_CLASS[btn.variant]}`}
+                              className={`px-2.5 py-1 rounded-md text-xs transition-colors ease-quint ${btn.className}`}
                             >
                               {btn.label}
                             </button>

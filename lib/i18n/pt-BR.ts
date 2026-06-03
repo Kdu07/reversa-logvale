@@ -85,8 +85,8 @@ export const ptBR = {
   },
 
   decisions: {
-    return_to_stock:    'Voltar pro Estoque',
-    store_for_handling: 'Armazenar p/ Tratativas',
+    return_to_stock:    'Estoque',
+    store_for_handling: 'Tratativa',
     discard:            'Descarte',
     repackage:          'Reembalagem',
   },
