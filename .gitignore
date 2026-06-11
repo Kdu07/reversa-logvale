@@ -64,3 +64,13 @@ Thumbs.db
 # AIOX Local (AIOX)
 .aiox-core/local/
 .aiox/install-log.txt
+
+# AI development tools & assistants
+.aiox-core/
+.aiox/
+.antigravity/
+.codex/
+.cursor/
+.gemini/
+.kimi/
+AGENTS.md
