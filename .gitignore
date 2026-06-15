@@ -41,33 +41,27 @@ docs/CREDENCIAIS_DEV.md
 *.tsbuildinfo
 next-env.d.ts
 
-# Environment & Secrets (AIOX)
+# Environment & Secrets
 .env
 .env.local
 .env.*.local
 *.key
 
-# Dependencies (AIOX)
+# Dependencies
 node_modules/
 
-# Build & Logs (AIOX)
+# Build & Logs
 dist/
 build/
 *.log
 logs/
 
-# IDE & OS (AIOX)
+# IDE & OS
 Thumbs.db
 .idea/
 *.swp
 
-# AIOX Local (AIOX)
-.aiox-core/local/
-.aiox/install-log.txt
-
 # AI development tools & assistants
-.aiox-core/
-.aiox/
 .antigravity/
 .codex/
 .cursor/
