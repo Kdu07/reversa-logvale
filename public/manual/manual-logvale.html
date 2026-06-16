@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manual do Usuário — Sistema Logvale de Devoluções</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --primary:#08366D;
+    --primary-2:#2462C7;
+    --accent:#F12D46;
+    --green:#10B981;
+    --orange:#F59E0B;
+    --red:#F12D46;
+    --ink:#1f2733;
+    --muted:#5b6675;
+    --line:#e3e8ef;
+    --bg-soft:#f5f7fa;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    font-family:'Roboto',ui-sans-serif,system-ui,sans-serif;
+    color:var(--ink);
+    line-height:1.6;
+    margin:0;
+    background:#fff;
+    font-size:16px;
+  }
+  .page{max-width:840px;margin:0 auto;padding:0 24px 80px;}
+
+  /* ---------- Cabeçalho de marca ---------- */
+  .brand-header{
+    background:linear-gradient(135deg,var(--primary),var(--primary-2));
+    color:#fff;
+    padding:40px 24px;
+    text-align:center;
+  }
+  .brand-lockup{display:inline-flex;align-items:center;gap:14px;}
+  .brand-lockup img{height:44px;width:auto;filter:brightness(0) invert(1);}
+  .brand-lockup svg{height:44px;width:44px;}
+  .brand-sub{font-size:13px;letter-spacing:.08em;text-transform:uppercase;opacity:.85;margin-top:8px;}
+  .brand-title{font-size:30px;font-weight:700;margin:26px 0 4px;}
+  .brand-meta{font-size:13px;opacity:.85;}
+
+  /* ---------- Tipografia ---------- */
+  h2.part-title{
+    font-size:24px;color:var(--primary);
+    border-bottom:3px solid var(--primary);
+    padding-bottom:8px;margin:0 0 6px;
+  }
+  .part-kicker{font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-top:48px;}
+  h3{font-size:19px;color:var(--primary);margin:34px 0 8px;}
+  h4{font-size:16px;color:var(--ink);margin:22px 0 6px;}
+  p{margin:8px 0;}
+  a{color:var(--primary);}
+  ul,ol{margin:8px 0;padding-left:22px;}
+  li{margin:4px 0;}
+  code{background:var(--bg-soft);border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-family:ui-monospace,SFMono-Regular,monospace;font-size:13px;}
+  hr{border:none;border-top:1px solid var(--line);margin:28px 0;}
+
+  /* ---------- Sumário ---------- */
+  .toc{background:var(--bg-soft);border:1px solid var(--line);border-radius:12px;padding:22px 26px;margin:34px 0;}
+  .toc h2{margin:0 0 12px;font-size:18px;color:var(--primary);}
+  .toc ol{list-style:none;padding-left:0;counter-reset:toc;}
+  .toc > ol > li{margin:6px 0;font-weight:500;}
+  .toc ol ol{padding-left:18px;font-weight:400;font-size:14px;}
+  .toc a{text-decoration:none;}
+  .toc a:hover{text-decoration:underline;}
+
+  /* ---------- Callouts ---------- */
+  .callout{border-radius:10px;padding:14px 16px 14px 46px;margin:16px 0;position:relative;font-size:15px;border:1px solid;}
+  .callout::before{position:absolute;left:14px;top:13px;font-size:18px;}
+  .callout.tip{background:#eef7f1;border-color:#bfe3cd;}
+  .callout.tip::before{content:"💡";}
+  .callout.warn{background:#fdecee;border-color:#f7c4cc;}
+  .callout.warn::before{content:"⚠️";}
+  .callout.note{background:#eef3fb;border-color:#c4d6f2;}
+  .callout.note::before{content:"ℹ️";}
+
+  /* ---------- Placeholder de captura ---------- */
+  figure.shot{margin:18px 0;}
+  .shot-box{
+    border:2px dashed #b6c2d4;border-radius:10px;background:repeating-linear-gradient(45deg,#fafbfd,#fafbfd 12px,#f1f4f9 12px,#f1f4f9 24px);
+    min-height:120px;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--muted);
+    font-size:14px;padding:24px;
+  }
+  .shot-box strong{color:var(--primary);display:block;font-size:13px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px;}
+  figcaption{font-size:12px;color:var(--muted);margin-top:6px;font-style:italic;}
+
+  /* ---------- Tabelas ---------- */
+  table{border-collapse:collapse;width:100%;margin:16px 0;font-size:14px;}
+  th,td{border:1px solid var(--line);padding:8px 11px;text-align:left;vertical-align:top;}
+  th{background:var(--primary);color:#fff;font-weight:500;}
+  tbody tr:nth-child(even){background:var(--bg-soft);}
+
+  /* ---------- Decisões ---------- */
+  .pill{display:inline-flex;align-items:center;gap:7px;border-radius:999px;padding:3px 12px;font-size:13px;font-weight:500;border:1px solid;}
+  .dot{width:10px;height:10px;border-radius:999px;display:inline-block;}
+  .pill.green{background:#e8f7f0;border-color:#bfe3cd;color:#0a7d54;}
+  .pill.green .dot{background:var(--green);}
+  .pill.orange{background:#fdf2e0;border-color:#f6dcae;color:#9a6608;}
+  .pill.orange .dot{background:var(--orange);}
+  .pill.red{background:#fdecee;border-color:#f7c4cc;color:#b21f31;}
+  .pill.red .dot{background:var(--red);}
+  .pill.blue{background:#eef3fb;border-color:#c4d6f2;color:#1d4d96;}
+  .pill.blue .dot{background:var(--primary-2);}
+
+  /* ---------- Passos ---------- */
+  ol.steps{counter-reset:step;list-style:none;padding-left:0;}
+  ol.steps > li{position:relative;padding:4px 0 14px 44px;margin:0;}
+  ol.steps > li::before{
+    counter-increment:step;content:counter(step);
+    position:absolute;left:0;top:2px;width:30px;height:30px;border-radius:999px;
+    background:var(--primary);color:#fff;font-weight:700;font-size:14px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  ol.steps > li strong{color:var(--primary);}
+
+  .lifecycle{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--bg-soft);border:1px solid var(--line);border-radius:10px;padding:16px;margin:16px 0;font-weight:500;font-size:14px;}
+  .lifecycle .stage{background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 14px;}
+  .lifecycle .arrow{color:var(--primary);font-weight:700;}
+
+  .roles-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:16px 0;}
+  .role-card{border:1px solid var(--line);border-radius:10px;padding:16px;background:#fff;}
+  .role-card h4{margin:0 0 6px;color:var(--primary);}
+  .role-card .who{font-size:13px;color:var(--muted);}
+
+  .back-top{display:block;text-align:right;font-size:12px;margin-top:24px;}
+
+  footer.doc-footer{border-top:1px solid var(--line);margin-top:50px;padding-top:18px;font-size:13px;color:var(--muted);text-align:center;}
+
+  /* ---------- Impressão ---------- */
+  @media print{
+    body{font-size:11.5pt;}
+    .page{max-width:none;padding:0;}
+    .no-print,.back-top{display:none!important;}
+    .brand-header{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    th{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    .part{page-break-before:always;}
+    #welcome{page-break-before:avoid;}
+    h3,h4{page-break-after:avoid;}
+    table,figure.shot,.callout{page-break-inside:avoid;}
+    a{color:var(--ink);text-decoration:none;}
+  }
+</style>
+</head>
+<body>
+
+<header class="brand-header">
+  <div class="brand-lockup">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M 20 12 A 8 8 0 0 0 4 12" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round"/>
+      <path d="M 1 9 L 4 12 L 7 9" stroke="#F12D46" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <img src="assets/logvale-logo.png" alt="Logvale">
+  </div>
+  <div class="brand-sub">Gestão de Devoluções</div>
+  <div class="brand-title">Manual do Usuário</div>
+  <div class="brand-meta">Versão 1.0 · Atualizado em 15/06/2026</div>
+</header>
+
+<div class="page">
+
+<!-- ============================ SUMÁRIO ============================ -->
+<nav class="toc" id="topo">
+  <h2>Sumário</h2>
+  <ol>
+    <li><a href="#welcome">Parte 0 — Boas-vindas</a>
+      <ol>
+        <li><a href="#o-que-e">0.1 O que é o sistema</a></li>
+        <li><a href="#quem-usa">0.2 Quem usa o sistema</a></li>
+        <li><a href="#glossario-rapido">0.3 Glossário rápido</a></li>
+        <li><a href="#como-acessar">0.4 Como acessar o sistema</a></li>
+      </ol>
+    </li>
+    <li><a href="#guia-rapido">Parte 1 — Guia Rápido</a>
+      <ol>
+        <li><a href="#rapido-operador">1.1 Operador em 1 página</a></li>
+        <li><a href="#rapido-cliente">1.2 Cliente em 1 página</a></li>
+        <li><a href="#rapido-gerente">1.3 Gerente em 1 página</a></li>
+      </ol>
+    </li>
+    <li><a href="#operador">Parte 2 — Manual do Operador</a>
+      <ol>
+        <li><a href="#op-requisitos">2.1 Requisitos</a></li>
+        <li><a href="#op-home">2.2 Tela inicial</a></li>
+        <li><a href="#op-recebimento">2.3 Novo Recebimento (7 etapas)</a></li>
+        <li><a href="#op-tratativas">2.4 Tratativas</a></li>
+        <li><a href="#op-erros">2.5 Problemas comuns</a></li>
+      </ol>
+    </li>
+    <li><a href="#cliente">Parte 3 — Manual do Cliente</a>
+      <ol>
+        <li><a href="#cli-pendentes">3.1 Devoluções pendentes</a></li>
+        <li><a href="#cli-tabela">3.2 Lendo a tabela</a></li>
+        <li><a href="#cli-fotos">3.3 Galeria de fotos</a></li>
+        <li><a href="#cli-decisoes">3.4 As 3 decisões</a></li>
+        <li><a href="#cli-confirmar">3.5 Confirmação em duas etapas</a></li>
+        <li><a href="#cli-prazos">3.6 Prazos (48h e 72h)</a></li>
+        <li><a href="#cli-historico">3.7 Histórico</a></li>
+        <li><a href="#cli-perfil">3.8 Meu Perfil</a></li>
+        <li><a href="#cli-duvidas">3.9 Dúvidas do cliente</a></li>
+      </ol>
+    </li>
+    <li><a href="#gerente">Parte 4 — Manual do Gerente</a>
+      <ol>
+        <li><a href="#ger-dashboard">4.1 Dashboard</a></li>
+        <li><a href="#ger-usuarios">4.2 Usuários</a></li>
+        <li><a href="#ger-depositantes">4.3 Depositantes</a></li>
+        <li><a href="#ger-onboarding">4.4 Onboarding de cliente</a></li>
+        <li><a href="#ger-devolucoes">4.5 Visão geral de devoluções</a></li>
+        <li><a href="#ger-lgpd">4.6 Ferramentas LGPD</a></li>
+      </ol>
+    </li>
+    <li><a href="#referencia">Parte 5 — Referência e Solução de Problemas</a>
+      <ol>
+        <li><a href="#ref-decisoes">5.1 Resumo das decisões</a></li>
+        <li><a href="#ref-ciclo">5.2 Ciclo de vida</a></li>
+        <li><a href="#ref-prazos">5.3 Prazos do sistema</a></li>
+        <li><a href="#ref-faq">5.4 Perguntas frequentes</a></li>
+        <li><a href="#ref-glossario">5.5 Glossário completo</a></li>
+        <li><a href="#ref-suporte">5.6 Suporte</a></li>
+        <li><a href="#ref-lgpd">5.7 Seus direitos (LGPD)</a></li>
+      </ol>
+    </li>
+  </ol>
+</nav>
+
+<!-- ============================ PARTE 0 ============================ -->
+<section id="welcome">
+  <div class="part-kicker">Parte 0</div>
+  <h2 class="part-title">Boas-vindas</h2>
+  <p>Bem-vindo ao <strong>Sistema Logvale de Devoluções</strong> — a plataforma web que a Logvale usa para receber, decidir o destino e processar mercadorias devolvidas em nome de seus clientes. Este manual foi escrito para ser fácil: você não precisa ter conhecimento técnico para usá-lo.</p>
+
+  <h3 id="o-que-e">0.1 O que é o sistema</h3>
+  <p>Quando uma mercadoria é devolvida, ela passa por três momentos no sistema. Primeiro, um <strong>operador da Logvale</strong> registra a chegada da devolução (com fotos e dados da nota fiscal). Depois, o <strong>cliente dono da mercadoria</strong> decide o que fazer com ela. Por fim, o <strong>operador executa</strong> a decisão. É esse caminho que o sistema organiza, do começo ao fim.</p>
+
+  <div class="lifecycle">
+    <span class="stage">📦 Recebido</span>
+    <span class="arrow">→</span>
+    <span class="stage">⏳ Aguardando decisão</span>
+    <span class="arrow">→</span>
+    <span class="stage">✅ Decidido</span>
+    <span class="arrow">→</span>
+    <span class="stage">🏁 Processado</span>
+  </div>
+
+  <h3 id="quem-usa">0.2 Quem usa o sistema</h3>
+  <p>Existem três tipos de usuário. Cada um vê apenas as telas do seu papel — você nunca verá as telas dos outros.</p>
+  <div class="roles-grid">
+    <div class="role-card">
+      <h4>Operador</h4>
+      <div class="who">Funcionário da Logvale</div>
+      <p>Registra devoluções recebidas e executa as decisões dos clientes (tratativas).</p>
+    </div>
+    <div class="role-card">
+      <h4>Cliente</h4>
+      <div class="who">Empresa depositante</div>
+      <p>Revisa as devoluções da sua mercadoria e decide o destino de cada uma.</p>
+    </div>
+    <div class="role-card">
+      <h4>Gerente</h4>
+      <div class="who">Administrador Logvale</div>
+      <p>Cadastra usuários e depositantes e acompanha os indicadores do sistema.</p>
+    </div>
+  </div>
+
+  <h3 id="glossario-rapido">0.3 Glossário rápido</h3>
+  <table>
+    <thead><tr><th>Termo</th><th>O que significa</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Devolução</strong></td><td>Uma mercadoria que voltou e foi registrada no sistema.</td></tr>
+      <tr><td><strong>Depositante</strong></td><td>A empresa (CNPJ) dona da mercadoria armazenada na Logvale.</td></tr>
+      <tr><td><strong>RV</strong></td><td>Etiqueta com código de barras colada na caixa, usada para identificar a devolução rapidamente.</td></tr>
+      <tr><td><strong>Chave de Acesso</strong></td><td>Número de 44 dígitos que identifica a nota fiscal (NF-e).</td></tr>
+      <tr><td><strong>NF / XML</strong></td><td>A nota fiscal eletrônica. O XML é o arquivo digital dessa nota.</td></tr>
+      <tr><td><strong>Tratativa</strong></td><td>A execução, pelo operador, da decisão tomada pelo cliente.</td></tr>
+      <tr><td><strong>Auto-decisão</strong></td><td>Decisão tomada automaticamente pelo sistema quando o cliente não responde em 72 horas.</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="como-acessar">0.4 Como acessar o sistema</h3>
+
+  <h4>Entrar (login)</h4>
+  <p>Acesse o endereço do sistema. Na tela <strong>"Acesso ao Sistema"</strong>, informe seu <strong>e-mail</strong> e sua <strong>senha</strong> e clique em <strong>Entrar</strong>. O sistema leva você direto para a tela do seu perfil.</p>
+  <figure class="shot">
+    <div class="shot-box"><span><strong>Captura 01</strong>Tela de login — campos de e-mail e senha e o botão "Entrar"</span></div>
+    <figcaption>Captura 01 — Tela de login.</figcaption>
+  </figure>
+
+  <h4>Primeiro acesso</h4>
+  <p>Se é a sua primeira vez, o gerente da Logvale envia a você um <strong>link de acesso</strong> (por e-mail, WhatsApp ou outro meio). Ao abrir o link, você verá a tela <strong>"Bem-vindo ao Logvale"</strong>, onde precisa:</p>
+  <ol class="steps">
+    <li><strong>Criar uma senha</strong> com no mínimo 8 caracteres.</li>
+    <li><strong>Confirmar a senha</strong> digitando-a novamente.</li>
+    <li><strong>Marcar a caixa</strong> aceitando os Termos de Uso e a Política de Privacidade.</li>
+    <li>Clicar em <strong>"Criar senha e acessar"</strong>.</li>
+  </ol>
+  <p>A partir daí, você entra sempre com e-mail e senha.</p>
+  <figure class="shot">
+    <div class="shot-box"><span><strong>Captura 02</strong>Tela "Bem-vindo ao Logvale" — criar senha, confirmar e aceitar os termos</span></div>
+    <figcaption>Captura 02 — Primeiro acesso.</figcaption>
+  </figure>
+
+  <div class="callout note">O link de acesso tem validade. Se ele expirar ou você esquecer a senha, <strong>peça um novo link ao gerente</strong> — o sistema não envia recuperação de senha automaticamente.</div>
+
+  <a class="back-top no-print" href="#topo">↑ Voltar ao topo</a>
+</section>
+
+<!-- ============================ PARTE 1 ============================ -->
+<section id="guia-rapido" class="part">
+  <div class="part-kicker">Parte 1</div>
+  <h2 class="part-title">Guia Rápido</h2>
+  <p>Esta parte mostra, em uma página por perfil, o caminho mais comum de cada usuário. Para os detalhes, consulte as Partes 2, 3 e 4.</p>
+
+  <h3 id="rapido-operador">1.1 Operador em 1 página</h3>
+  <ol class="steps">
+    <li>Entre no sistema e clique em <strong>Novo Recebimento</strong>.</li>
+    <li><strong>Bipe a nota fiscal</strong> (Chave de Acesso) e <strong>confirme o depositante</strong> sugerido.</li>
+    <li><strong>Bipe a RV</strong> colada na caixa.</li>
+    <li>Informe o <strong>número de itens</strong>.</li>
+    <li>Tire as <strong>fotos da caixa</strong> (2 a 4) e dos <strong>itens</strong> (1 a 5).</li>
+    <li><strong>Revise</strong> e clique em <strong>Confirmar e Registrar</strong>.</li>
+    <li>Mais tarde, abra <strong>Tratativas</strong>, bipe a RV e <strong>conclua</strong> as devoluções já decididas pelos clientes.</li>
+  </ol>
+
+  <h3 id="rapido-cliente">1.2 Cliente em 1 página</h3>
+  <ol class="steps">
+    <li>Entre no sistema: você verá suas <strong>Devoluções Pendentes</strong>.</li>
+    <li>Confira as <strong>fotos</strong>, a <strong>nota fiscal</strong> e os dados de cada devolução.</li>
+    <li>Escolha uma decisão: <span class="pill green"><span class="dot"></span>Estoque</span> <span class="pill orange"><span class="dot"></span>Tratativa</span> <span class="pill red"><span class="dot"></span>Descarte</span></li>
+    <li><strong>Confirme</strong> na janela que se abre (para Estoque e Descarte, anexe o XML da NF de devolução).</li>
+    <li>Se não decidir em <strong>72 horas</strong>, o sistema envia automaticamente para Tratativa.</li>
+  </ol>
+
+  <h3 id="rapido-gerente">1.3 Gerente em 1 página</h3>
+  <ol class="steps">
+    <li>Entre no sistema: o <strong>Dashboard</strong> mostra os indicadores gerais.</li>
+    <li>Em <strong>Usuários</strong>, crie operadores, clientes e gerentes; ao criar um cliente, vincule os depositantes.</li>
+    <li>Use <strong>Reenviar link</strong> para gerar o acesso e <strong>envie ao usuário</strong>.</li>
+    <li>Em <strong>Depositantes</strong>, cadastre as empresas (CNPJ + razão social).</li>
+    <li>Em <strong>Devoluções</strong>, acompanhe tudo que está no sistema.</li>
+  </ol>
+
+  <a class="back-top no-print" href="#topo">↑ Voltar ao topo</a>
+</section>
+
+<!-- ============================ PARTE 2 ============================ -->
+<section id="operador" class="part">
+  <div class="part-kicker">Parte 2</div>
+  <h2 class="part-title">Manual do Operador</h2>
+  <p>Esta parte é para o <strong>funcionário da Logvale</strong> que recebe as devoluções e executa as decisões dos clientes.</p>
+
+  <h3 id="op-requisitos">2.1 Requisitos</h3>
+  <ul>
+    <li><strong>Computador (desktop)</strong> — o fluxo do operador foi feito para computador, não para celular.</li>
+    <li><strong>Webcam USB</strong> — para fotografar a caixa e os itens.</li>
+    <li><strong>Leitor de código de barras</strong> (EAN/USB) — para bipar a nota fiscal e a RV.</li>
+  </ul>
+
+  <h3 id="op-home">2.2 Tela inicial</h3>
+  <p>Ao entrar, você vê uma saudação e três indicadores rápidos: <strong>Hoje</strong> e <strong>Esta semana</strong> (recebimentos feitos) e <strong>Tratativas</strong> (pendentes). Abaixo, dois cartões levam às operações: <strong>Novo Recebimento</strong> e <strong>Tratativas</strong>. Há ainda uma lista das <strong>tratativas pendentes</strong> mais antigas.</p>
+  <figure class="shot">
+    <div class="shot-box"><span><strong>Captura 03</strong>Tela inicial do operador — indicadores, cartões de navegação e lista de tratativas pendentes</span></div>
+    <figcaption>Captura 03 — Home do operador.</figcaption>
+  </figure>
+
+  <h3 id="op-recebimento">2.3 Novo Recebimento — fluxo de 7 etapas</h3>
+  <p>O registro de uma devolução acontece em sete etapas. Uma <strong>barra de progresso ("Etapa X de 7")</strong> mostra onde você está. Você pode usar o botão <strong>Voltar</strong> a qualquer momento sem perder o que já preencheu. O botão <strong>Cancelar</strong> (no topo) descarta o recebimento — o sistema pede confirmação antes.</p>
+
+  <div class="callout tip">A cada leitura bem-sucedida o sistema emite um <strong>bipe e um flash verde</strong>; em caso de erro, um <strong>bipe duplo e flash vermelho</strong>. O cursor já fica posicionado no campo certo — basta bipar.</div>
+
+  <h4>Etapa 1 — Identificação da NF</h4>
+  <ol class="steps">
+    <li><strong>Bipe a Chave de Acesso</strong> (44 dígitos) da nota fiscal. O sistema consulta a nota automaticamente (Webmania).</li>
+    <li>Se o leitor não funcionar, clique em <strong>"Não consigo bipar — digitar à mão"</strong> e digite os 44 dígitos.</li>
+    <li>Se a NF estiver ilegível, use <strong>"NF ilegível — usar Código Postal"</strong> e bipe (ou digite) o <strong>CEP</strong> (8 dígitos).</li>
+    <li>Se nem o CEP servir, use <strong>"CEP também ilegível — marcar como ilegível"</strong> e confirme em <strong>"NF Ilegível"</strong>. O sistema gera um identificador próprio para a devolução.</li>
+    <li><strong>Confirme o depositante:</strong> o sistema sugere o depositante a partir da nota. Confirme o sugerido, troque pela lista, ou clique em <strong>"Avançar sem Depositante"</strong> se nenhum se aplicar.</li>
+  </ol>
+  <figure class="shot">
+    <div class="shot-box"><span><strong>Captura 04</strong>Etapa 1 — leitor aguardando a leitura da Chave de Acesso</span></div>
+    <figcaption>Captura 04 — Etapa 1 (leitura da NF).</figcaption>
+  </figure>
+  <figure class="shot">
+    <div class="shot-box"><span><strong>Captura 05</strong>Etapa 1 — seletor de depositante (confirmar o sugerido ou trocar)</span></div>
+    <figcaption>Captura 05 — Seletor de depositante.</figcaption>
+  </figure>
+  <div class="callout note">Quando o CNPJ da nota não está cadastrado, o sistema avisa. Você ainda pode avançar e vincular o depositante depois pelo gerente.</div>
+
+  <h4>Etapa 2 — RV</h4>
+  <p><strong>Bipe o código de barras da RV</strong> colada na caixa. Se preferir, clique em "Não consigo bipar — digitar à mão" e informe o código.</p>
+
+  <h4>Etapa 3 — Número de itens</h4>
+  <p>Informe quantos itens há na devolução (um número inteiro). Clique em <strong>Próximo</strong>.</p>
+
+  <h4>Etapa 4 — Fotos da Caixa</h4>
+  <p>Use a webcam para capturar de <strong>2 a 4 fotos</strong> da caixa. Pressionar a tecla <strong>Enter</strong> dispara a foto. Cada foto aparece em miniatura; passe o mouse e clique no <strong>✕</strong> para descartar. O botão <strong>Próximo</strong> só libera com pelo menos 2 fotos.</p>
+  <figure class="shot">
+    <div class="shot-box"><span><strong>Captura 06</strong>Etapa 4 — captura de fotos da caixa pela webcam, com miniaturas</span></div>
+    <figcaption>Captura 06 — Fotos da caixa.</figcaption>
+  </figure>
+
+  <h4>Etapa 5 — Fotos dos Itens</h4>
+  <p>Mesma mecânica da etapa anterior, agora com <strong>1 a 5 fotos</strong> dos itens.</p>
+
+  <h4>Etapa 6 — Revisão</h4>
+  <p>O sistema mostra um resumo de tudo: identificador, RV, número de itens e as fotos. Cada bloco tem um botão <strong>Editar</strong> que leva de volta à etapa correspondente. Se houver nota vinculada, você pode <strong>baixar o XML</strong>. Conferindo tudo, clique em <strong>Confirmar e Registrar</strong>.</p>
+
+  <h4>Etapa 7 — Registrar Recebimento</h4>
+  <p>O sistema <strong>envia as fotos</strong> e <strong>registra a devolução</strong>. Ao final, aparece a mensagem <strong>"Recebimento registrado!"</strong> e você volta automaticamente ao início, pronto para o próximo.</p>
+  <figure class="shot">
+    <div class="shot-box"><span><strong>Captura 07</strong>Etapa 7 — confirmação "Recebimento registrado!"</span></div>
+    <figcaption>Captura 07 — Recebimento concluído.</figcaption>
+  </figure>
+
+  <h3 id="op-tratativas">2.4 Tratativas</h3>
+  <p>A tela de <strong>Tratativas</strong> lista as devoluções que <strong>já foram decididas pelo cliente</strong> e aguardam execução. O campo de busca já vem com o cursor ativo: <strong>basta bipar a RV</strong> da caixa que a devolução aparece. Um contador mostra <strong>quantas tratativas estão pendentes</strong>.</p>
+  <p>Cada linha mostra a <strong>RV</strong>, a <strong>decisão</strong> (com a etiqueta <em>Auto</em> quando foi automática), a <strong>data da decisão</strong>, o <strong>depositante</strong> e o <strong>cliente</strong>. Clique em <strong>Ver detalhes</strong> para abrir as fotos, a NF e a RV, e então em <strong>Concluir</strong> para finalizar. A devolução sai da lista.</p>
+  <figure class="shot">
+    <div class="shot-box"><span><strong>Captura 08</strong>Lista de tratativas e modal de detalhes com o botão "Concluir"</span></div>
+    <figcaption>Captura 08 — Tratativas.</figcaption>
+  </figure>
+
+  <h3 id="op-erros">2.5 Problemas comuns</h3>
+  <table>
+    <thead><tr><th>Situação</th><th>O que fazer</th></tr></thead>
+    <tbody>
+      <tr><td>O leitor não bipa</td><td>Use a opção "digitar à mão" na etapa em questão.</td></tr>
+      <tr><td>A nota não foi encontrada</td><td>Tente novamente; se persistir, use Código Postal (CEP) ou marque como Ilegível.</td></tr>
+      <tr><td>Foto ficou ruim</td><td>Clique no ✕ da miniatura e capture outra.</td></tr>
+      <tr><td>Bipei a NF errada</td><td>Use Cancelar (descarta tudo) ou volte e edite na Revisão.</td></tr>
+    </tbody>
+  </table>
+
+  <a class="back-top no-print" href="#topo">↑ Voltar ao topo</a>
+</section>
+
+<!-- ============================ PARTE 3 ============================ -->
+<section id="cliente" class="part">
+  <div class="part-kicker">Parte 3</div>
+  <h2 class="part-title">Manual do Cliente</h2>
+  <p>Esta parte é para a <strong>empresa depositante</strong> que decide o destino das suas devoluções. Você pode usar pelo computador ou pelo celular.</p>
+
+  <h3 id="cli-pendentes">3.1 Devoluções Pendentes</h3>
+  <p>Ao entrar, você vê a tela <strong>Devoluções Pendentes</strong>: todas as devoluções da sua mercadoria que aguardam decisão. No topo há um aviso lembrando da regra das 72 horas. Você pode filtrar por <strong>depositante</strong> (quando você tem mais de um) e por <strong>data</strong> (De / Até). Um selo mostra o total de devoluções.</p>
+  <figure class="shot">
+    <div class="shot-box"><span><strong>Captura 09</strong>Tela "Devoluções Pendentes" — filtros, tabela e botões de decisão</span></div>
+    <figcaption>Captura 09 — Devoluções pendentes.</figcaption>
+  </figure>
+
+  <h3 id="cli-tabela">3.2 Lendo a tabela</h3>
+  <table>
+    <thead><tr><th>Coluna</th><th>O que mostra</th></tr></thead>
+    <tbody>
+      <tr><td>Data</td><td>Quando a devolução foi recebida.</td></tr>
+      <tr><td>Identificador</td><td>Chave da NF, CEP ou "Ilegível" (com a etiqueta do tipo).</td></tr>
+      <tr><td>NF</td><td>Link para baixar o XML da nota, quando houver.</td></tr>
+      <tr><td>RV</td><td>O código da etiqueta da caixa.</td></tr>
+      <tr><td>Itens</td><td>Quantidade de itens.</td></tr>
+      <tr><td>Fotos da Caixa / Itens</td><td>Miniaturas — clique para abrir a galeria.</td></tr>
+      <tr><td>Decisão</td><td>Os botões coloridos para você escolher o destino.</td></tr>
+      <tr><td>Tempo Restante</td><td>Contagem regressiva até a auto-decisão (72h).</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="cli-fotos">3.3 Galeria de fotos</h3>
+  <p>Clique em qualquer miniatura para abrir a <strong>galeria em tela cheia</strong>. Use as setas para navegar entre as fotos e o ✕ para fechar. As fotos ajudam você a avaliar o estado da mercadoria antes de decidir.</p>
+
+  <h3 id="cli-decisoes">3.4 As 3 decisões</h3>
+  <p>Para cada devolução, você escolhe um destino:</p>
+  <table>
+    <thead><tr><th>Decisão</th><th>O que acontece</th><th>Precisa de XML?</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="pill green"><span class="dot"></span>Estoque</span></td>
+        <td>Produto avaliado como saudável e em condições de revenda. Será reintegrado ao estoque disponível para venda imediata.</td>
+        <td><strong>Sim</strong></td>
+      </tr>
+      <tr>
+        <td><span class="pill orange"><span class="dot"></span>Tratativa</span></td>
+        <td>O produto vai para uma área segregada no galpão, para tratativas futuras. Procure o departamento comercial da Logvale para definir os próximos passos.</td>
+        <td>Não</td>
+      </tr>
+      <tr>
+        <td><span class="pill red"><span class="dot"></span>Descarte</span></td>
+        <td>O produto será descartado. Os termos e condições do descarte são negociados diretamente com o comercial da Logvale.</td>
+        <td><strong>Sim</strong></td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="callout note"><strong>E a "Reembalagem"?</strong> Essa opção não fica disponível como botão para o cliente. Caso a sua operação precise de reembalagem, fale com o comercial da Logvale.</div>
+
+  <h3 id="cli-confirmar">3.5 Confirmação em duas etapas</h3>
+  <p>Decidir tem dois cliques, de propósito, para evitar enganos:</p>
+  <ol class="steps">
+    <li>Clique no botão da decisão desejada. Abre-se a janela <strong>"Confirmar Decisão"</strong>, com a decisão em destaque, sua descrição, um <strong>resumo da devolução</strong> e o aviso <strong>"Esta decisão é irreversível"</strong>.</li>
+    <li>Para <span class="pill green"><span class="dot"></span>Estoque</span> e <span class="pill red"><span class="dot"></span>Descarte</span>, <strong>anexe o XML da NF de devolução</strong> (obrigatório).</li>
+    <li>O botão <strong>Confirmar</strong> fica travado por 2 segundos. Quando liberar, clique para concluir.</li>
+  </ol>
+  <figure class="shot">
+    <div class="shot-box"><span><strong>Captura 10</strong>Janela "Confirmar Decisão" — com o campo de upload do XML</span></div>
+    <figcaption>Captura 10 — Confirmação da decisão.</figcaption>
+  </figure>
+  <div class="callout warn">A decisão é <strong>irreversível</strong>. Após confirmar, a devolução sai da lista de pendentes e passa para o histórico. Em caso de engano, entre em contato com o suporte da Logvale.</div>
+
+  <h3 id="cli-prazos">3.6 Prazos (48h e 72h)</h3>
+  <ul>
+    <li><strong>48 horas:</strong> se a devolução continuar sem decisão, o sistema envia <strong>um e-mail de aviso</strong>.</li>
+    <li><strong>72 horas:</strong> sem decisão, o sistema decide automaticamente por <span class="pill orange"><span class="dot"></span>Tratativa</span>. No histórico, essas aparecem com a etiqueta <strong>Auto</strong>.</li>
+  </ul>
+
+  <h3 id="cli-historico">3.7 Histórico</h3>
+  <p>Em <strong>Ver histórico</strong> você encontra todas as devoluções já decididas, com a decisão tomada e a data. Decisões automáticas trazem a etiqueta <strong>Auto</strong>. Os mesmos filtros de depositante e data estão disponíveis.</p>
+
+  <h3 id="cli-perfil">3.8 Meu Perfil</h3>
+  <p>Em <strong>Meu Perfil</strong> você vê seus <strong>dados pessoais</strong> (nome, e-mail, telefone) e os <strong>depositantes vinculados</strong> à sua conta — tudo em modo leitura. Para alterar qualquer dado, fale com o gerente. Há também o botão <strong>Sair</strong>.</p>
+
+  <h3 id="cli-duvidas">3.9 Dúvidas do cliente</h3>
+  <table>
+    <thead><tr><th>Pergunta</th><th>Resposta</th></tr></thead>
+    <tbody>
+      <tr><td>Perdi o prazo de 72h, e agora?</td><td>O sistema já encaminhou para Tratativa. Fale com o comercial da Logvale para os próximos passos.</td></tr>
+      <tr><td>Qual XML devo anexar?</td><td>O XML da <strong>nota fiscal de devolução</strong> emitida por você (exigido em Estoque e Descarte).</td></tr>
+      <tr><td>Posso desfazer uma decisão?</td><td>Não. A decisão é irreversível; em caso de erro, contate o suporte.</td></tr>
+      <tr><td>Esqueci minha senha</td><td>Solicite um novo link de acesso ao gerente da Logvale.</td></tr>
+    </tbody>
+  </table>
+
+  <a class="back-top no-print" href="#topo">↑ Voltar ao topo</a>
+</section>
+
+<!-- ============================ PARTE 4 ============================ -->
+<section id="gerente" class="part">
+  <div class="part-kicker">Parte 4</div>
+  <h2 class="part-title">Manual do Gerente</h2>
+  <p>Esta parte é para o <strong>administrador da Logvale</strong>, responsável por cadastros e pelo acompanhamento do sistema.</p>
+
+  <h3 id="ger-dashboard">4.1 Dashboard</h3>
+  <p>A tela inicial do gerente reúne os principais indicadores em cartões:</p>
+  <ul>
+    <li><strong>Total (30 dias)</strong> — devoluções recebidas no período.</li>
+    <li><strong>Pendentes</strong> — aguardando decisão dos clientes.</li>
+    <li><strong>Tempo médio até decisão</strong> — quanto tempo, em média, os clientes levam para decidir.</li>
+    <li><strong>Taxa de auto-decisão</strong> — percentual de devoluções decididas automaticamente (quanto menor, mais os clientes estão respondendo).</li>
+  </ul>
+  <p>Abaixo, há <strong>gráficos por status e por decisão</strong>, a lista dos <strong>top clientes por volume</strong> e as <strong>pendentes urgentes</strong>, com link direto para cada devolução.</p>
+  <figure class="shot">
+    <div class="shot-box"><span><strong>Captura 11</strong>Dashboard do gerente — cartões de indicadores e gráficos</span></div>
+    <figcaption>Captura 11 — Dashboard.</figcaption>
+  </figure>
+
+  <h3 id="ger-usuarios">4.2 Usuários</h3>
+  <p>Em <strong>Usuários</strong> você gerencia operadores, clientes e gerentes. É possível filtrar por perfil. As ações disponíveis:</p>
+  <ul>
+    <li><strong>Criar</strong> — informe nome, e-mail (apenas na criação), telefone e o perfil (na tela aparece como "Role"). Se o perfil for <strong>Cliente</strong>, marque os <strong>depositantes vinculados</strong>; você pode cadastrar um novo ali mesmo com <strong>"+ Novo depositante"</strong>.</li>
+    <li><strong>Editar</strong> — altera nome, telefone, perfil e depositantes (o e-mail não muda).</li>
+    <li><strong>Ativar / Desativar</strong> — desativa o acesso sem apagar o usuário.</li>
+    <li><strong>Reenviar link</strong> — gera o link de acesso; o sistema mostra a mensagem <strong>"Copie e envie ao usuário"</strong> com um botão <strong>Copiar</strong>. O envio é feito por você (e-mail, WhatsApp etc.).</li>
+    <li><strong>Exportar dados</strong> — baixa um arquivo ZIP com os dados do usuário (LGPD).</li>
+    <li><strong>Anonimizar</strong> — remove os dados pessoais de forma irreversível (mantém os dados fiscais por exigência legal).</li>
+  </ul>
+  <figure class="shot">
+    <div class="shot-box"><span><strong>Captura 12</strong>Lista de usuários e formulário de novo usuário (com depositantes)</span></div>
+    <figcaption>Captura 12 — Gestão de usuários.</figcaption>
+  </figure>
+  <figure class="shot">
+    <div class="shot-box"><span><strong>Captura 13</strong>Janela "Copie e envie ao usuário" com o link de acesso</span></div>
+    <figcaption>Captura 13 — Link de acesso.</figcaption>
+  </figure>
+
+  <h3 id="ger-depositantes">4.3 Depositantes</h3>
+  <p>Em <strong>Depositantes</strong> você cadastra e edita as empresas (CNPJ + razão social) e vê quais clientes estão vinculados a cada uma.</p>
+
+  <h3 id="ger-onboarding">4.4 Onboarding de cliente (passo a passo)</h3>
+  <ol class="steps">
+    <li>Em <strong>Usuários</strong>, clique em <strong>Novo Usuário</strong> e escolha o perfil <strong>Cliente</strong>.</li>
+    <li>Preencha nome, e-mail e telefone e <strong>marque os depositantes</strong> que esse cliente poderá ver (ou crie um novo ali).</li>
+    <li>Salve. Em seguida, clique em <strong>Reenviar link</strong> na linha do usuário.</li>
+    <li><strong>Copie o link</strong> e envie ao cliente.</li>
+    <li>O cliente abre o link, faz o <strong>primeiro acesso</strong> (cria senha + aceita os termos) e já começa a usar.</li>
+  </ol>
+
+  <h3 id="ger-devolucoes">4.5 Visão geral de devoluções</h3>
+  <p>Em <strong>Devoluções</strong> você consulta <strong>todas</strong> as devoluções do sistema. É possível <strong>buscar por RV</strong> e <strong>filtrar por status</strong> (aguardando decisão, decidido ou processado), para acompanhar qualquer item do início ao fim.</p>
+
+  <h3 id="ger-lgpd">4.6 Ferramentas LGPD</h3>
+  <p>As ações de <strong>Exportar dados</strong> e <strong>Anonimizar</strong> (na tela de Usuários) atendem aos direitos previstos na LGPD. A anonimização preserva apenas os dados fiscais exigidos por lei. Consulte também a Política de Privacidade e os Termos de Uso (Parte 5.7).</p>
+
+  <a class="back-top no-print" href="#topo">↑ Voltar ao topo</a>
+</section>
+
+<!-- ============================ PARTE 5 ============================ -->
+<section id="referencia" class="part">
+  <div class="part-kicker">Parte 5</div>
+  <h2 class="part-title">Referência e Solução de Problemas</h2>
+
+  <h3 id="ref-decisoes">5.1 Resumo das decisões</h3>
+  <table>
+    <thead><tr><th>Decisão</th><th>Significado</th><th>Exige XML?</th><th>Reversível?</th></tr></thead>
+    <tbody>
+      <tr><td><span class="pill green"><span class="dot"></span>Estoque</span></td><td>Volta ao estoque para venda</td><td>Sim</td><td>Não</td></tr>
+      <tr><td><span class="pill orange"><span class="dot"></span>Tratativa</span></td><td>Área segregada; tratar com o comercial</td><td>Não</td><td>Não</td></tr>
+      <tr><td><span class="pill red"><span class="dot"></span>Descarte</span></td><td>Produto descartado (termos com o comercial)</td><td>Sim</td><td>Não</td></tr>
+    </tbody>
+  </table>
+  <div class="callout note">A <span class="pill blue"><span class="dot"></span>Reembalagem</span> existe internamente no sistema, mas <strong>não é um botão</strong> à disposição do cliente.</div>
+
+  <h3 id="ref-ciclo">5.2 Ciclo de vida de uma devolução</h3>
+  <div class="lifecycle">
+    <span class="stage">⏳ Aguardando decisão</span>
+    <span class="arrow">→</span>
+    <span class="stage">✅ Decidido</span>
+    <span class="arrow">→</span>
+    <span class="stage">🏁 Processado</span>
+  </div>
+  <p><strong>Aguardando decisão:</strong> recebimento concluído pelo operador, aguardando o cliente. <strong>Decidido:</strong> o cliente (ou o sistema, após 72h) escolheu o destino; aguarda a tratativa. <strong>Processado:</strong> o operador concluiu a tratativa.</p>
+
+  <h3 id="ref-prazos">5.3 Prazos do sistema</h3>
+  <table>
+    <thead><tr><th>Prazo</th><th>O que acontece</th></tr></thead>
+    <tbody>
+      <tr><td>48 horas sem decisão</td><td>O sistema envia um e-mail de aviso ao cliente.</td></tr>
+      <tr><td>72 horas sem decisão</td><td>O sistema decide automaticamente por Tratativa (etiqueta "Auto").</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="ref-faq">5.4 Perguntas frequentes</h3>
+  <h4>Acesso (todos)</h4>
+  <ul>
+    <li><strong>Esqueci a senha / o link expirou:</strong> peça um novo link ao gerente da Logvale.</li>
+    <li><strong>Entrei e não vejo as telas de outro perfil:</strong> é normal — cada perfil vê apenas o seu.</li>
+  </ul>
+  <h4>Operador</h4>
+  <ul>
+    <li><strong>O leitor não bipa:</strong> use "digitar à mão" na etapa.</li>
+    <li><strong>A NF não foi encontrada:</strong> tente CEP ou marque como Ilegível.</li>
+  </ul>
+  <h4>Cliente</h4>
+  <ul>
+    <li><strong>Não consigo confirmar Estoque/Descarte:</strong> verifique se anexou o XML da NF de devolução.</li>
+    <li><strong>O botão Confirmar está desabilitado:</strong> aguarde os 2 segundos de segurança.</li>
+  </ul>
+
+  <h3 id="ref-glossario">5.5 Glossário completo</h3>
+  <table>
+    <thead><tr><th>Termo</th><th>Significado</th></tr></thead>
+    <tbody>
+      <tr><td>Auto-decisão</td><td>Decisão tomada pelo sistema após 72h sem resposta do cliente (vira Tratativa).</td></tr>
+      <tr><td>CEP / Código Postal</td><td>Identificador alternativo usado quando a NF está ilegível.</td></tr>
+      <tr><td>Chave de Acesso</td><td>Número de 44 dígitos que identifica a NF-e.</td></tr>
+      <tr><td>Depositante</td><td>Empresa (CNPJ) dona da mercadoria armazenada na Logvale.</td></tr>
+      <tr><td>Devolução</td><td>Mercadoria devolvida registrada no sistema.</td></tr>
+      <tr><td>Ilegível</td><td>Estado quando NF e CEP não puderam ser lidos; o sistema gera um identificador próprio.</td></tr>
+      <tr><td>NF / NF-e</td><td>Nota fiscal eletrônica.</td></tr>
+      <tr><td>Reembalagem</td><td>Destino interno em que o produto é reembalado; não disponível como botão ao cliente.</td></tr>
+      <tr><td>RV</td><td>Etiqueta com código de barras colada na caixa.</td></tr>
+      <tr><td>Tratativa</td><td>Execução, pelo operador, da decisão do cliente.</td></tr>
+      <tr><td>XML</td><td>Arquivo digital da nota fiscal.</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="ref-suporte">5.6 Suporte</h3>
+  <p>Precisa de ajuda? Fale com a Logvale:</p>
+  <ul>
+    <li><strong>E-mail:</strong> <a href="mailto:cadu@logvale.com.br">cadu@logvale.com.br</a></li>
+    <li><strong>WhatsApp / Telefone:</strong> +55 (12) 99713-8919</li>
+  </ul>
+
+  <h3 id="ref-lgpd">5.7 Seus direitos (LGPD)</h3>
+  <p>O sistema respeita a Lei Geral de Proteção de Dados. Você pode solicitar o <strong>acesso</strong>, a <strong>exportação</strong> e a <strong>anonimização</strong> dos seus dados pessoais (atendidos pelo gerente). Os documentos oficiais estão disponíveis no próprio sistema:</p>
+  <ul>
+    <li><strong>Política de Privacidade:</strong> página <code>/privacidade</code></li>
+    <li><strong>Termos de Uso:</strong> página <code>/termos</code></li>
+  </ul>
+
+  <a class="back-top no-print" href="#topo">↑ Voltar ao topo</a>
+</section>
+
+<footer class="doc-footer">
+  <p><strong>Sistema Logvale de Devoluções</strong> — Manual do Usuário · Versão 1.0 · 15/06/2026</p>
+  <p>Suporte: cadu@logvale.com.br · +55 (12) 99713-8919</p>
+</footer>
+
+</div>
+</body>
+</html>
