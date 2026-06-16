@@ -13,11 +13,11 @@ export async function sendAccountCreatedEmail(params: {
   name:      string
   magicLink: string
 }): Promise<void> {
-  const html = await render(AccountCreatedEmail(params))
+  const html = await render(AccountCreatedEmail({ ...params, appUrl: env.appUrl }))
   await client().emails.send({
     from:    env.resendFrom,
     to:      params.to,
-    subject: 'Seu acesso ao Sistema Logvale',
+    subject: 'Bem-vindo à Logvale — ative seu acesso',
     html,
   })
 }

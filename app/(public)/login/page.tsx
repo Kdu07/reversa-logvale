@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getCurrentUserOrNull } from '@/lib/supabase/get-current-user'
 import { ROLE_HOME } from '@/types'
+import { ptBR } from '@/lib/i18n/pt-BR'
 import LogvaleLogo from '@/components/shared/logvale-logo'
 import LoginForm from './login-form'
 
@@ -14,7 +15,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
   const callbackError =
     searchParams.error === 'auth_callback_error'
-      ? 'Erro ao processar o link de acesso. Tente novamente.'
+      ? ptBR.auth.login.callbackError
       : undefined
 
   return (
