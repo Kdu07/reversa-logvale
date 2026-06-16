@@ -20,7 +20,7 @@ Lógica: atualiza returns com `status = 'awaiting_decision'` e `received_at < no
 
 ## 2. Deploy das Edge Functions
 
-> **Status:** As Edge Functions `warning-email` e `photo-cleanup` ainda não foram criadas em `supabase/functions/`. Este documento descreve o processo de deploy para quando forem implementadas.
+> **Status:** As Edge Functions `warning-email` e `photo-cleanup` estão implementadas em `supabase/functions/` (`warning-email/index.ts` e `photo-cleanup/index.ts`). Siga os passos abaixo para fazer o deploy em produção.
 
 ### Pré-requisitos
 

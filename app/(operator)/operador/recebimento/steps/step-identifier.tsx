@@ -64,8 +64,9 @@ export function StepIdentifier({ onComplete }: StepIdentifierProps) {
 
   async function enterDepositorPicker(params: PendingComplete) {
     setPendingComplete(params)
-    setSelectedDepositorId('')
-    setSelectedDepositorName('')
+    // Pré-seleciona o depositante sugerido pela NF (quando houver), permitindo override manual
+    setSelectedDepositorId(params.invoiceData?.depositorId ?? '')
+    setSelectedDepositorName(params.invoiceData?.depositorName ?? '')
     setMode('depositor_picker')
     setDepositorsLoading(true)
     const result = await getDepositorsAction()
@@ -108,11 +109,8 @@ export function StepIdentifier({ onComplete }: StepIdentifierProps) {
       return
     }
     triggerFlash('success')
-    if (result.data.depositorId !== null) {
-      setTimeout(() => onComplete({ identifierType: 'access_key', accessKey: key, invoiceData: result.data }), 300)
-    } else {
-      setTimeout(() => enterDepositorPicker({ identifierType: 'access_key', accessKey: key, invoiceData: result.data }), 300)
-    }
+    // Sempre abre o seletor de depositante: confirma o sugerido pela NF ou permite trocar manualmente
+    setTimeout(() => enterDepositorPicker({ identifierType: 'access_key', accessKey: key, invoiceData: result.data }), 300)
   }, [onComplete]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handlePostalCode = useCallback((code: string) => {
@@ -173,17 +171,22 @@ export function StepIdentifier({ onComplete }: StepIdentifierProps) {
           <p className="text-sm text-muted-foreground">NF ilegível — o recebimento será registrado sem vínculo de NF.</p>
         )}
         {mode === 'depositor_picker' && (
-          <p className="text-sm text-muted-foreground">Selecione o depositante para vincular a esta devolução.</p>
+          <p className="text-sm text-muted-foreground">Confirme o depositante sugerido pela NF ou selecione manualmente.</p>
         )}
       </div>
 
       {loading && (
-        <div className="text-sm text-muted-foreground animate-pulse">Consultando NF na Webmania...</div>
+        <div className="text-sm text-muted-foreground animate-pulse">Identificando NF...</div>
       )}
 
       {/* Depositor picker */}
       {mode === 'depositor_picker' && pendingComplete && (
         <div className="space-y-4">
+          {pendingComplete.invoiceData?.depositorId && (
+            <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-md px-3 py-2">
+              Depositante sugerido pela NF (CNPJ {formatCnpj(pendingComplete.invoiceData.emitterCnpj)}). Confirme ou troque abaixo.
+            </p>
+          )}
           {pendingComplete.invoiceData && !pendingComplete.invoiceData.depositorId && (
             <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
               CNPJ {formatCnpj(pendingComplete.invoiceData.emitterCnpj)} não está cadastrado no sistema.

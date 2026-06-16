@@ -11,7 +11,7 @@ export const ptBR = {
       submitting:           'Entrando...',
       errorInvalidEmail:    'E-mail inválido',
       errorWrongCredentials:'E-mail ou senha incorretos.',
-      callbackError:        'Erro ao processar o link de acesso. Tente novamente.',
+      callbackError:        'O link de acesso é inválido ou expirou. Solicite um novo link ao administrador.',
     },
     firstAccess: {
       title:               'Bem-vindo ao Logvale',

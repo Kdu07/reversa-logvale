@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/supabase/get-current-user'
+import { isSuperUser } from '@/lib/auth/super'
 import { lookupInvoice } from '@/lib/integrations/webmania'
 import type { InvoiceData } from '@/lib/integrations/webmania'
 import type { IdentifierType } from '@/types'
@@ -72,7 +73,7 @@ export async function createReturnAction(
 ): Promise<{ returnId: string } | { error: string }> {
   try {
     const user = await getCurrentUser()
-    if (user.profile.role !== 'operator') return { error: 'Acesso negado' }
+    if (user.profile.role !== 'operator' && !isSuperUser(user)) return { error: 'Acesso negado' }
 
     const supabase = createClient()
 

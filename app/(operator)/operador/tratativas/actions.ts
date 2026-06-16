@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/supabase/get-current-user'
+import { isSuperUser } from '@/lib/auth/super'
 import { buildSignedUrlMap } from '@/lib/supabase/storage'
 import type { ReturnDecision, IdentifierType } from '@/types'
 
@@ -38,7 +39,7 @@ export async function getTrativasAction(
 ): Promise<{ rows: TrativaRow[]; total: number } | { error: string }> {
   try {
     const user = await getCurrentUser()
-    if (user.profile.role !== 'operator') return { error: 'Acesso negado' }
+    if (user.profile.role !== 'operator' && !isSuperUser(user)) return { error: 'Acesso negado' }
 
     const supabase = createClient()
     const page     = Math.max(1, filters.page ?? 1)
@@ -129,7 +130,7 @@ export async function processReturnAction(
 ): Promise<{ ok: true } | { error: string }> {
   try {
     const user = await getCurrentUser()
-    if (user.profile.role !== 'operator') return { error: 'Acesso negado' }
+    if (user.profile.role !== 'operator' && !isSuperUser(user)) return { error: 'Acesso negado' }
 
     const supabase = createClient()
 
