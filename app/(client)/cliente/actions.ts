@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import * as XLSX from 'xlsx'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/supabase/get-current-user'
+import { isSuperUser } from '@/lib/auth/super'
 import { buildSignedUrlMap } from '@/lib/supabase/storage'
 import { DECISION_LABELS } from '@/lib/decisions'
 import { formatDate, identifierLabel } from '@/lib/format'
@@ -73,7 +74,7 @@ export async function getClientReturnsAction(
 ): Promise<ReturnsResult> {
   try {
     const user = await getCurrentUser()
-    if (user.profile.role !== 'client') return { error: 'Acesso negado' }
+    if (user.profile.role !== 'client' && !isSuperUser(user)) return { error: 'Acesso negado' }
 
     const supabase = createClient()
     const page     = Math.max(1, filters.page ?? 1)
@@ -96,23 +97,35 @@ export async function getClientReturnsAction(
     if (filters.from)        query = query.gte('received_at', filters.from)
     if (filters.to)          query = query.lte('received_at', filters.to)
 
+    const superUser = isSuperUser(user)
     const [
       { data: returns, count, error },
       { data: cdRows },
     ] = await Promise.all([
       query,
-      supabase
-        .from('client_depositors')
-        .select('depositor_id, depositors!depositor_id(razao_social)')
-        .eq('client_id', user.id),
+      superUser
+        ? supabase
+            .from('depositors')
+            .select('id, razao_social')
+            .eq('active', true)
+            .order('razao_social')
+        : supabase
+            .from('client_depositors')
+            .select('depositor_id, depositors!depositor_id(razao_social)')
+            .eq('client_id', user.id),
     ])
 
     if (error) return { error: error.message }
 
-    const depositors: DepositorOption[] = (cdRows ?? []).map((r) => ({
-      id:   r.depositor_id,
-      name: (r.depositors as unknown as { razao_social: string } | null)?.razao_social ?? r.depositor_id,
-    }))
+    const depositors: DepositorOption[] = superUser
+      ? ((cdRows as unknown as { id: string; razao_social: string }[]) ?? []).map((r) => ({
+          id:   r.id,
+          name: r.razao_social,
+        }))
+      : ((cdRows as unknown as { depositor_id: string; depositors: { razao_social: string } | null }[]) ?? []).map((r) => ({
+          id:   r.depositor_id,
+          name: r.depositors?.razao_social ?? r.depositor_id,
+        }))
 
     const allReturns = returns ?? []
     const boxPaths:  string[] = []
@@ -168,7 +181,7 @@ export async function getClientHistoryAction(
 ): Promise<ReturnsResult> {
   try {
     const user = await getCurrentUser()
-    if (user.profile.role !== 'client') return { error: 'Acesso negado' }
+    if (user.profile.role !== 'client' && !isSuperUser(user)) return { error: 'Acesso negado' }
 
     const supabase = createClient()
     const page     = Math.max(1, filters.page ?? 1)
@@ -192,23 +205,35 @@ export async function getClientHistoryAction(
     if (filters.from)        query = query.gte('decided_at', filters.from)
     if (filters.to)          query = query.lte('decided_at', filters.to)
 
+    const superUser = isSuperUser(user)
     const [
       { data: returns, count, error },
       { data: cdRows },
     ] = await Promise.all([
       query,
-      supabase
-        .from('client_depositors')
-        .select('depositor_id, depositors!depositor_id(razao_social)')
-        .eq('client_id', user.id),
+      superUser
+        ? supabase
+            .from('depositors')
+            .select('id, razao_social')
+            .eq('active', true)
+            .order('razao_social')
+        : supabase
+            .from('client_depositors')
+            .select('depositor_id, depositors!depositor_id(razao_social)')
+            .eq('client_id', user.id),
     ])
 
     if (error) return { error: error.message }
 
-    const depositors: DepositorOption[] = (cdRows ?? []).map((r) => ({
-      id:   r.depositor_id,
-      name: (r.depositors as unknown as { razao_social: string } | null)?.razao_social ?? r.depositor_id,
-    }))
+    const depositors: DepositorOption[] = superUser
+      ? ((cdRows as unknown as { id: string; razao_social: string }[]) ?? []).map((r) => ({
+          id:   r.id,
+          name: r.razao_social,
+        }))
+      : ((cdRows as unknown as { depositor_id: string; depositors: { razao_social: string } | null }[]) ?? []).map((r) => ({
+          id:   r.depositor_id,
+          name: r.depositors?.razao_social ?? r.depositor_id,
+        }))
 
     const allReturns = returns ?? []
     const boxPaths:  string[] = []
@@ -270,7 +295,7 @@ export async function submitDecisionAction(
 ): Promise<{ ok: true } | { error: string }> {
   try {
     const user = await getCurrentUser()
-    if (user.profile.role !== 'client') return { error: 'Acesso negado' }
+    if (user.profile.role !== 'client' && !isSuperUser(user)) return { error: 'Acesso negado' }
 
     if (payload.decision !== 'store_for_handling' && !payload.returnInvoiceXmlPath) {
       return { error: 'XML da NF de devolução é obrigatório para esta decisão.' }
@@ -317,7 +342,7 @@ export async function exportHistoryAction(): Promise<
 > {
   try {
     const user = await getCurrentUser()
-    if (user.profile.role !== 'client') return { error: 'Acesso negado' }
+    if (user.profile.role !== 'client' && !isSuperUser(user)) return { error: 'Acesso negado' }
 
     const supabase = createClient()
 
@@ -339,10 +364,11 @@ export async function exportHistoryAction(): Promise<
 
     if (error) return { error: error.message }
 
+    const superUser = isSuperUser(user)
     const allowedDepositorIds = new Set((cdRows ?? []).map((r) => r.depositor_id))
 
     const rows = (returns ?? [])
-      .filter((r) => allowedDepositorIds.has((r as unknown as { depositor_id: string | null }).depositor_id ?? ''))
+      .filter((r) => superUser || allowedDepositorIds.has((r as unknown as { depositor_id: string | null }).depositor_id ?? ''))
       .map((r) => {
         const dep = r.depositors as unknown as { razao_social: string } | null
         const row: ReturnRow = {

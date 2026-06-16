@@ -1,9 +1,17 @@
 'use client'
 
+import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Fragment } from 'react'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { ThemeToggle } from './theme-toggle'
+import { cn } from '@/lib/utils'
+
+const VIEW_AREAS = [
+  { label: 'Admin',    href: '/admin'    },
+  { label: 'Operador', href: '/operador' },
+  { label: 'Cliente',  href: '/cliente'  },
+]
 
 const LABELS: Record<string, string> = {
   cliente:      'Cliente',
@@ -22,7 +30,7 @@ function humanize(seg: string) {
   return LABELS[seg] ?? seg.charAt(0).toUpperCase() + seg.slice(1)
 }
 
-export function Topbar() {
+export function Topbar({ isSuper = false }: { isSuper?: boolean }) {
   const pathname = usePathname()
   const segments = pathname.split('/').filter(Boolean)
 
@@ -48,7 +56,34 @@ export function Topbar() {
           )}
         </nav>
       </div>
-      <ThemeToggle />
+      <div className="flex items-center gap-2">
+        {isSuper && (
+          <div
+            role="navigation"
+            aria-label="Alternar visão"
+            className="flex items-center gap-0.5 rounded-lg border border-border bg-muted/50 p-0.5"
+          >
+            {VIEW_AREAS.map((area) => {
+              const active = pathname === area.href || pathname.startsWith(area.href + '/')
+              return (
+                <Link
+                  key={area.href}
+                  href={area.href}
+                  className={cn(
+                    'rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
+                    active
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  {area.label}
+                </Link>
+              )
+            })}
+          </div>
+        )}
+        <ThemeToggle />
+      </div>
     </header>
   )
 }
