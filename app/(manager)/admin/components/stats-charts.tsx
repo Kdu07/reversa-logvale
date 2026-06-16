@@ -17,7 +17,6 @@ const DECISION_COLORS: Record<string, string> = {
   return_to_stock:    '#10B981',
   store_for_handling: '#F59E0B',
   discard:            '#EF4444',
-  repackage:          '#3B82F6',
 }
 
 interface Props {

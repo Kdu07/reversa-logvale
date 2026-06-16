@@ -64,7 +64,6 @@ export async function getDashboardStatsAction(): Promise<DashboardStats | { erro
         { decision: 'return_to_stock',    count: counts.cnt_rts  },
         { decision: 'store_for_handling', count: counts.cnt_sfh  },
         { decision: 'discard',            count: counts.cnt_disc },
-        { decision: 'repackage',          count: counts.cnt_repk },
       ],
       avgDecisionHours: counts.avg_decision_hours,
       avgProcessHours:  counts.avg_process_hours,

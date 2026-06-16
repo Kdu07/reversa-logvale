@@ -91,7 +91,7 @@ describe('getDashboardStatsAction', () => {
     ])
   })
 
-  it('retorna byDecision com 4 itens mapeados corretamente', async () => {
+  it('retorna byDecision com 3 itens mapeados corretamente (sem reembalagem)', async () => {
     mockManager()
     mockRpcResponse()
 
@@ -102,7 +102,6 @@ describe('getDashboardStatsAction', () => {
       { decision: 'return_to_stock',    count: 8 },
       { decision: 'store_for_handling', count: 4 },
       { decision: 'discard',            count: 2 },
-      { decision: 'repackage',          count: 1 },
     ])
   })
 
