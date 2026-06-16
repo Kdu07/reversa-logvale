@@ -47,7 +47,7 @@ export const env = {
   webmaniaConsumerSecret:     process.env.WEBMANIA_CONSUMER_SECRET,
   webmaniaAccessToken:        process.env.WEBMANIA_ACCESS_TOKEN,
   webmaniaAccessTokenSecret:  process.env.WEBMANIA_ACCESS_TOKEN_SECRET,
-  webmaniaBaseUrl:            process.env.WEBMANIA_BASE_URL ?? 'https://webmaniabr.com/api',
+  webmaniaBaseUrl:            process.env.WEBMANIA_BASE_URL ?? 'https://webmania.com.br/api',
   resendApiKey:   process.env.RESEND_API_KEY,
   resendFrom:     process.env.RESEND_FROM_EMAIL ?? 'notificacoes@logvale.com.br',
 } as const

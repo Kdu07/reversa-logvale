@@ -11,138 +11,41 @@ export interface InvoiceData {
   depositorName:  string | null
 }
 
-interface WebmaniaRaw {
-  status?: string
-  nfe?: {
-    chNFe?: string
-    emit?: { CNPJ?: string }
-    ide?: { nNF?: string; dhEmi?: string }
-  }
-  xml?: string
-}
-
 function adminClient() {
   return createClient(env.supabaseUrl, env.supabaseServiceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   })
 }
 
-async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
-  const delays = [300, 600, 1200]
-  let lastError: unknown
-  for (let i = 0; i < attempts; i++) {
-    try { return await fn() } catch (err) {
-      lastError = err
-      if (i < attempts - 1) await new Promise((r) => setTimeout(r, delays[i]))
-    }
-  }
-  throw lastError
-}
-
-async function fetchWebmania(accessKey: string): Promise<WebmaniaRaw> {
-  if (!env.webmaniaConsumerKey) {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('Consulta de NF indisponível neste momento')
-    }
-    // Dev mock — permite testar o fluxo sem credenciais Webmania
-    return {
-      status: 'aprovado',
-      nfe: {
-        chNFe: accessKey,
-        emit:  { CNPJ: '12345678000195' },
-        ide:   { nNF: `DEV-${accessKey.slice(-6)}`, dhEmi: new Date().toISOString() },
-      },
-      xml: `<?xml version="1.0" encoding="UTF-8"?><nfeProc><chNFe>${accessKey}</chNFe></nfeProc>`,
-    }
-  }
-
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), 10_000)
-  try {
-    const res = await fetch(
-      `${env.webmaniaBaseUrl}/1/nfe/consulta?chNFe=${accessKey}`,
-      {
-        method:  'GET',
-        headers: {
-          'X-Consumer-Key':        env.webmaniaConsumerKey,
-          'X-Consumer-Secret':     env.webmaniaConsumerSecret ?? '',
-          'X-Access-Token':        env.webmaniaAccessToken ?? '',
-          'X-Access-Token-Secret': env.webmaniaAccessTokenSecret ?? '',
-          'Content-Type':          'application/json',
-        },
-        signal: controller.signal,
-      }
-    )
-    if (!res.ok) throw new Error(`Webmania retornou ${res.status}`)
-    return res.json()
-  } finally {
-    clearTimeout(timer)
-  }
+/**
+ * Extrai os dados da NF diretamente da chave de acesso de 44 dígitos.
+ *
+ * A própria chave codifica o CNPJ do emitente, o número e o mês/ano de emissão,
+ * então não é necessária consulta externa para identificar o depositante.
+ * Layout (1-indexado): cUF(2) AAMM(4) CNPJ(14) mod(2) série(3) nNF(9) tpEmis(1) cNF(8) cDV(1)
+ *
+ * O download do XML/DANFE depende de integração fiscal (ex.: API "Consulta de NF-e"
+ * da Webmania ou XML fornecido pelo depositante) e fica como evolução pós-launch —
+ * a chave é persistida em cada devolução, permitindo backfill posterior.
+ */
+function parseAccessKey(accessKey: string) {
+  const emitterCnpj   = accessKey.slice(6, 20)
+  const invoiceNumber = String(parseInt(accessKey.slice(25, 34), 10))
+  const yy            = accessKey.slice(2, 4)
+  const mm            = accessKey.slice(4, 6)
+  const emittedAt     = `20${yy}-${mm}-01`
+  return { emitterCnpj, invoiceNumber, emittedAt }
 }
 
 export async function lookupInvoice(accessKey: string): Promise<InvoiceData> {
+  if (!/^\d{44}$/.test(accessKey)) {
+    throw new Error('Chave de acesso inválida (44 dígitos)')
+  }
+
+  const { emitterCnpj, invoiceNumber, emittedAt } = parseAccessKey(accessKey)
+
+  // Identifica o depositante pelo CNPJ do emitente codificado na chave
   const supabase = adminClient()
-
-  // 1. Check cache
-  const { data: cached } = await supabase
-    .from('invoice_cache')
-    .select('*')
-    .eq('access_key', accessKey)
-    .single()
-
-  if (cached) {
-    const { data: depositor } = await supabase
-      .from('depositors')
-      .select('id, razao_social')
-      .eq('cnpj', cached.emitter_cnpj)
-      .eq('active', true)
-      .single()
-
-    return {
-      accessKey,
-      emitterCnpj:    cached.emitter_cnpj,
-      invoiceNumber:  cached.invoice_number ?? null,
-      emittedAt:      cached.emitted_at ?? null,
-      xmlStoragePath: cached.xml_url,
-      depositorId:    depositor?.id ?? null,
-      depositorName:  depositor?.razao_social ?? null,
-    }
-  }
-
-  // 2. Fetch from Webmania
-  const raw = await withRetry(() => fetchWebmania(accessKey))
-
-  if (!raw.nfe?.emit?.CNPJ) {
-    throw new Error('NF não encontrada ou resposta Webmania inválida')
-  }
-
-  const emitterCnpj   = raw.nfe.emit.CNPJ
-  const invoiceNumber  = raw.nfe.ide?.nNF ?? null
-  const emittedAt      = raw.nfe.ide?.dhEmi ?? null
-  const xmlContent     = raw.xml ?? ''
-  const xmlPath        = `${accessKey}.xml`
-
-  // 3. Upload XML to private storage (store path, not public URL)
-  await supabase.storage.from('invoice-xmls').upload(
-    xmlPath,
-    new Blob([xmlContent], { type: 'text/xml' }),
-    { upsert: true, contentType: 'text/xml' }
-  )
-
-  // 4. Cache entry (ON CONFLICT DO NOTHING via ignoreDuplicates)
-  await supabase.from('invoice_cache').upsert(
-    {
-      access_key:     accessKey,
-      xml_url:        xmlPath,
-      emitter_cnpj:   emitterCnpj,
-      invoice_number: invoiceNumber,
-      emitted_at:     emittedAt,
-      raw_response:   raw,
-    },
-    { onConflict: 'access_key', ignoreDuplicates: true }
-  )
-
-  // 5. Find depositor by CNPJ
   const { data: depositor } = await supabase
     .from('depositors')
     .select('id, razao_social')
@@ -155,7 +58,9 @@ export async function lookupInvoice(accessKey: string): Promise<InvoiceData> {
     emitterCnpj,
     invoiceNumber,
     emittedAt,
-    xmlStoragePath: xmlPath,
+    // Sem integração fiscal ativa não há XML armazenado; o botão de download
+    // em step-review só renderiza quando este campo é truthy.
+    xmlStoragePath: '',
     depositorId:    depositor?.id ?? null,
     depositorName:  depositor?.razao_social ?? null,
   }
