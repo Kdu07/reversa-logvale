@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { lookupInvoice } from '@/lib/integrations/webmania'
+import { lookupInvoice, fetchInvoiceXml } from '@/lib/integrations/webmania'
 
 vi.mock('@/lib/env', () => ({
   env: {
@@ -70,5 +70,16 @@ describe('lookupInvoice (parsing local da chave)', () => {
 
   it('lança erro para chave que não tem 44 dígitos', async () => {
     await expect(lookupInvoice('123')).rejects.toThrow('44')
+  })
+})
+
+describe('fetchInvoiceXml (stub — API externa não implementada)', () => {
+  it('retorna not_implemented enquanto a integração fiscal não existe', async () => {
+    const result = await fetchInvoiceXml(ACCESS_KEY)
+    expect(result).toEqual({
+      ok: false,
+      reason: 'not_implemented',
+      message: expect.stringContaining('não implementada'),
+    })
   })
 })

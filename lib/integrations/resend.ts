@@ -14,12 +14,15 @@ export async function sendAccountCreatedEmail(params: {
   magicLink: string
 }): Promise<void> {
   const html = await render(AccountCreatedEmail({ ...params, appUrl: env.appUrl }))
-  await client().emails.send({
+  const { error } = await client().emails.send({
     from:    env.resendFrom,
     to:      params.to,
     subject: 'Bem-vindo à Logvale — ative seu acesso',
     html,
   })
+  // The Resend SDK returns { error } instead of throwing on API failures
+  // (invalid key, unverified sender domain, etc.). Surface it so callers know.
+  if (error) throw new Error(`Resend: ${error.message}`)
 }
 
 export async function sendPendingWarningEmail(params: {
@@ -28,10 +31,11 @@ export async function sendPendingWarningEmail(params: {
 }): Promise<void> {
   const count = params.returns.length
   const html  = await render(PendingDecisionWarningEmail(params))
-  await client().emails.send({
+  const { error } = await client().emails.send({
     from:    env.resendFrom,
     to:      params.to,
     subject: `${count} devolução${count > 1 ? 'ões' : ''} pendente${count > 1 ? 's' : ''} de decisão`,
     html,
   })
+  if (error) throw new Error(`Resend: ${error.message}`)
 }

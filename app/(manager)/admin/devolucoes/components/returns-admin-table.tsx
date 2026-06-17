@@ -10,7 +10,8 @@ import { DecisionPill } from '@/components/shared/decision-pill'
 import { EmptyState } from '@/components/shared/empty-state'
 import { PhotoGallery } from '@/components/shared/photo-gallery'
 import { PhotoThumbs } from '@/components/shared/photo-thumbs'
-import { formatDate, identifierLabel } from '@/lib/format'
+import { DownloadXmlButton } from '@/components/shared/download-xml-button'
+import { formatDate, identifierLabel, xmlDownloadName } from '@/lib/format'
 import { ptBR } from '@/lib/i18n/pt-BR'
 import { revertReturnStatusAction } from '../actions'
 import { Boxes, ChevronLeft, ChevronRight, Search } from 'lucide-react'
@@ -218,20 +219,24 @@ export function ReturnsAdminTable({
                 </div>
               </div>
 
-              {detailsRow.invoiceXmlUrl && (
+              {detailsRow.invoiceXmlPath && (
                 <div>
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">NF Original</p>
-                  <a href={detailsRow.invoiceXmlUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline font-medium">
-                    Baixar XML
-                  </a>
+                  <DownloadXmlButton
+                    path={detailsRow.invoiceXmlPath}
+                    filename={xmlDownloadName(detailsRow.rv, 'original')}
+                    className="text-sm text-primary hover:underline font-medium disabled:opacity-50"
+                  />
                 </div>
               )}
-              {detailsRow.returnInvoiceXmlUrl && (
+              {detailsRow.returnInvoiceXmlPath && (
                 <div>
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">NF de Devolução</p>
-                  <a href={detailsRow.returnInvoiceXmlUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline font-medium">
-                    Baixar XML
-                  </a>
+                  <DownloadXmlButton
+                    path={detailsRow.returnInvoiceXmlPath}
+                    filename={xmlDownloadName(detailsRow.rv, 'devolucao')}
+                    className="text-sm text-primary hover:underline font-medium disabled:opacity-50"
+                  />
                 </div>
               )}
               {detailsRow.boxPhotoUrls.length > 0 && (

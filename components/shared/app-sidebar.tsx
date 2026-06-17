@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, PackageCheck, History, UserRound,
-  ClipboardList, Boxes, Users, Building2, Inbox,
+  ClipboardList, Boxes, Users, Building2, Inbox, HelpCircle,
 } from 'lucide-react'
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent,
@@ -132,6 +132,21 @@ export function AppSidebar({ role, fullName, email }: AppSidebarProps) {
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border gap-1">
+        <SidebarMenuButton
+          asChild
+          tooltip="Ajuda"
+          className="h-9 transition-colors ease-quint"
+        >
+          <a
+            href="/manual/manual-logvale.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2.5"
+          >
+            <HelpCircle className="h-4 w-4 shrink-0" />
+            <span>Ajuda</span>
+          </a>
+        </SidebarMenuButton>
         <div className={cn('flex items-center gap-2.5 px-2 py-1.5', collapsed && 'justify-center px-0')}>
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-primary text-xs font-semibold text-primary-foreground">
             {initials}

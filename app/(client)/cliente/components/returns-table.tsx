@@ -10,7 +10,8 @@ import { EmptyState } from '@/components/shared/empty-state'
 import { DecisionModal } from './decision-modal'
 import { PhotoGallery } from '@/components/shared/photo-gallery'
 import { PhotoThumbs } from '@/components/shared/photo-thumbs'
-import { formatDate } from '@/lib/format'
+import { DownloadXmlButton } from '@/components/shared/download-xml-button'
+import { formatDate, xmlDownloadName } from '@/lib/format'
 import { Inbox, ChevronLeft, ChevronRight } from 'lucide-react'
 import type { ReturnRow, DepositorOption } from '../actions'
 import type { ReturnDecision, IdentifierType } from '@/types'
@@ -188,13 +189,27 @@ export function ReturnsTable({
                     <IdentifierTag row={row} />
                   </td>
                   <td className="px-3 py-2.5">
-                    {row.invoiceXmlUrl ? (
-                      <a href={row.invoiceXmlUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-xs font-medium">
-                        XML
-                      </a>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    )}
+                    <div className="flex flex-col items-start gap-1">
+                      {row.invoiceXmlPath && (
+                        <DownloadXmlButton
+                          path={row.invoiceXmlPath}
+                          filename={xmlDownloadName(row.rv, 'original')}
+                          label="NF"
+                          className="text-primary hover:underline text-xs font-medium disabled:opacity-50"
+                        />
+                      )}
+                      {mode === 'history' && row.returnInvoiceXmlPath && (
+                        <DownloadXmlButton
+                          path={row.returnInvoiceXmlPath}
+                          filename={xmlDownloadName(row.rv, 'devolucao')}
+                          label="Devolução"
+                          className="text-primary hover:underline text-xs font-medium disabled:opacity-50"
+                        />
+                      )}
+                      {!row.invoiceXmlPath && !(mode === 'history' && row.returnInvoiceXmlPath) && (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-3 py-2.5">
                     <span className="font-mono text-xs font-medium">{row.rv}</span>

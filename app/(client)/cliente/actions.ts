@@ -21,7 +21,8 @@ export interface ReturnRow {
   receivedAt:     string
   depositorId:    string | null
   depositorName:  string | null
-  invoiceXmlUrl:  string | null
+  invoiceXmlPath:       string | null
+  returnInvoiceXmlPath: string | null
   decision:       ReturnDecision | null
   decidedAt:      string | null
   decidedByType:  DecisionSource | null
@@ -130,20 +131,17 @@ export async function getClientReturnsAction(
     const allReturns = returns ?? []
     const boxPaths:  string[] = []
     const itemPaths: string[] = []
-    const xmlPaths:  string[] = []
     for (const r of allReturns) {
       const photos = (r.return_photos as RawPhoto[]) ?? []
       for (const p of photos) {
         if (p.photo_type === 'box')  boxPaths.push(p.storage_path)
         if (p.photo_type === 'item') itemPaths.push(p.storage_path)
       }
-      if (r.invoice_xml_url) xmlPaths.push(r.invoice_xml_url)
     }
 
-    const [boxMap, itemMap, xmlMap] = await Promise.all([
-      buildSignedUrlMap(supabase, 'box-photos',   boxPaths),
-      buildSignedUrlMap(supabase, 'item-photos',  itemPaths),
-      buildSignedUrlMap(supabase, 'invoice-xmls', xmlPaths),
+    const [boxMap, itemMap] = await Promise.all([
+      buildSignedUrlMap(supabase, 'box-photos',  boxPaths),
+      buildSignedUrlMap(supabase, 'item-photos', itemPaths),
     ])
 
     const rows: ReturnRow[] = allReturns.map((r) => {
@@ -161,7 +159,8 @@ export async function getClientReturnsAction(
         receivedAt:     r.received_at,
         depositorId:    r.depositor_id,
         depositorName:  dep?.razao_social ?? null,
-        invoiceXmlUrl:  r.invoice_xml_url ? (xmlMap.get(r.invoice_xml_url) ?? null) : null,
+        invoiceXmlPath:       r.invoice_xml_url ?? null,
+        returnInvoiceXmlPath: null, // pendentes ainda não têm decisão/XML de devolução
         decision:       null,
         decidedAt:      null,
         decidedByType:  null,
@@ -191,7 +190,7 @@ export async function getClientHistoryAction(
       .from('returns')
       .select(
         `id, identifier_type, access_key, postal_code, illegible_token,
-         rv, item_count, received_at, depositor_id, invoice_xml_url,
+         rv, item_count, received_at, depositor_id, invoice_xml_url, return_invoice_xml_url,
          decision, decided_at, decided_by_type,
          depositors!depositor_id(razao_social),
          return_photos(storage_path, photo_type, position)`,
@@ -238,20 +237,17 @@ export async function getClientHistoryAction(
     const allReturns = returns ?? []
     const boxPaths:  string[] = []
     const itemPaths: string[] = []
-    const xmlPaths:  string[] = []
     for (const r of allReturns) {
       const photos = (r.return_photos as RawPhoto[]) ?? []
       for (const p of photos) {
         if (p.photo_type === 'box')  boxPaths.push(p.storage_path)
         if (p.photo_type === 'item') itemPaths.push(p.storage_path)
       }
-      if (r.invoice_xml_url) xmlPaths.push(r.invoice_xml_url)
     }
 
-    const [boxMap, itemMap, xmlMap] = await Promise.all([
-      buildSignedUrlMap(supabase, 'box-photos',   boxPaths),
-      buildSignedUrlMap(supabase, 'item-photos',  itemPaths),
-      buildSignedUrlMap(supabase, 'invoice-xmls', xmlPaths),
+    const [boxMap, itemMap] = await Promise.all([
+      buildSignedUrlMap(supabase, 'box-photos',  boxPaths),
+      buildSignedUrlMap(supabase, 'item-photos', itemPaths),
     ])
 
     const rows: ReturnRow[] = allReturns.map((r) => {
@@ -269,7 +265,8 @@ export async function getClientHistoryAction(
         receivedAt:     r.received_at,
         depositorId:    r.depositor_id,
         depositorName:  dep?.razao_social ?? null,
-        invoiceXmlUrl:  r.invoice_xml_url ? (xmlMap.get(r.invoice_xml_url) ?? null) : null,
+        invoiceXmlPath:       r.invoice_xml_url        ?? null,
+        returnInvoiceXmlPath: r.return_invoice_xml_url ?? null,
         decision:       r.decision as ReturnDecision | null,
         decidedAt:      r.decided_at,
         decidedByType:  r.decided_by_type as DecisionSource | null,
@@ -382,7 +379,8 @@ export async function exportHistoryAction(): Promise<
           receivedAt:     r.received_at,
           depositorId:    null,
           depositorName:  dep?.razao_social ?? null,
-          invoiceXmlUrl:  null,
+          invoiceXmlPath:       null,
+          returnInvoiceXmlPath: null,
           decision:       r.decision as ReturnDecision | null,
           decidedAt:      r.decided_at,
           decidedByType:  r.decided_by_type as DecisionSource | null,
