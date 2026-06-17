@@ -196,6 +196,8 @@ export const ptBR = {
       activateBtn:     'Ativar',
       resendLinkBtn:   'Reenviar link',
       linkSentLabel:   'Copie e envie ao usuário:',
+      linkEmailSent:   'E-mail de ativação enviado para',
+      linkEmailFailed: 'Não foi possível enviar o e-mail automaticamente. Copie e envie o link manualmente para',
       createTitle:     'Novo Usuário',
       editTitle:       'Editar Usuário',
       fieldName:       'Nome completo',

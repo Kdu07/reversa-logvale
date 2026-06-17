@@ -17,7 +17,7 @@ Operadoras logísticas recebem diariamente devoluções de mercadorias dos Corre
 
 A Logvale centraliza todo o ciclo de vida de uma devolução em uma única plataforma, com fluxos distintos para cada ator. O operador registra o recebimento em menos de 90 segundos usando scanner EAN e webcam. O cliente visualiza cada devolução com fotos, nota fiscal e tem 72 horas para decidir o destino. O gerente acompanha tudo em tempo real.
 
-Automações eliminam o trabalho manual: a NF-e é consultada automaticamente via API Webmania e cacheada; e-mails de alerta são disparados a 48h do prazo; devoluções sem resposta são decididas automaticamente. O resultado é rastreabilidade completa, do pacote ao arquivo fiscal.
+Automações eliminam o trabalho manual: a NF-e é identificada pela própria chave de acesso (parsing local que extrai CNPJ emissor, número e competência, sugerindo o depositante); e-mails de alerta são disparados a 48h do prazo; devoluções sem resposta são decididas automaticamente. A consulta do XML via API externa é uma integração planejada. O resultado é rastreabilidade completa, do pacote ao arquivo fiscal.
 
 ---
 
@@ -35,7 +35,7 @@ O operador trabalha em desktop com leitor de código de barras USB (HID) e webca
 6. Revisão completa antes de salvar
 7. Confirmação com feedback sonoro e visual
 
-A NF-e é consultada em background no momento da captura da chave, com retry automático e cache local — o operador nunca espera.
+No momento da captura, a chave de acesso é interpretada localmente (sem chamada externa) para sugerir o depositante pelo CNPJ do emissor — o operador nunca espera.
 
 ### Cliente (Depositante) — Controle Total
 
@@ -58,13 +58,13 @@ Para conformidade LGPD, o gerente pode exportar os dados de qualquer usuário em
 
 ## Funcionalidades em Destaque
 
-- Lookup de NF-e automático via Webmania API, com cache e retry 3x com backoff exponencial
+- Identificação da NF-e por parsing local da chave de acesso (CNPJ emissor, número, competência); consulta do XML via API externa (Webmania) planejada, com botão de backfill em lote no painel do super
 - Compressão de fotos client-side (alvo ~500 KB) antes do upload para Storage privado
 - Auto-decisão após 72h via pg_cron — nenhuma devolução fica parada indefinidamente
 - Alertas por e-mail a 48h do prazo com lista das devoluções pendentes
 - RLS (Row Level Security) por perfil — cada cliente vê apenas seus próprios dados
 - Conformidade LGPD: exportação em ZIP, anonimização com preservação fiscal, política de retenção automatizada
-- Magic link como único método de autenticação — sem senhas para gerenciar
+- Login por e-mail + senha; primeiro acesso via link de ativação (token único) que leva à criação de senha e aceite de termos
 - Ciclo de vida auditável: `awaiting_decision` → `decided` → `processed`, com timestamps e responsável em cada etapa
 
 ---
@@ -75,13 +75,13 @@ Para conformidade LGPD, o gerente pode exportar os dados de qualquer usuário em
 |---|---|
 | Frontend | Next.js 14 (App Router) + TypeScript |
 | UI | Tailwind CSS + shadcn/ui |
-| Auth | Supabase Auth (magic link) |
+| Auth | Supabase Auth (e-mail + senha; link de ativação no primeiro acesso) |
 | Banco | Supabase PostgreSQL + RLS |
 | Storage | Supabase Storage (privado, URLs assinadas) |
 | Jobs | pg_cron + Supabase Edge Functions |
 | E-mail | Resend + React Email |
 | Hosting | Vercel |
-| NF-e | Webmania API |
+| NF-e | Chave de acesso (parsing local); consulta externa planejada (Webmania) |
 
 ---
 
@@ -99,7 +99,7 @@ npm run dev                  # http://localhost:3000
 
 Configure o Supabase (projeto, migrations, Auth Hook e primeiro manager) seguindo o guia completo em [docs/SETUP.md](docs/SETUP.md).
 
-As integrações com Webmania e Resend são opcionais em desenvolvimento — o sistema usa mock data quando as credenciais não estão configuradas.
+A integração Resend é opcional em desenvolvimento (o sistema funciona sem ela). A consulta externa de NF (Webmania) ainda não está ativa — a identificação usa parsing local da chave de acesso; as variáveis `WEBMANIA_*` ficam reservadas para essa integração futura.
 
 ## Comandos
 

@@ -26,6 +26,24 @@ export interface DepositorOption {
   razao_social: string
 }
 
+interface GenerateLinkProperties {
+  hashed_token?: string
+  action_link?:  string
+}
+
+/**
+ * Builds an activation link pointing at our own /auth/callback using the
+ * token_hash from admin.generateLink. The default action_link cannot be used:
+ * it redirects through Supabase's verify endpoint into the PKCE code flow,
+ * which requires a code verifier that the recipient's browser never had.
+ * The token_hash is verified server-side via verifyOtp in the callback route.
+ */
+function buildActivationLink(properties: GenerateLinkProperties | undefined, appUrl: string): string | null {
+  const tokenHash = properties?.hashed_token
+  if (!tokenHash) return null
+  return `${appUrl}/auth/callback?token_hash=${encodeURIComponent(tokenHash)}&type=magiclink`
+}
+
 export async function getUsersAction(): Promise<UserRow[] | { error: string }> {
   try {
     await assertManager()
@@ -89,12 +107,12 @@ export async function createUserAction(payload: {
   phone:        string
   role:         UserRole
   depositorIds: string[]
-}): Promise<{ ok: true } | { error: string }> {
+}): Promise<{ ok: true; link: string; emailSent: boolean; emailError?: string } | { error: string }> {
   try {
     await assertManager()
     const admin    = createAdminClient()
     const supabase = createClient()
-    const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? ''
+    const appUrl   = env.appUrl
 
     const { data: createData, error: createErr } = await admin.auth.admin.createUser({
       email:         payload.email,
@@ -109,11 +127,21 @@ export async function createUserAction(payload: {
       options: { redirectTo: `${appUrl}/auth/callback` },
     })
     if (linkErr) throw linkErr
-    const magicLink = (linkData as { properties?: { action_link?: string } }).properties?.action_link
+    const magicLink = buildActivationLink(linkData.properties as GenerateLinkProperties, appUrl)
+    if (!magicLink) throw new Error('Link de ativação não gerado')
 
-    if (magicLink && env.resendApiKey) {
-      await sendAccountCreatedEmail({ to: payload.email, name: payload.full_name, magicLink })
-        .catch((e) => console.error('[resend] createUser email failed:', e))
+    let emailSent  = false
+    let emailError: string | undefined
+    if (env.resendApiKey) {
+      try {
+        await sendAccountCreatedEmail({ to: payload.email, name: payload.full_name, magicLink })
+        emailSent = true
+      } catch (e) {
+        emailError = e instanceof Error ? e.message : 'Falha ao enviar e-mail'
+        console.error('[resend] createUser email failed:', e)
+      }
+    } else {
+      emailError = 'RESEND_API_KEY não configurada'
     }
 
     const { error: profileErr } = await supabase.from('profiles').insert({
@@ -131,7 +159,7 @@ export async function createUserAction(payload: {
     }
 
     revalidatePath('/admin/usuarios')
-    return { ok: true }
+    return { ok: true, link: magicLink, emailSent, emailError }
   } catch (err) {
     return { error: err instanceof Error ? err.message : 'Erro interno' }
   }
@@ -214,7 +242,7 @@ export async function resendMagicLinkAction(
     await assertManager()
     const admin    = createAdminClient()
     const supabase = createClient()
-    const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? ''
+    const appUrl   = env.appUrl
 
     const { data, error } = await admin.auth.admin.generateLink({
       type:    'magiclink',
@@ -223,7 +251,7 @@ export async function resendMagicLinkAction(
     })
     if (error) throw error
 
-    const link = (data as { properties?: { action_link?: string } }).properties?.action_link
+    const link = buildActivationLink(data.properties as GenerateLinkProperties, appUrl)
     if (!link) throw new Error('Link não gerado')
 
     if (env.resendApiKey) {

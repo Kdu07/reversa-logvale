@@ -1,8 +1,12 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { assertManager } from '@/lib/supabase/assert-role'
+import { getCurrentUser } from '@/lib/supabase/get-current-user'
+import { isSuperUser } from '@/lib/auth/super'
 import { buildSignedUrlMap } from '@/lib/supabase/storage'
+import { fetchInvoiceXml } from '@/lib/integrations/webmania'
 import { revalidatePath } from 'next/cache'
 import type { ReturnStatus, ReturnDecision, IdentifierType } from '@/types'
 
@@ -108,6 +112,117 @@ export async function getAdminReturnsAction(filters?: {
     })
 
     return { rows, total: count ?? 0 }
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'Erro interno' }
+  }
+}
+
+// =====================================================================
+// Retry de consulta de NF — buscar XMLs faltantes (restrito ao super)
+// =====================================================================
+
+export interface RetryInvoiceFetchResult {
+  pending:        number
+  fetched:        number
+  failed:         number
+  notImplemented: boolean
+  message:        string
+}
+
+export async function getMissingInvoiceXmlCountAction(): Promise<
+  { count: number } | { error: string }
+> {
+  try {
+    if (!isSuperUser(await getCurrentUser())) return { error: 'Acesso negado' }
+    const supabase = createClient()
+    const { count, error } = await supabase
+      .from('returns')
+      .select('id', { count: 'exact', head: true })
+      .eq('identifier_type', 'access_key')
+      .is('invoice_xml_url', null)
+    if (error) throw error
+    return { count: count ?? 0 }
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'Erro interno' }
+  }
+}
+
+export async function retryMissingInvoiceXmlAction(): Promise<
+  RetryInvoiceFetchResult | { error: string }
+> {
+  try {
+    if (!isSuperUser(await getCurrentUser())) return { error: 'Acesso negado' }
+    const supabase = createAdminClient()
+
+    const { data, error } = await supabase
+      .from('returns')
+      .select('access_key')
+      .eq('identifier_type', 'access_key')
+      .is('invoice_xml_url', null)
+    if (error) throw error
+
+    // O XML é por NF (chave de acesso), não por devolução — busca cada chave uma vez
+    const keys = Array.from(
+      new Set((data ?? []).map((r) => r.access_key).filter((k): k is string => !!k)),
+    )
+
+    if (keys.length === 0) {
+      return { pending: 0, fetched: 0, failed: 0, notImplemented: false, message: 'Nenhuma NF pendente de XML.' }
+    }
+
+    let fetched = 0
+    let failed  = 0
+
+    for (const accessKey of keys) {
+      const result = await fetchInvoiceXml(accessKey)
+
+      // API ainda indisponível: aborta sem martelar e informa o operador
+      if (!result.ok && result.reason === 'not_implemented') {
+        return {
+          pending:        keys.length,
+          fetched:        0,
+          failed:         0,
+          notImplemented: true,
+          message:        'API de consulta de NF ainda não implementada — nenhum XML buscado.',
+        }
+      }
+
+      if (!result.ok) {
+        failed++
+        continue
+      }
+
+      const path = `${accessKey}.xml`
+      const { error: uploadErr } = await supabase.storage
+        .from('invoice-xmls')
+        .upload(path, result.xml, { upsert: true, contentType: 'application/xml' })
+      if (uploadErr) {
+        failed++
+        continue
+      }
+
+      const { error: updateErr } = await supabase
+        .from('returns')
+        .update({ invoice_xml_url: path })
+        .eq('identifier_type', 'access_key')
+        .eq('access_key', accessKey)
+        .is('invoice_xml_url', null)
+      if (updateErr) {
+        failed++
+        continue
+      }
+
+      fetched++
+    }
+
+    revalidatePath('/admin/devolucoes')
+    return {
+      pending:        keys.length,
+      fetched,
+      failed,
+      notImplemented: false,
+      message:        `${fetched} XML(s) baixado(s), ${failed} falha(s) de ${keys.length} NF(s) pendente(s).`,
+    }
   } catch (err) {
     return { error: err instanceof Error ? err.message : 'Erro interno' }
   }

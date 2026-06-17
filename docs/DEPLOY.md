@@ -114,87 +114,25 @@ Deve aparecer `auto-decision-job` com schedule `0 * * * *`.
 
 ### 1.7 Fazer Deploy das Edge Functions
 
-As Edge Functions enviam e-mails de aviso (48h) e limpam fotos antigas (1 ano).
+As Edge Functions enviam e-mails de aviso (48h) e limpam fotos antigas (1 ano). O deploy e a configuração de secrets são feitos via Supabase CLI.
 
-**Pré-requisito:** instalar o Supabase CLI
+➡️ **Comandos completos (deploy + secrets) em [JOBS.md](JOBS.md), seção 2.** Em resumo: `supabase functions deploy warning-email` e `photo-cleanup`, depois `supabase secrets set` para `RESEND_API_KEY`, `RESEND_FROM_EMAIL` e `NEXT_PUBLIC_APP_URL`.
 
-```bash
-npm install -g supabase
-```
-
-**Login e link com o projeto:**
-
-```bash
-supabase login
-# Abrirá o navegador para autenticar
-
-supabase link --project-ref <project-ref>
-# O project-ref está em: Project Settings → General → Reference ID
-```
-
-**Deploy das functions:**
-
-```bash
-supabase functions deploy warning-email
-supabase functions deploy photo-cleanup
-```
-
-**Configurar secrets das functions:**
-
-```bash
-supabase secrets set RESEND_API_KEY=re_suaSuaChaveAqui
-supabase secrets set RESEND_FROM_EMAIL=notificacoes@logvale.com.br
-supabase secrets set NEXT_PUBLIC_APP_URL=https://seudominio.com.br
-supabase secrets set SUPABASE_SERVICE_ROLE_KEY=eyJ...suaServiceRoleKey
-```
+> `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` são injetados automaticamente pelo runtime das Edge Functions — **não** os configure como secret.
 
 ---
 
 ### 1.8 Agendar as Edge Functions via pg_cron
 
-As Edge Functions precisam ser chamadas via HTTP pelo cron. Execute no **SQL Editor**:
+As Edge Functions precisam ser chamadas via HTTP pelo cron (`warning-email` de hora em hora; `photo-cleanup` diariamente).
 
-```sql
--- Warning e-mail: a cada hora, verifica devoluções entre 48h e 72h pendentes
-SELECT cron.schedule(
-  'warning-email-job',
-  '0 * * * *',
-  $$
-    SELECT net.http_post(
-      url := 'https://<project-ref>.supabase.co/functions/v1/warning-email',
-      headers := jsonb_build_object(
-        'Authorization', 'Bearer <sua-service-role-key>',
-        'Content-Type', 'application/json'
-      ),
-      body := '{}'::jsonb
-    );
-  $$
-);
-
--- Photo cleanup: todo dia às 3h da manhã, remove fotos de devoluções > 1 ano
-SELECT cron.schedule(
-  'photo-cleanup-job',
-  '0 3 * * *',
-  $$
-    SELECT net.http_post(
-      url := 'https://<project-ref>.supabase.co/functions/v1/photo-cleanup',
-      headers := jsonb_build_object(
-        'Authorization', 'Bearer <sua-service-role-key>',
-        'Content-Type', 'application/json'
-      ),
-      body := '{}'::jsonb
-    );
-  $$
-);
-```
-
-> Substitua `<project-ref>` e `<sua-service-role-key>` pelos valores reais.
+➡️ **SQL de agendamento completo em [JOBS.md](JOBS.md), seção 3.** Execute-o no **SQL Editor** substituindo `<PROJECT_REF>` e `<SERVICE_ROLE_KEY>` pelos valores reais.
 
 ---
 
 ### 1.9 Configurar o SMTP (E-mail Auth)
 
-Para que o Supabase envie e-mails de magic link / confirmação com seu domínio:
+Os e-mails da aplicação (link de ativação e avisos de pendência) são enviados pelo Resend via SDK (`lib/integrations/resend.ts`), independentes deste SMTP. Configure o SMTP custom abaixo para que os e-mails **nativos do Supabase** (recuperação de senha, confirmação de troca de e-mail) saiam com seu domínio:
 
 1. Vá em **Project Settings → Authentication → SMTP Settings**
 2. Habilite **Enable Custom SMTP**
@@ -236,11 +174,11 @@ Ainda na tela de importação (ou em **Settings → Environment Variables** depo
 | `SUPABASE_SERVICE_ROLE_KEY` | `eyJ...` | Production, Preview |
 | `NEXT_PUBLIC_APP_URL` | `https://seudominio.com.br` | Production |
 | `NEXT_PUBLIC_APP_URL` | `https://logvale-dev.vercel.app` | Preview |
-| `WEBMANIA_CONSUMER_KEY` | `seu-consumer-key` | Production, Preview |
-| `WEBMANIA_CONSUMER_SECRET` | `seu-consumer-secret` | Production, Preview |
-| `WEBMANIA_ACCESS_TOKEN` | `seu-access-token` | Production, Preview |
-| `WEBMANIA_ACCESS_TOKEN_SECRET` | `seu-access-token-secret` | Production, Preview |
-| `WEBMANIA_BASE_URL` | `https://webmaniabr.com/api` | All |
+| `WEBMANIA_CONSUMER_KEY` | `seu-consumer-key` | (opcional — integração futura) |
+| `WEBMANIA_CONSUMER_SECRET` | `seu-consumer-secret` | (opcional — integração futura) |
+| `WEBMANIA_ACCESS_TOKEN` | `seu-access-token` | (opcional — integração futura) |
+| `WEBMANIA_ACCESS_TOKEN_SECRET` | `seu-access-token-secret` | (opcional — integração futura) |
+| `WEBMANIA_BASE_URL` | `https://webmaniabr.com/api` | (opcional — integração futura) |
 | `RESEND_API_KEY` | `re_xxx` | Production, Preview |
 | `RESEND_FROM_EMAIL` | `notificacoes@seudominio.com.br` | Production, Preview |
 | `NEXT_PUBLIC_SENTRY_DSN` | `https://...@sentry.io/...` | Production |
@@ -282,14 +220,19 @@ Para adicionar os secrets do CI no GitHub:
 
 ## Parte 3 — Serviços Externos
 
-### 3.1 Webmania (Consulta NF-e)
+### 3.1 Webmania (Consulta NF-e) — integração futura
+
+> **Não é necessária para o deploy nem para o launch.** Hoje a NF é identificada por parsing
+> local da chave de acesso (CNPJ emissor, número, competência), sem consulta externa. As etapas
+> abaixo só se aplicam quando a consulta de XML/DANFE via API externa for ativada — nesse momento,
+> implemente o corpo de `fetchInvoiceXml()` em `lib/integrations/webmania.ts`.
 
 1. Crie conta em [webmaniabr.com](https://webmaniabr.com)
 2. Acesse **API → NFe → Consulta por Chave de Acesso**
 3. Em Configurações → API OAuth, anote as 4 credenciais: **Consumer Key**, **Consumer Secret**, **Access Token** e **Access Token Secret**
 4. Configure em Vercel Environment Variables para produção (os 4 valores + `WEBMANIA_BASE_URL`)
 
-> Em desenvolvimento sem as credenciais configuradas, o sistema usa mock data automaticamente.
+> Enquanto a integração não estiver ativa, as variáveis `WEBMANIA_*` podem ficar em branco — o recebimento funciona normalmente via parsing local da chave.
 
 ### 3.2 Resend (E-mails Transacionais)
 
@@ -334,7 +277,7 @@ Execute estes passos **na ordem** antes de liberar para usuários reais:
 - [ ] `NEXT_PUBLIC_APP_URL` atualizado para domínio de produção
 
 ### Serviços Externos
-- [ ] Webmania: token e secret configurados e testados
+- [ ] Webmania: **opcional/futuro** — só quando a consulta externa de NF for ativada
 - [ ] Resend: domínio verificado, API key configurada
 - [ ] GitHub Secrets configurados para CI/CD
 
@@ -355,10 +298,12 @@ Execute estes passos **na ordem** antes de liberar para usuários reais:
 |---|---|---|
 | Supabase | Pro | $25/mês |
 | Vercel | Hobby (Free) | $0 |
-| Webmania | ~2.000 consultas/mês (com cache ~50%) | ~R$ 150/mês |
+| Webmania | consulta externa não ativa | — |
 | Resend | Free (3.000 e-mails/mês) | $0 |
 | Domínio | .com.br anual | ~R$ 40/mês |
-| **Total** | | **~R$ 300/mês** |
+| **Total** | | **~R$ 150/mês** |
+
+> Ao ativar a consulta externa de NF, somar ~R$ 150/mês de Webmania (~2.000 consultas/mês, cache ~50%) → total ~R$ 300/mês.
 
 > Vercel Hobby tem limite de 100 GB de banda/mês — suficiente para este volume. Mude para Pro ($20/mês) se precisar de SLA, equipe ou mais builds simultâneos.
 
@@ -376,4 +321,4 @@ Execute estes passos **na ordem** antes de liberar para usuários reais:
 | Vercel → Settings → Domains | Domínio customizado |
 | GitHub → Settings → Secrets → Actions | Secrets do CI |
 | Resend → Domains | Verificação de domínio para e-mail |
-| Webmania → API | Token e Consumer Secret |
+| Webmania → API | Token e Consumer Secret (integração futura) |

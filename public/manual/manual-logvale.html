@@ -160,7 +160,7 @@
   </div>
   <div class="brand-sub">Gestão de Devoluções</div>
   <div class="brand-title">Manual do Usuário</div>
-  <div class="brand-meta">Versão 1.0 · Atualizado em 15/06/2026</div>
+  <div class="brand-meta">Versão 1.1 · Atualizado em 16/06/2026</div>
 </header>
 
 <div class="page">
@@ -376,7 +376,7 @@
 
   <h4>Etapa 1 — Identificação da NF</h4>
   <ol class="steps">
-    <li><strong>Bipe a Chave de Acesso</strong> (44 dígitos) da nota fiscal. O sistema consulta a nota automaticamente (Webmania).</li>
+    <li><strong>Bipe a Chave de Acesso</strong> (44 dígitos) da nota fiscal. O sistema lê os dados direto da própria chave — CNPJ do emitente, número e mês da NF — <strong>sem consulta externa</strong> e já sugere o depositante.</li>
     <li>Se o leitor não funcionar, clique em <strong>"Não consigo bipar — digitar à mão"</strong> e digite os 44 dígitos.</li>
     <li>Se a NF estiver ilegível, use <strong>"NF ilegível — usar Código Postal"</strong> e bipe (ou digite) o <strong>CEP</strong> (8 dígitos).</li>
     <li>Se nem o CEP servir, use <strong>"CEP também ilegível — marcar como ilegível"</strong> e confirme em <strong>"NF Ilegível"</strong>. O sistema gera um identificador próprio para a devolução.</li>
@@ -409,7 +409,8 @@
   <p>Mesma mecânica da etapa anterior, agora com <strong>1 a 5 fotos</strong> dos itens.</p>
 
   <h4>Etapa 6 — Revisão</h4>
-  <p>O sistema mostra um resumo de tudo: identificador, RV, número de itens e as fotos. Cada bloco tem um botão <strong>Editar</strong> que leva de volta à etapa correspondente. Se houver nota vinculada, você pode <strong>baixar o XML</strong>. Conferindo tudo, clique em <strong>Confirmar e Registrar</strong>.</p>
+  <p>O sistema mostra um resumo de tudo: identificador (com CNPJ e número da NF, quando lidos da chave), depositante, RV, número de itens e as fotos. Cada bloco tem um botão <strong>Editar</strong> que leva de volta à etapa correspondente. Conferindo tudo, clique em <strong>Confirmar e Registrar</strong>.</p>
+  <div class="callout note">Quando houver um XML de NF vinculado à devolução, aparece também um botão para <strong>baixá-lo</strong>. Esse download depende da integração fiscal de consulta de NF, ainda em implantação — por isso, hoje, em geral não há XML disponível neste momento.</div>
 
   <h4>Etapa 7 — Registrar Recebimento</h4>
   <p>O sistema <strong>envia as fotos</strong> e <strong>registra a devolução</strong>. Ao final, aparece a mensagem <strong>"Recebimento registrado!"</strong> e você volta automaticamente ao início, pronto para o próximo.</p>
@@ -682,7 +683,7 @@
 </section>
 
 <footer class="doc-footer">
-  <p><strong>Sistema Logvale de Devoluções</strong> — Manual do Usuário · Versão 1.0 · 15/06/2026</p>
+  <p><strong>Sistema Logvale de Devoluções</strong> — Manual do Usuário · Versão 1.1 · 16/06/2026</p>
   <p>Suporte: cadu@logvale.com.br · +55 (12) 99713-8919</p>
 </footer>
 

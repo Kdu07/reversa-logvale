@@ -73,7 +73,7 @@ beforeEach(() => {
   // Default: admin client
   mockCreateUser.mockResolvedValue({ data: { user: { id: 'new-user-id' } }, error: null })
   mockGenerateLink.mockResolvedValue({
-    data: { properties: { action_link: 'http://magic-link' }, user: { id: 'new-user-id' } },
+    data: { properties: { hashed_token: 'tok-123', action_link: 'http://magic-link' }, user: { id: 'new-user-id' } },
     error: null,
   })
   mockUpdateUserById.mockResolvedValue({ error: null })
@@ -129,10 +129,14 @@ describe('createUserAction', () => {
     depositorIds: [],
   }
 
-  it('cria usuário e retorna {ok:true} no happy path', async () => {
+  it('cria usuário e retorna link de ativação no happy path', async () => {
     const result = await createUserAction(BASE_PAYLOAD)
 
-    expect(result).toEqual({ ok: true })
+    expect(result).toEqual({
+      ok:        true,
+      link:      'http://localhost:3000/auth/callback?token_hash=tok-123&type=magiclink',
+      emailSent: true,
+    })
     expect(mockCreateUser).toHaveBeenCalledWith(
       expect.objectContaining({ email: 'novo@test.com', email_confirm: true }),
     )
@@ -148,7 +152,7 @@ describe('createUserAction', () => {
       depositorIds: ['dep-1', 'dep-2'],
     })
 
-    expect(result).toEqual({ ok: true })
+    expect(result).toMatchObject({ ok: true })
     expect(mockInsert).toHaveBeenCalledWith(
       expect.arrayContaining([
         expect.objectContaining({ client_id: 'new-user-id', depositor_id: 'dep-1' }),

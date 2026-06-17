@@ -65,3 +65,20 @@ export async function lookupInvoice(accessKey: string): Promise<InvoiceData> {
     depositorName:  depositor?.razao_social ?? null,
   }
 }
+
+export type InvoiceXmlResult =
+  | { ok: true; xml: string }
+  | { ok: false; reason: 'not_implemented' | 'not_found' | 'error'; message: string }
+
+/**
+ * Busca o XML/DANFE da NF-e pela chave de acesso.
+ *
+ * STUB: a integração fiscal externa ainda não está implementada. Quando estiver,
+ * substituir o corpo por uma chamada OAuth real (ex.: Webmania "Consulta de NF-e")
+ * que retorne `{ ok: true, xml }`. Todo o fluxo de retry/persistência que consome
+ * esta função (retryMissingInvoiceXmlAction) já está pronto e não precisa mudar.
+ */
+export async function fetchInvoiceXml(accessKey: string): Promise<InvoiceXmlResult> {
+  void accessKey
+  return { ok: false, reason: 'not_implemented', message: 'API de consulta de NF ainda não implementada' }
+}

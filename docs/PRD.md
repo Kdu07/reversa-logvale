@@ -21,13 +21,13 @@ Este sistema substitui processo manual por plataforma web unificada.
 |---|---|
 | Frontend | Next.js 14 (App Router) + TypeScript |
 | UI | Tailwind CSS + shadcn/ui |
-| Auth | Supabase Auth (magic link) |
+| Auth | Supabase Auth (e-mail + senha; link de ativação no primeiro acesso) |
 | BD | Supabase PostgreSQL com RLS |
 | Storage | Supabase Storage |
 | Jobs | Supabase Edge Functions + pg_cron |
 | E-mail | Resend |
 | Hosting | Vercel |
-| API NF | Webmania |
+| API NF | Chave de acesso (parsing local); consulta externa Webmania planejada |
 | Idioma/Fuso | PT-BR / America/Sao_Paulo |
 
 ### 1.4 Identidade Visual
@@ -49,7 +49,7 @@ Este sistema substitui processo manual por plataforma web unificada.
 - **ClientDepositor:** N:N entre clientes e depositantes
 - **Return:** entidade central com ciclo de vida
 - **ReturnPhoto:** fotos vinculadas (caixa ou item)
-- **InvoiceCache:** cache de NFs Webmania
+- **InvoiceCache:** tabela `invoice_cache` reservada para a consulta externa futura — atualmente não usada
 
 ### 2.2 Ciclo de Vida do Return
 ```
@@ -78,7 +78,7 @@ Cada decisão registra `decided_by_type`: `client` ou `auto`.
 ## 3. Requisitos Funcionais
 
 ### RF1 — Autenticação
-- RF1.1 Login via magic link (Supabase Auth)
+- RF1.1 Login via e-mail + senha (Supabase Auth); primeiro acesso por link de ativação (token único) que leva à criação de senha
 - RF1.2 Sessão persistente, refresh automático
 - RF1.3 Cada usuário tem exatamente uma role
 - RF1.4 RLS garante isolamento entre clientes
@@ -89,13 +89,13 @@ Cada decisão registra `decided_by_type`: `client` ou `auto`.
 - RF2.1 Apenas gerente cria cliente
 - RF2.2 Gerente preenche: nome, e-mail, telefone, depositantes vinculados
 - RF2.3 Cadastro inline de novo depositante (CNPJ + razão social)
-- RF2.4 Magic link disparado automaticamente
-- RF2.5 Aceite de Termos no primeiro login
+- RF2.4 Link de ativação enviado por e-mail (Resend); o gerente também pode copiar o link e enviá-lo manualmente
+- RF2.5 No primeiro acesso, o usuário cria a senha e aceita os Termos na mesma tela
 
 ### RF3 — Recebimento (Operador) — Fluxo Sequencial 7 Etapas
 
 **Etapa 1: Captura da Chave de Acesso (com fallback)**
-1. Bipa EAN da NF (44 dígitos = chave de acesso) → consulta Webmania
+1. Bipa EAN da NF (44 dígitos = chave de acesso) → parsing local da chave extrai CNPJ emissor, número e competência, sugerindo o depositante (sem consulta externa)
 2. Se falha leitor: digita à mão
 3. Se NF ilegível: bipa Código Postal
 4. Se falha: digita Código Postal
@@ -195,7 +195,7 @@ Cada decisão registra `decided_by_type`: `client` ou `auto`.
 - Criar (escolhe role; se cliente, vincula depositantes)
 - Editar (nome, telefone, depositantes — não e-mail/role)
 - Desativar (soft delete `active = false`)
-- Reenviar magic link
+- Reenviar link de ativação (envia por e-mail e exibe o link para cópia/envio manual)
 
 **RF6.2 CRUD Depositantes:**
 - Lista, criar, editar (CNPJ, razão social)
@@ -218,10 +218,9 @@ Cada decisão registra `decided_by_type`: `client` ou `auto`.
 - "Anonimizar [usuário]" → substitui pessoais, mantém fiscais
 
 ### RF7 — E-mails
-Apenas três tipos:
-1. Magic link de login (Supabase nativo)
-2. Notificação de nova conta (após criação pelo gerente)
-3. Aviso 24h pendente
+Apenas dois tipos:
+1. Link de ativação de conta (após criação pelo gerente; e também no reenvio)
+2. Aviso de devoluções pendentes de decisão
 
 Templates com identidade Logvale.
 
@@ -244,14 +243,14 @@ Templates com identidade Logvale.
 - Paginação 50/página
 - TTI < 3s em 4G
 - Compressão fotos client-side
-- Cache de NF
+- Cache de NF (planejado, junto com a consulta externa futura)
 
 ### RNF2 Disponibilidade — 99.9% (Supabase Pro)
 
 ### RNF3 Segurança
 - HTTPS obrigatório
 - RLS em tabelas sensíveis
-- Magic link expira 10min
+- Link de ativação expira em 1h (token único, uso único)
 - Rate limiting
 - Validação de XML
 
@@ -266,11 +265,14 @@ Templates com identidade Logvale.
 
 ## 5. Integrações
 
-### 5.1 Webmania
-- Credenciais OAuth via env: `WEBMANIA_CONSUMER_KEY`, `WEBMANIA_CONSUMER_SECRET`, `WEBMANIA_ACCESS_TOKEN`, `WEBMANIA_ACCESS_TOKEN_SECRET`
-- Retry 3x com backoff
-- Cache em `invoice_cache` (TTL infinito)
-- Fallback: prossegue e tenta em background
+### 5.1 Webmania (consulta de NF — integração futura)
+**Estado atual:** não há consulta externa. `lookupInvoice` (`lib/integrations/webmania.ts`) faz
+apenas **parsing local da chave de acesso** — extrai CNPJ emissor, número e mês/ano de emissão e
+sugere o depositante pelo CNPJ. Sem retry, sem cache, sem dependência de rede.
+
+**Planejado:** consulta do XML/DANFE via API externa Webmania.
+- Credenciais OAuth via env (reservadas, ainda não usadas): `WEBMANIA_CONSUMER_KEY`, `WEBMANIA_CONSUMER_SECRET`, `WEBMANIA_ACCESS_TOKEN`, `WEBMANIA_ACCESS_TOKEN_SECRET`
+- Backfill já implementado: `fetchInvoiceXml()` (hoje stub) + ação super-only `retryMissingInvoiceXmlAction`, acionada pelo botão **"Tentar consultas novamente"** no painel super de `/admin/devoluções` — busca em lote os XMLs das devoluções por chave de acesso ainda sem XML. Quando a API existir, basta implementar o corpo de `fetchInvoiceXml()`.
 
 ### 5.2 Resend
 - API key via env `RESEND_API_KEY`
@@ -310,7 +312,7 @@ Templates com identidade Logvale.
 - Tempo recebimento: < 90s
 - Decisão manual: > 70%
 - Decisão cliente: < 24h
-- Erro Webmania: < 5%
+- Erro Webmania: < 5% (N/A enquanto a consulta externa não estiver ativa)
 - Disponibilidade: > 99.9%
 
 ## 8. Roadmap (Concluído — v1.0)
