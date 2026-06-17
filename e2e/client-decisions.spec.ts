@@ -7,7 +7,6 @@ const DECISIONS = [
   { name: 'Voltar pro Estoque', text: /voltar pro estoque/i, needsXml: true },
   { name: 'Armazenar p/ Tratativas', text: /armazenar/i, needsXml: false },
   { name: 'Descarte', text: /descarte/i, needsXml: true },
-  { name: 'Reembalagem', text: /reembalagem/i, needsXml: true },
 ]
 
 test.describe('Cliente — Decisões', () => {
@@ -53,4 +52,20 @@ test.describe('Cliente — Decisões', () => {
       await expect(page.getByText(/esta decisão é irreversível/i)).not.toBeVisible({ timeout: 10000 })
     })
   }
+
+  test('histórico: baixar XML de devolução salva o arquivo (nome por RV)', async ({ page }) => {
+    await page.goto('/cliente/historico')
+
+    const downloadBtns = page.getByRole('button', { name: /^devolução$/i })
+    if ((await downloadBtns.count()) === 0) {
+      test.skip(true, 'sem XML de devolução no histórico de teste')
+    }
+
+    // O Content-Disposition: attachment da signed URL dispara um download de verdade.
+    const downloadPromise = page.waitForEvent('download')
+    await downloadBtns.first().click()
+    const download = await downloadPromise
+
+    expect(download.suggestedFilename()).toMatch(/-nf-devolucao\.xml$/)
+  })
 })

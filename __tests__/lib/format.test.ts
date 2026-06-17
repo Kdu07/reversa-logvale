@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatDate, identifierLabel } from '@/lib/format'
+import { formatDate, identifierLabel, xmlDownloadName } from '@/lib/format'
 
 describe('formatDate', () => {
   it('formata data ISO para padrão pt-BR com dia, mês e ano', () => {
@@ -50,5 +50,23 @@ describe('identifierLabel', () => {
       illegibleToken: 'TOK-XYZ',
     })
     expect(result).toBe('Ilegível: TOK-XYZ')
+  })
+})
+
+describe('xmlDownloadName', () => {
+  it('monta nome para a NF de devolução a partir do RV', () => {
+    expect(xmlDownloadName('RV2024001', 'devolucao')).toBe('RV2024001-nf-devolucao.xml')
+  })
+
+  it('monta nome para a NF original', () => {
+    expect(xmlDownloadName('RV2024001', 'original')).toBe('RV2024001-nf-original.xml')
+  })
+
+  it('sanitiza caracteres inseguros para Content-Disposition', () => {
+    expect(xmlDownloadName('RV 2024/001', 'devolucao')).toBe('RV_2024_001-nf-devolucao.xml')
+  })
+
+  it('usa fallback quando o RV é vazio', () => {
+    expect(xmlDownloadName('', 'original')).toBe('nf-nf-original.xml')
   })
 })

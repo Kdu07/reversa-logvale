@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { PhotoGallery } from '@/components/shared/photo-gallery'
 import { PhotoThumbs } from '@/components/shared/photo-thumbs'
+import { DownloadXmlButton } from '@/components/shared/download-xml-button'
 import { DECISION_META } from '@/lib/decisions'
-import { formatDate, identifierLabel } from '@/lib/format'
+import { formatDate, identifierLabel, xmlDownloadName } from '@/lib/format'
 import { processReturnAction } from '../actions'
 import type { TrativaRow } from '../actions'
 
@@ -91,12 +92,28 @@ export function DetailsModal({ row, onClose, onComplete }: DetailsModalProps) {
               </div>
             </div>
 
-            {row.invoiceXmlUrl && (
-              <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Nota Fiscal</p>
-                <a href={row.invoiceXmlUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline">
-                  Baixar XML da NF
-                </a>
+            {(row.invoiceXmlPath || row.returnInvoiceXmlPath) && (
+              <div className="space-y-2">
+                {row.invoiceXmlPath && (
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">NF Original</p>
+                    <DownloadXmlButton
+                      path={row.invoiceXmlPath}
+                      filename={xmlDownloadName(row.rv, 'original')}
+                      className="text-sm text-primary hover:underline disabled:opacity-50"
+                    />
+                  </div>
+                )}
+                {row.returnInvoiceXmlPath && (
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">NF de Devolução</p>
+                    <DownloadXmlButton
+                      path={row.returnInvoiceXmlPath}
+                      filename={xmlDownloadName(row.rv, 'devolucao')}
+                      className="text-sm text-primary hover:underline disabled:opacity-50"
+                    />
+                  </div>
+                )}
               </div>
             )}
 

@@ -135,7 +135,7 @@ Cada decisão registra `decided_by_type`: `client` ou `auto`.
 |---|---|
 | Data Recebimento | dd/mm/aaaa HH:mm |
 | Identificador | Chave NF ou Código Postal (com tag) |
-| NF (XML) | Botão download |
+| NF (XML) | Botão de download — salva o XML no dispositivo (Content-Disposition: attachment, nome `<RV>-nf-*.xml`) |
 | RV | Código |
 | Nº Itens | Número |
 | Fotos Caixa | Thumbnail; hover/tap abre galeria |
@@ -157,6 +157,7 @@ Cada decisão registra `decided_by_type`: `client` ou `auto`.
 **RF4.5 Pós-decisão:**
 - Linha some da listagem padrão
 - Acessível em /cliente/historico
+- No histórico, o cliente pode rebaixar o XML da NF de devolução que enviou (botão "Devolução")
 - Cliente NÃO vê se foi processado
 
 **RF4.6 Auto-decisão 72h:**

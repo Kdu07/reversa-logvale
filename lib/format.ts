@@ -17,3 +17,13 @@ export function identifierLabel(row: {
   if (row.identifierType === 'postal_code') return `CEP: ${row.postalCode}`
   return `Ilegível: ${row.illegibleToken}`
 }
+
+/**
+ * Nome de arquivo amigável para o download de um XML de devolução, usado como
+ * `filename` na signed URL (Content-Disposition). Ex.: "RV2024001-nf-devolucao.xml".
+ * `kind` distingue a NF original da NF de devolução enviada pelo cliente.
+ */
+export function xmlDownloadName(rv: string, kind: 'original' | 'devolucao'): string {
+  const safe = (rv || 'nf').replace(/[^\w.-]+/g, '_')
+  return `${safe}-nf-${kind}.xml`
+}
