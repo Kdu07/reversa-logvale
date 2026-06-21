@@ -11,6 +11,7 @@ import { DecisionModal } from './decision-modal'
 import { PhotoGallery } from '@/components/shared/photo-gallery'
 import { PhotoThumbs } from '@/components/shared/photo-thumbs'
 import { DownloadXmlButton } from '@/components/shared/download-xml-button'
+import { CopyButton } from '@/components/shared/copy-button'
 import { formatDate, xmlDownloadName, danfeDownloadName } from '@/lib/format'
 import { Inbox, ChevronLeft, ChevronRight } from 'lucide-react'
 import type { ReturnRow, DepositorOption } from '../actions'
@@ -43,16 +44,22 @@ const IDENTIFIER_TYPE_LABEL: Record<IdentifierType, string> = {
 
 function IdentifierTag({ row }: { row: ReturnRow }) {
   const label = IDENTIFIER_TYPE_LABEL[row.identifierType]
-  const value = row.identifierType === 'access_key'
-    ? `${row.accessKey?.slice(0, 20)}…`
+  const fullValue = row.identifierType === 'access_key'
+    ? row.accessKey
     : row.identifierType === 'postal_code'
     ? row.postalCode
     : row.illegibleToken
+  const display = row.identifierType === 'access_key'
+    ? `${row.accessKey?.slice(0, 20)}…`
+    : fullValue
 
   return (
     <span className="inline-flex flex-col gap-0.5">
       <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">{label}</span>
-      <span className="font-mono text-xs break-all">{value}</span>
+      <span className="inline-flex items-center gap-1.5">
+        <span className="font-mono text-xs break-all">{display}</span>
+        {fullValue && <CopyButton value={fullValue} title={`Copiar ${label}`} className="shrink-0" />}
+      </span>
     </span>
   )
 }
@@ -161,7 +168,6 @@ export function ReturnsTable({
                 <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">Data</th>
                 <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Identificador</th>
                 <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">NF</th>
-                <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">RV</th>
                 <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Itens</th>
                 <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">Fotos Caixa</th>
                 <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">Fotos Itens</th>
@@ -219,9 +225,6 @@ export function ReturnsTable({
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
                     </div>
-                  </td>
-                  <td className="px-3 py-2.5">
-                    <span className="font-mono text-xs font-medium">{row.rv}</span>
                   </td>
                   <td className="px-3 py-2.5 text-center text-muted-foreground">{row.itemCount}</td>
                   <td className="px-3 py-2.5">
