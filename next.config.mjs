@@ -6,6 +6,7 @@ const nextConfig = {
   productionBrowserSourceMaps: false,
   experimental: {
     optimizePackageImports: ['recharts', 'lucide-react'],
+    serverComponentsExternalPackages: ['nodemailer'],
   },
   images: {
     formats: ['image/webp'],

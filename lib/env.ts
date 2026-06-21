@@ -47,6 +47,11 @@ export const env = {
   nfeioApiKey:  process.env.NFEIO_ACCESS_KEY,
   nfeioBaseUrl: process.env.NFEIO_BASE_URL ?? 'https://nfe.api.nfe.io',
   nfeioEnabled: Boolean(process.env.NFEIO_ACCESS_KEY),
-  resendApiKey:   process.env.RESEND_API_KEY,
-  resendFrom:     process.env.RESEND_FROM_EMAIL ?? 'notificacoes@logvale.com.br',
+  // E-mail transacional via SMTP (Google Workspace). mailFrom aceita o legado RESEND_FROM_EMAIL.
+  smtpHost:    process.env.SMTP_HOST,
+  smtpPort:    process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 587,
+  smtpUser:    process.env.SMTP_USER,
+  smtpPass:    process.env.SMTP_PASS,
+  mailFrom:    process.env.MAIL_FROM ?? process.env.RESEND_FROM_EMAIL ?? 'notificacoes@logvale.com.br',
+  mailEnabled: Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS),
 } as const

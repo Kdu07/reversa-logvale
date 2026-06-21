@@ -77,7 +77,7 @@ export default function PrivacidadePage() {
             <p>Seus dados podem ser compartilhados com os seguintes fornecedores de tecnologia que atuam como operadores:</p>
             <ul className="list-disc pl-5 space-y-1 mt-2">
               <li><strong>Supabase Inc.</strong> — infraestrutura de banco de dados e autenticação, servidores localizados nos EUA, com cláusulas contratuais padrão da UE.</li>
-              <li><strong>Resend Inc.</strong> — serviço de envio de e-mails transacionais.</li>
+              <li><strong>Google LLC (Google Workspace)</strong> — serviço de envio de e-mails transacionais via SMTP, servidores localizados nos EUA, com cláusulas contratuais padrão da UE.</li>
             </ul>
             <p className="mt-2">
               <strong>Não vendemos, alugamos ou cedemos seus dados pessoais a terceiros</strong> para fins de marketing ou outros fins não relacionados à prestação do serviço.

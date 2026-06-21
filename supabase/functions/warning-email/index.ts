@@ -1,13 +1,16 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import { Resend } from 'npm:resend'
+import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts'
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 )
-const resend  = new Resend(Deno.env.get('RESEND_API_KEY')!)
-const FROM    = Deno.env.get('RESEND_FROM_EMAIL') ?? 'notificacoes@logvale.com.br'
-const APP_URL = Deno.env.get('NEXT_PUBLIC_APP_URL') ?? 'https://logvale.com.br'
+const SMTP_HOST = Deno.env.get('SMTP_HOST')!
+const SMTP_PORT = Number(Deno.env.get('SMTP_PORT') ?? 465)
+const SMTP_USER = Deno.env.get('SMTP_USER')!
+const SMTP_PASS = Deno.env.get('SMTP_PASS')!
+const FROM      = Deno.env.get('MAIL_FROM') ?? 'notificacoes@logvale.com.br'
+const APP_URL   = Deno.env.get('NEXT_PUBLIC_APP_URL') ?? 'https://logvale.com.br'
 
 interface WarningRow {
   id:          string
@@ -39,35 +42,49 @@ Deno.serve(async (_req) => {
     byClient.get(r.client_id)!.push(r)
   }
 
+  const smtp = new SMTPClient({
+    connection: {
+      hostname: SMTP_HOST,
+      port:     SMTP_PORT,
+      tls:      SMTP_PORT === 465, // 465 = TLS implícito; 587 = STARTTLS
+      auth:     { username: SMTP_USER, password: SMTP_PASS },
+    },
+  })
+
   let sent = 0
-  for (const [clientId, clientRows] of byClient) {
-    try {
-      const { data: { user }, error: userErr } = await supabase.auth.admin.getUserById(clientId)
-      if (userErr || !user?.email) {
-        console.warn(`[warning-email] no email for client ${clientId}`)
-        continue
+  try {
+    for (const [clientId, clientRows] of byClient) {
+      try {
+        const { data: { user }, error: userErr } = await supabase.auth.admin.getUserById(clientId)
+        if (userErr || !user?.email) {
+          console.warn(`[warning-email] no email for client ${clientId}`)
+          continue
+        }
+
+        const returns = clientRows.map((r) => ({ rv: r.rv, receivedAt: r.received_at }))
+
+        await smtp.send({
+          from:    FROM,
+          to:      user.email,
+          subject: `${returns.length} devolução${returns.length > 1 ? 'ões' : ''} pendente${returns.length > 1 ? 's' : ''} de decisão`,
+          html:    buildHtml(returns, APP_URL),
+          content: 'auto',
+        })
+
+        const ids = clientRows.map((r) => r.id)
+        await supabase
+          .from('returns')
+          .update({ warning_sent_at: new Date().toISOString() })
+          .in('id', ids)
+
+        console.log(`[warning-email] sent to ${user.email} (${ids.length} returns)`)
+        sent++
+      } catch (e) {
+        console.error(`[warning-email] failed for client ${clientId}:`, e)
       }
-
-      const returns = clientRows.map((r) => ({ rv: r.rv, receivedAt: r.received_at }))
-
-      await resend.emails.send({
-        from:    FROM,
-        to:      user.email,
-        subject: `${returns.length} devolução${returns.length > 1 ? 'ões' : ''} pendente${returns.length > 1 ? 's' : ''} de decisão`,
-        html:    buildHtml(returns, APP_URL),
-      })
-
-      const ids = clientRows.map((r) => r.id)
-      await supabase
-        .from('returns')
-        .update({ warning_sent_at: new Date().toISOString() })
-        .in('id', ids)
-
-      console.log(`[warning-email] sent to ${user.email} (${ids.length} returns)`)
-      sent++
-    } catch (e) {
-      console.error(`[warning-email] failed for client ${clientId}:`, e)
     }
+  } finally {
+    await smtp.close()
   }
 
   return json({ sent })

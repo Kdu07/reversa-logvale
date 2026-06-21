@@ -27,6 +27,7 @@ enabled = true
 site_url = "http://localhost:3000"
 # URLs de redirect permitidas (adicione o domínio de produção)
 # Após definir domínio no Vercel, adicione: "https://seudominio.com.br/auth/callback"
+# Necessário para os links de redefinição de senha (recovery) funcionarem.
 additional_redirect_urls = ["http://localhost:3000/auth/callback"]
 jwt_expiry = 3600
 enable_refresh_token_rotation = true
@@ -38,6 +39,10 @@ enable_anonymous_sign_ins = false
 enable_signup = false
 double_confirm_changes = true
 enable_confirmations = false   # Magic link já valida; confirmação dupla desnecessária
+# Validade dos links de e-mail gerados pelo Supabase (recovery / redefinição de
+# senha). A ativação de conta NÃO usa OTP: usa um token próprio (/ativar, tabela
+# activation_tokens) que vale até a conta ser ativada. 86400s = 24h.
+otp_expiry = 86400
 
 # ─── Storage ─────────────────────────────────────────────────────────────────
 [storage]

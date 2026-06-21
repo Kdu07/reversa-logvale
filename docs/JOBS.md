@@ -41,8 +41,11 @@ supabase functions deploy photo-cleanup
 
 ```bash
 supabase secrets set \
-  RESEND_API_KEY=re_xxxxxxxxxxxx \
-  RESEND_FROM_EMAIL=notificacoes@logvale.com.br \
+  SMTP_HOST=smtp.gmail.com \
+  SMTP_PORT=587 \
+  SMTP_USER=notificacoes@logvale.com.br \
+  SMTP_PASS=<app-password-do-google> \
+  MAIL_FROM=notificacoes@logvale.com.br \
   NEXT_PUBLIC_APP_URL=https://logvale.com.br
 ```
 

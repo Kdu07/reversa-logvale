@@ -3,8 +3,8 @@ import { updateSession } from '@/lib/supabase/middleware'
 import type { UserRole } from '@/types'
 import { ROLE_HOME } from '@/types'
 
-const PUBLIC_ROUTES = ['/login', '/auth/callback', '/privacidade', '/termos']
-const TERMS_EXEMPT  = ['/primeiro-acesso', '/aceite-termos', ...PUBLIC_ROUTES]
+const PUBLIC_ROUTES = ['/login', '/auth/callback', '/ativar', '/privacidade', '/termos']
+const TERMS_EXEMPT  = ['/primeiro-acesso', '/aceite-termos', '/redefinir-senha', ...PUBLIC_ROUTES]
 
 function isPublicRoute(pathname: string) {
   return PUBLIC_ROUTES.some((r) => pathname.startsWith(r))
