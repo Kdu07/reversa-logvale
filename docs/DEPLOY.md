@@ -78,6 +78,24 @@ A função `custom_access_token_hook` já foi criada pelo `supabase db push`. S�
 
 ---
 
+### 1.3.1 URLs de redirect e validade dos links de e-mail (Auth)
+
+No **Authentication → URL Configuration** (e refletido em `supabase/config.toml`):
+
+1. **Site URL:** `https://<seu-dominio>` (produção) — não deixar `localhost`.
+2. **Redirect URLs (allowlist):** adicione `https://<seu-dominio>/auth/callback`.
+   Sem isso, os links de **redefinição de senha** (recovery) falham em produção.
+3. **Email OTP expiry:** defina **86400s (24h)** em
+   **Authentication → Providers → Email** (ou `[auth.email] otp_expiry`).
+   Isso governa o link de **recovery**. A **ativação de conta** usa um token
+   próprio (`/ativar`, tabela `activation_tokens`) que **não** depende do OTP e
+   vale até a conta ser ativada.
+
+> O link de ativação (`/ativar?token=...`) é de uso único: vale até o usuário
+> ativar a conta e é invalidado a cada reenvio. Não depende da expiração do OTP.
+
+---
+
 ### 1.4 Criar o Primeiro Manager
 
 Após registrar o hook, crie o usuário administrador inicial:
@@ -269,6 +287,8 @@ Execute estes passos **na ordem** antes de liberar para usuários reais:
 - [ ] `project_id` preenchido em `supabase/config.toml`
 - [ ] `supabase db push` executado — tabelas, buckets e funções criados
 - [ ] Auth Hook registrado no Dashboard (Authentication → Hooks) — único passo manual
+- [ ] Site URL + Redirect URLs de produção configurados (inclui `https://<dominio>/auth/callback`)
+- [ ] Email OTP expiry definido em 24h (86400s) — links de redefinição de senha
 - [ ] Primeiro manager criado (auth + profile insert)
 - [ ] pg_cron verificado — `auto-decision-job` aparece em `cron.job`
 - [ ] Edge Functions deployadas (`warning-email`, `photo-cleanup`)

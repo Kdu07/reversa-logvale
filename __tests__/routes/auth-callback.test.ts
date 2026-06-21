@@ -55,6 +55,20 @@ describe('auth callback GET', () => {
     expect(location(res)).toBe(`${ORIGIN}/login?error=auth_callback_error`)
   })
 
+  it('redireciona para redefinir-senha no fluxo de recovery', async () => {
+    const res = await GET(req('?token_hash=tok&type=recovery'))
+
+    expect(verifyOtp).toHaveBeenCalledWith({ type: 'recovery', token_hash: 'tok' })
+    expect(location(res)).toBe(`${ORIGIN}/redefinir-senha`)
+  })
+
+  it('rejeita type fora da allowlist sem chamar verifyOtp', async () => {
+    const res = await GET(req('?token_hash=tok&type=signup'))
+
+    expect(verifyOtp).not.toHaveBeenCalled()
+    expect(location(res)).toBe(`${ORIGIN}/login?error=auth_callback_error`)
+  })
+
   it('troca code por sessão no fluxo PKCE', async () => {
     single.mockResolvedValue({ data: { role: 'manager', terms_accepted_at: '2024-01-01' }, error: null })
 

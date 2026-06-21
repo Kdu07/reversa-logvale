@@ -33,10 +33,18 @@ npx tsc --noEmit
 
 The app enforces three user roles (`operator`, `client`, `manager`) injected into JWT claims via a Supabase Auth Hook (`supabase/migrations/002_auth_hook.sql`). Next.js middleware (`middleware.ts`) redirects unauthenticated users and enforces role-based routing:
 
-- `app/(public)/` — Login (email + password), activation-link callback (`auth/callback`), first-access (set password + accept terms)
+- `app/(public)/` — Login (email + password), account activation (`/ativar`), recovery/PKCE callback (`auth/callback`), first-access (set password + accept terms), password reset (`/redefinir-senha`)
 - `app/(operator)/operador/` — 7-step receiving workflow + item handling
 - `app/(client)/cliente/` — Pending decisions dashboard + history
 - `app/(manager)/admin/` — User/depositor management + system-wide stats
+
+### Account Activation & Password Recovery
+
+Account creation never sets a password directly. The manager creates the user (`createUserAction`), which inserts the `profiles` row and then issues a **single-use activation token** (`lib/auth/activation-token.ts`, table `activation_tokens`, migration `004`) emailed as `/ativar?token=<secret>`. If anything after the Auth `createUser` fails, the action rolls back via `admin.auth.admin.deleteUser` so no orphaned Auth user remains.
+
+The activation link is valid **until the account is activated** (it does not rely on Supabase's 1h OTP) and is single-use: each resend invalidates the previous token, and completing first-access marks it used. `/ativar` (`app/(public)/ativar/route.ts`) validates the token, refuses already-activated accounts, mints a short Supabase session server-side (`generateLink` magiclink → `verifyOtp`), and sends the user to `/primeiro-acesso` to set a password (min 8 chars, `lib/validation/password.ts`) + accept terms.
+
+`resendMagicLinkAction` is **state-sensitive**: for not-yet-activated users it re-issues an activation link (`/ativar`); for already-activated users it sends a **password recovery** email (`type: 'recovery'`, ~24h) routed by the callback to `/redefinir-senha`. The `/auth/callback` route only accepts an allowlisted `type` (`magiclink`, `recovery`); the PKCE `code` branch is kept defensively but unused. There is no self-service "forgot password" on the login screen — recovery is manager-triggered.
 
 ### Data Fetching Pattern
 
@@ -68,7 +76,7 @@ XML/PDF downloads (the original NF XML, its DANFE PDF, and the client-uploaded r
 ### Integrations
 
 - **NFEio** (`lib/integrations/nfeio.ts`): NF-e consultation by access key. `lookupInvoice` parses the access key locally (emitter CNPJ → depositor) and calls `persistInvoiceFiles`, which fetches the XML (`GET {base}/v2/productinvoices/{key}.xml`) and DANFE PDF (`.pdf`) and uploads them (admin client, upsert) to `invoice-xmls`/`invoice-pdfs` at `ak/<key>.{xml,pdf}`. Auth is the `NFEIO_ACCESS_KEY` (the company API key) sent in the `Authorization` header. `fetchInvoiceXml`/`fetchInvoicePdf` are also reused by the super-only `retryMissingInvoiceXmlAction` to backfill returns whose XML is still missing. All fetches degrade gracefully: when `env.nfeioEnabled` is false (no key) or NFEio returns an error, receiving still completes and the files stay pending for backfill.
-- **Email/SMTP** (`lib/integrations/email.ts`): Transactional email via Nodemailer over SMTP (Google Workspace), using React Email templates in `emails/`. Gated by `env.mailEnabled` (true when `SMTP_HOST`/`SMTP_USER`/`SMTP_PASS` are set); when off, account-creation still surfaces the activation link for manual sending. The `warning-email` Edge Function (Deno) sends via `denomailer` over the same SMTP creds.
+- **Email/SMTP** (`lib/integrations/email.ts`): Transactional email via Nodemailer over SMTP (Google Workspace), using React Email templates in `emails/` (`AccountCreated` for activation, `PasswordReset` for recovery, `PendingDecisionWarning`). Gated by `env.mailEnabled` (true when `SMTP_HOST`/`SMTP_USER`/`SMTP_PASS` are set); when off, account-creation/resend still surface the link for manual sending. The `warning-email` Edge Function (Deno) sends via `denomailer` over the same SMTP creds.
 - **Sentry**: Configured in `next.config.mjs` for error tracking.
 
 ### Background Jobs
@@ -79,7 +87,7 @@ XML/PDF downloads (the original NF XML, its DANFE PDF, and the client-uploaded r
 
 ### Key Database Tables
 
-`profiles` (users + roles), `depositors` (CNPJ companies), `returns` (shipments; `invoice_xml_url` + `invoice_pdf_url` hold the NFEio XML/DANFE storage paths, `return_invoice_xml_url` the client-uploaded return NF), `return_photos`, `invoice_cache` (legacy — present in the schema but currently unused), `client_depositors` (N:N clients ↔ depositors). Schema in `supabase/migrations/000_schema.sql`; `invoice_pdf_url` + the `invoice-pdfs` bucket are added in `003_nfeio_pdf.sql`.
+`profiles` (users + roles), `depositors` (CNPJ companies), `returns` (shipments; `invoice_xml_url` + `invoice_pdf_url` hold the NFEio XML/DANFE storage paths, `return_invoice_xml_url` the client-uploaded return NF), `return_photos`, `invoice_cache` (legacy — present in the schema but currently unused), `client_depositors` (N:N clients ↔ depositors), `activation_tokens` (single-use account-activation tokens — only the sha256 hash is stored; service-role-only via RLS-without-policies). Schema in `supabase/migrations/000_schema.sql`; `invoice_pdf_url` + the `invoice-pdfs` bucket are added in `003_nfeio_pdf.sql`; `activation_tokens` in `004_activation_tokens.sql`.
 
 ### Testing Setup
 

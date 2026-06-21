@@ -12,8 +12,16 @@ vi.mock('@/lib/supabase/get-current-user', () => ({
   getCurrentUser: () => getCurrentUser(),
 }))
 
-vi.mock('@/lib/integrations/resend', () => ({ sendAccountCreatedEmail: vi.fn().mockResolvedValue(undefined) }))
-const envMock = vi.hoisted(() => ({ resendApiKey: 'key-test', appUrl: 'http://localhost:3000' }))
+const emailMocks = vi.hoisted(() => ({
+  sendAccountCreatedEmail: vi.fn().mockResolvedValue(undefined),
+  sendPasswordResetEmail:  vi.fn().mockResolvedValue(undefined),
+}))
+vi.mock('@/lib/integrations/email', () => emailMocks)
+
+const activationMocks = vi.hoisted(() => ({ createActivationToken: vi.fn() }))
+vi.mock('@/lib/auth/activation-token', () => activationMocks)
+
+const envMock = vi.hoisted(() => ({ mailEnabled: true, appUrl: 'http://localhost:3000' }))
 vi.mock('@/lib/env', () => ({ env: envMock }))
 
 // ── Supabase server client (call recorder + per-table results) ───────
@@ -64,7 +72,7 @@ function asOperator() {
 beforeEach(() => {
   vi.clearAllMocks()
   asManager()
-  envMock.resendApiKey = 'key-test'
+  envMock.mailEnabled = true
   tableResult = {}
   tableSingle = {}
   calls.update = []
@@ -75,6 +83,7 @@ beforeEach(() => {
     error: null,
   })
   mockListUsers.mockResolvedValue({ data: { users: [], nextPage: null }, error: null })
+  activationMocks.createActivationToken.mockResolvedValue('secret-xyz')
 })
 
 // ─────────────────────────────────────────────────────────────────────
@@ -123,20 +132,39 @@ describe('updateUserAction', () => {
 
 // ─────────────────────────────────────────────────────────────────────
 describe('resendMagicLinkAction', () => {
-  it('gera e retorna o link de ativação', async () => {
-    tableSingle.profiles = { data: { full_name: 'Fulano' }, error: null }
+  it('conta NÃO ativada ⇒ reenvia link de ativação (token próprio /ativar)', async () => {
+    tableSingle.profiles = { data: { full_name: 'Fulano', terms_accepted_at: null }, error: null }
 
     const result = await resendMagicLinkAction('user@test.com')
 
-    expect(result).toEqual({ link: 'http://localhost:3000/auth/callback?token_hash=tok-1&type=magiclink' })
+    expect(activationMocks.createActivationToken).toHaveBeenCalledWith('u-1')
+    expect(emailMocks.sendAccountCreatedEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ to: 'user@test.com', magicLink: 'http://localhost:3000/ativar?token=secret-xyz' }),
+    )
+    expect(emailMocks.sendPasswordResetEmail).not.toHaveBeenCalled()
+    expect(result).toEqual({ link: 'http://localhost:3000/ativar?token=secret-xyz', mode: 'activation' })
   })
 
-  it('não busca perfil/e-mail quando RESEND_API_KEY ausente', async () => {
-    envMock.resendApiKey = ''
+  it('conta ATIVADA ⇒ envia redefinição de senha (recovery)', async () => {
+    tableSingle.profiles = { data: { full_name: 'Fulano', terms_accepted_at: '2024-01-01' }, error: null }
 
     const result = await resendMagicLinkAction('user@test.com')
 
-    expect(result).toMatchObject({ link: expect.stringContaining('token_hash=tok-1') })
+    expect(emailMocks.sendPasswordResetEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ to: 'user@test.com', resetLink: expect.stringContaining('type=recovery') }),
+    )
+    expect(activationMocks.createActivationToken).not.toHaveBeenCalled()
+    expect(result).toEqual({ link: 'http://localhost:3000/auth/callback?token_hash=tok-1&type=recovery', mode: 'recovery' })
+  })
+
+  it('não envia e-mail quando SMTP não configurado, mas ainda retorna o link', async () => {
+    envMock.mailEnabled = false
+    tableSingle.profiles = { data: { full_name: 'Fulano', terms_accepted_at: null }, error: null }
+
+    const result = await resendMagicLinkAction('user@test.com')
+
+    expect(emailMocks.sendAccountCreatedEmail).not.toHaveBeenCalled()
+    expect(result).toEqual({ link: 'http://localhost:3000/ativar?token=secret-xyz', mode: 'activation' })
   })
 
   it('propaga erro quando generateLink falha', async () => {
@@ -147,8 +175,12 @@ describe('resendMagicLinkAction', () => {
     expect(result).toEqual({ error: 'link gen failed' })
   })
 
-  it('erro quando o token_hash não é gerado', async () => {
-    mockGenerateLink.mockResolvedValue({ data: { properties: {}, user: { id: 'u-1' } }, error: null })
+  it('erro quando o token_hash de recovery não é gerado', async () => {
+    tableSingle.profiles = { data: { full_name: 'Fulano', terms_accepted_at: '2024-01-01' }, error: null }
+    // 1ª chamada (resolve) ok; 2ª (recovery) sem hashed_token.
+    mockGenerateLink
+      .mockResolvedValueOnce({ data: { properties: { hashed_token: 'tok-1' }, user: { id: 'u-1' } }, error: null })
+      .mockResolvedValueOnce({ data: { properties: {}, user: { id: 'u-1' } }, error: null })
 
     const result = await resendMagicLinkAction('user@test.com')
 

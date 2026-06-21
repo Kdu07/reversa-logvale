@@ -12,19 +12,19 @@ import {
   Text,
 } from '@react-email/components'
 
-interface AccountCreatedEmailProps {
+interface PasswordResetEmailProps {
   name:      string
-  magicLink: string
+  resetLink: string
   appUrl?:   string
 }
 
-export function AccountCreatedEmail({ name, magicLink, appUrl = '' }: AccountCreatedEmailProps) {
+export function PasswordResetEmail({ name, resetLink, appUrl = '' }: PasswordResetEmailProps) {
   const firstName = name?.trim().split(' ')[0] || ''
 
   return (
     <Html lang="pt-BR">
       <Head />
-      <Preview>Ative seu acesso ao sistema de devoluções da Logvale</Preview>
+      <Preview>Redefina a senha do seu acesso à Logvale</Preview>
       <Body style={body}>
         <Container style={container}>
           {/* Logo */}
@@ -39,40 +39,28 @@ export function AccountCreatedEmail({ name, magicLink, appUrl = '' }: AccountCre
 
           {/* Content */}
           <Section style={content}>
-            <Heading style={h1}>Bem-vindo à Logvale{firstName ? `, ${firstName}` : ''}!</Heading>
+            <Heading style={h1}>Redefinição de senha{firstName ? `, ${firstName}` : ''}</Heading>
             <Text style={text}>
-              Sua conta no sistema de gestão de devoluções da Logvale foi criada com sucesso.
-              Estamos felizes em ter você com a gente.
+              Recebemos uma solicitação para redefinir a senha do seu acesso ao sistema
+              de gestão de devoluções da Logvale. Clique no botão abaixo para criar uma
+              nova senha.
             </Text>
-            <Text style={text}>
-              Para começar, clique no botão abaixo e siga estes passos rápidos:
-            </Text>
-
-            <Section style={stepsBox}>
-              <Text style={step}><span style={stepNum}>1</span> Clique em <strong>“Ativar meu acesso”</strong>.</Text>
-              <Text style={step}><span style={stepNum}>2</span> Crie uma senha pessoal (mínimo de 8 caracteres).</Text>
-              <Text style={step}><span style={stepNum}>3</span> Leia e aceite os Termos de Uso e a Política de Privacidade.</Text>
-              <Text style={stepLast}><span style={stepNum}>4</span> Pronto! Você já estará dentro do sistema.</Text>
-            </Section>
           </Section>
 
           <Section style={btnSection}>
-            <Button href={magicLink} style={btn}>
-              Ativar meu acesso
+            <Button href={resetLink} style={btn}>
+              Redefinir minha senha
             </Button>
           </Section>
 
           <Section style={{ padding: '0 40px 8px' }}>
             <Text style={{ ...text, color: '#dc2626', fontWeight: '500', margin: '0' }}>
-              Este link de ativação fica válido até você ativar sua conta.
+              Por segurança, este link de redefinição é válido por 24 horas.
             </Text>
             <Text style={{ ...text, fontSize: '13px', color: '#71717a' }}>
               Se o botão não funcionar, copie e cole este endereço no navegador:
               <br />
-              <a href={magicLink} style={rawLink}>{magicLink}</a>
-            </Text>
-            <Text style={{ ...text, fontSize: '13px', color: '#71717a', margin: '0' }}>
-              Depois desta primeira ativação, seu acesso passa a ser feito com e-mail e senha.
+              <a href={resetLink} style={rawLink}>{resetLink}</a>
             </Text>
           </Section>
 
@@ -80,7 +68,8 @@ export function AccountCreatedEmail({ name, magicLink, appUrl = '' }: AccountCre
 
           <Section style={footer}>
             <Text style={footerText}>
-              Se você não esperava este e-mail, pode ignorá-lo com segurança.
+              Se você não solicitou a redefinição, pode ignorar este e-mail com segurança —
+              sua senha atual continua válida.
             </Text>
             <Text style={footerText}>
               Logvale Gestão de Devoluções ·{' '}
@@ -118,8 +107,8 @@ const logoSection: React.CSSProperties = {
 }
 
 const logoImg: React.CSSProperties = {
-  margin:    '0 auto',
-  display:   'block',
+  margin:  '0 auto',
+  display: 'block',
 }
 
 const hr: React.CSSProperties = {
@@ -145,40 +134,6 @@ const text: React.CSSProperties = {
   margin:     '0 0 12px',
 }
 
-const stepsBox: React.CSSProperties = {
-  backgroundColor: '#f8fafc',
-  border:          '1px solid #e4e4e7',
-  borderRadius:    '8px',
-  padding:         '16px 20px',
-  margin:          '8px 0 4px',
-}
-
-const step: React.CSSProperties = {
-  color:      '#3f3f46',
-  fontSize:   '14px',
-  lineHeight: '1.5',
-  margin:     '0 0 10px',
-}
-
-const stepLast: React.CSSProperties = {
-  ...step,
-  margin: '0',
-}
-
-const stepNum: React.CSSProperties = {
-  display:         'inline-block',
-  width:           '20px',
-  height:          '20px',
-  lineHeight:      '20px',
-  textAlign:       'center',
-  backgroundColor: PRIMARY,
-  color:           '#ffffff',
-  borderRadius:    '10px',
-  fontSize:        '12px',
-  fontWeight:      '700',
-  marginRight:     '8px',
-}
-
 const btnSection: React.CSSProperties = {
   padding:   '16px 40px 8px',
   textAlign: 'center',
@@ -196,9 +151,9 @@ const btn: React.CSSProperties = {
 }
 
 const rawLink: React.CSSProperties = {
-  color:         PRIMARY,
-  wordBreak:     'break-all',
-  fontSize:      '12px',
+  color:     PRIMARY,
+  wordBreak: 'break-all',
+  fontSize:  '12px',
 }
 
 const footer: React.CSSProperties = {

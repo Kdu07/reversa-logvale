@@ -59,7 +59,7 @@ export function UsersTable({ users, depositors }: Props) {
   const [editingUser, setEditingUser] = useState<UserRow | null>(null)
   const [form, setForm]               = useState<FormState>(EMPTY_FORM)
   const [error, setError]             = useState<string | null>(null)
-  const [linkModal, setLinkModal]     = useState<{ email: string; link: string; emailSent?: boolean; emailError?: string } | null>(null)
+  const [linkModal, setLinkModal]     = useState<{ email: string; link: string; mode: 'activation' | 'recovery'; emailSent?: boolean; emailError?: string } | null>(null)
   const [anonymizeTarget, setAnonymizeTarget] = useState<UserRow | null>(null)
   const [anonCountdown, setAnonCountdown]     = useState(2)
   const [localDepositors, setLocalDepositors] = useState<DepositorOption[]>(depositors)
@@ -153,7 +153,7 @@ export function UsersTable({ users, depositors }: Props) {
       closeModal()
       if (wasCreate && 'link' in result) {
         const created = result as unknown as { link: string; emailSent: boolean; emailError?: string }
-        setLinkModal({ email: createdEmail, link: created.link, emailSent: created.emailSent, emailError: created.emailError })
+        setLinkModal({ email: createdEmail, link: created.link, mode: 'activation', emailSent: created.emailSent, emailError: created.emailError })
       }
     })
   }
@@ -166,7 +166,7 @@ export function UsersTable({ users, depositors }: Props) {
     startTransition(async () => {
       const result = await resendMagicLinkAction(u.email)
       if ('error' in result) { setError(result.error); return }
-      setLinkModal({ email: u.email, link: result.link })
+      setLinkModal({ email: u.email, link: result.link, mode: result.mode })
     })
   }
 
@@ -433,13 +433,15 @@ export function UsersTable({ users, depositors }: Props) {
         {linkModal && (
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>{t.resendLinkBtn}</DialogTitle>
+              <DialogTitle>{linkModal.mode === 'recovery' ? t.recoveryTitle : t.activationTitle}</DialogTitle>
               <DialogDescription>
                 {linkModal.emailSent === false
                   ? <>{t.linkEmailFailed} <strong>{linkModal.email}</strong>{linkModal.emailError ? <><br /><span className="text-xs text-muted-foreground">({linkModal.emailError})</span></> : null}</>
                   : linkModal.emailSent === true
                     ? <>{t.linkEmailSent} <strong>{linkModal.email}</strong>. {t.linkSentLabel}</>
-                    : <>{t.linkSentLabel} <strong>{linkModal.email}</strong></>}
+                    : linkModal.mode === 'recovery'
+                      ? <>{t.recoveryEmailSent} <strong>{linkModal.email}</strong>. {t.recoveryLinkLabel}</>
+                      : <>{t.linkSentLabel} <strong>{linkModal.email}</strong></>}
               </DialogDescription>
             </DialogHeader>
             <div className="flex gap-2">

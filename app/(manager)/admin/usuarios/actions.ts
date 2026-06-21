@@ -3,7 +3,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { assertManager } from '@/lib/supabase/assert-role'
-import { sendAccountCreatedEmail } from '@/lib/integrations/resend'
+import { sendAccountCreatedEmail, sendPasswordResetEmail } from '@/lib/integrations/email'
+import { createActivationToken } from '@/lib/auth/activation-token'
 import { env } from '@/lib/env'
 import { revalidatePath } from 'next/cache'
 import JSZip from 'jszip'
@@ -32,16 +33,30 @@ interface GenerateLinkProperties {
 }
 
 /**
- * Builds an activation link pointing at our own /auth/callback using the
- * token_hash from admin.generateLink. The default action_link cannot be used:
- * it redirects through Supabase's verify endpoint into the PKCE code flow,
- * which requires a code verifier that the recipient's browser never had.
- * The token_hash is verified server-side via verifyOtp in the callback route.
+ * Builds a link pointing at our own /auth/callback using the token_hash from
+ * admin.generateLink. Used for the password-recovery flow (type=recovery). The
+ * default action_link cannot be used: it redirects through Supabase's verify
+ * endpoint into the PKCE code flow, which requires a code verifier the
+ * recipient's browser never had. The token_hash is verified server-side via
+ * verifyOtp in the callback route.
+ *
+ * Activation no longer goes through here — it uses our own /ativar token (which
+ * is valid until the account is activated), built in `createUserAction` and
+ * `resendMagicLinkAction`.
  */
-function buildActivationLink(properties: GenerateLinkProperties | undefined, appUrl: string): string | null {
+function buildCallbackLink(
+  properties: GenerateLinkProperties | undefined,
+  appUrl: string,
+  type: 'recovery',
+): string | null {
   const tokenHash = properties?.hashed_token
   if (!tokenHash) return null
-  return `${appUrl}/auth/callback?token_hash=${encodeURIComponent(tokenHash)}&type=magiclink`
+  return `${appUrl}/auth/callback?token_hash=${encodeURIComponent(tokenHash)}&type=${type}`
+}
+
+/** Activation link backed by our own single-use token (valid until activation). */
+function buildActivationUrl(secret: string, appUrl: string): string {
+  return `${appUrl}/ativar?token=${encodeURIComponent(secret)}`
 }
 
 export async function getUsersAction(): Promise<UserRow[] | { error: string }> {
@@ -121,45 +136,51 @@ export async function createUserAction(payload: {
     if (createErr) throw createErr
     const userId = createData.user.id
 
-    const { data: linkData, error: linkErr } = await admin.auth.admin.generateLink({
-      type:    'magiclink',
-      email:   payload.email,
-      options: { redirectTo: `${appUrl}/auth/callback` },
-    })
-    if (linkErr) throw linkErr
-    const magicLink = buildActivationLink(linkData.properties as GenerateLinkProperties, appUrl)
-    if (!magicLink) throw new Error('Link de ativação não gerado')
+    // A partir daqui o usuário Auth já existe. Qualquer falha precisa compensar
+    // removendo-o, senão fica órfão (sem profile) e impede recriar o e-mail.
+    try {
+      const { error: profileErr } = await supabase.from('profiles').insert({
+        id:        userId,
+        role:      payload.role,
+        full_name: payload.full_name,
+        phone:     payload.phone || null,
+      })
+      if (profileErr) throw profileErr
 
-    let emailSent  = false
-    let emailError: string | undefined
-    if (env.resendApiKey) {
-      try {
-        await sendAccountCreatedEmail({ to: payload.email, name: payload.full_name, magicLink })
-        emailSent = true
-      } catch (e) {
-        emailError = e instanceof Error ? e.message : 'Falha ao enviar e-mail'
-        console.error('[resend] createUser email failed:', e)
+      if (payload.role === 'client' && payload.depositorIds.length > 0) {
+        const rows = payload.depositorIds.map((did) => ({ client_id: userId, depositor_id: did }))
+        const { error: cdErr } = await supabase.from('client_depositors').insert(rows)
+        if (cdErr) throw cdErr
       }
-    } else {
-      emailError = 'RESEND_API_KEY não configurada'
+
+      // Token de ativação próprio: vale até o usuário ativar a conta (uso único).
+      const secret    = await createActivationToken(userId)
+      const magicLink = buildActivationUrl(secret, appUrl)
+
+      // E-mail é best-effort: uma falha aqui não invalida a criação (o manager
+      // pode copiar o link manualmente).
+      let emailSent  = false
+      let emailError: string | undefined
+      if (env.mailEnabled) {
+        try {
+          await sendAccountCreatedEmail({ to: payload.email, name: payload.full_name, magicLink })
+          emailSent = true
+        } catch (e) {
+          emailError = e instanceof Error ? e.message : 'Falha ao enviar e-mail'
+          console.error('[email] createUser email failed:', e)
+        }
+      } else {
+        emailError = 'SMTP não configurado'
+      }
+
+      revalidatePath('/admin/usuarios')
+      return { ok: true, link: magicLink, emailSent, emailError }
+    } catch (inner) {
+      await admin.auth.admin.deleteUser(userId).catch((e) =>
+        console.error('[createUser] rollback deleteUser failed:', e),
+      )
+      throw inner
     }
-
-    const { error: profileErr } = await supabase.from('profiles').insert({
-      id:        userId,
-      role:      payload.role,
-      full_name: payload.full_name,
-      phone:     payload.phone || null,
-    })
-    if (profileErr) throw profileErr
-
-    if (payload.role === 'client' && payload.depositorIds.length > 0) {
-      const rows = payload.depositorIds.map((did) => ({ client_id: userId, depositor_id: did }))
-      const { error: cdErr } = await supabase.from('client_depositors').insert(rows)
-      if (cdErr) throw cdErr
-    }
-
-    revalidatePath('/admin/usuarios')
-    return { ok: true, link: magicLink, emailSent, emailError }
   } catch (err) {
     return { error: err instanceof Error ? err.message : 'Erro interno' }
   }
@@ -237,34 +258,59 @@ export async function toggleActiveAction(
 
 export async function resendMagicLinkAction(
   email: string,
-): Promise<{ link: string } | { error: string }> {
+): Promise<{ link: string; mode: 'activation' | 'recovery' } | { error: string }> {
   try {
     await assertManager()
     const admin    = createAdminClient()
     const supabase = createClient()
     const appUrl   = env.appUrl
 
-    const { data, error } = await admin.auth.admin.generateLink({
+    // Resolve o user.id (e o estado de ativação) a partir do e-mail. O magiclink
+    // gerado aqui serve só para descobrir o user.id; o link de fato depende do
+    // estado da conta (ativação vs redefinição).
+    const { data: resolve, error: resolveErr } = await admin.auth.admin.generateLink({
       type:    'magiclink',
       email,
       options: { redirectTo: `${appUrl}/auth/callback` },
     })
-    if (error) throw error
+    if (resolveErr) throw resolveErr
+    const userId = resolve.user.id
 
-    const link = buildActivationLink(data.properties as GenerateLinkProperties, appUrl)
-    if (!link) throw new Error('Link não gerado')
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('full_name, terms_accepted_at')
+      .eq('id', userId)
+      .single()
+    const name        = profile?.full_name ?? ''
+    const isActivated = Boolean(profile?.terms_accepted_at)
 
-    if (env.resendApiKey) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('full_name')
-        .eq('id', data.user.id)
-        .single()
-      await sendAccountCreatedEmail({ to: email, name: profile?.full_name ?? '', magicLink: link })
-        .catch((e) => console.error('[resend] resendMagicLink email failed:', e))
+    // Conta ainda não ativada → reemite um link de ATIVAÇÃO (token próprio,
+    // válido até ativar; invalida o anterior). Caminho crítico quando o primeiro
+    // e-mail não chega, é perdido ou o link falha.
+    if (!isActivated) {
+      const secret = await createActivationToken(userId)
+      const link   = buildActivationUrl(secret, appUrl)
+      if (env.mailEnabled) {
+        await sendAccountCreatedEmail({ to: email, name, magicLink: link })
+          .catch((e) => console.error('[email] resend activation email failed:', e))
+      }
+      return { link, mode: 'activation' }
     }
 
-    return { link }
+    // Conta já ativada → envia REDEFINIÇÃO de senha (recovery, ~24h).
+    const { data: recovery, error: recoveryErr } = await admin.auth.admin.generateLink({
+      type:    'recovery',
+      email,
+      options: { redirectTo: `${appUrl}/auth/callback` },
+    })
+    if (recoveryErr) throw recoveryErr
+    const link = buildCallbackLink(recovery.properties as GenerateLinkProperties, appUrl, 'recovery')
+    if (!link) throw new Error('Link não gerado')
+    if (env.mailEnabled) {
+      await sendPasswordResetEmail({ to: email, name, resetLink: link })
+        .catch((e) => console.error('[email] resend recovery email failed:', e))
+    }
+    return { link, mode: 'recovery' }
   } catch (err) {
     return { error: err instanceof Error ? err.message : 'Erro interno' }
   }

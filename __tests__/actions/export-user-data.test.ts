@@ -36,9 +36,9 @@ vi.mock('@/lib/supabase/admin', () => ({
   })),
 }))
 
-// resend/env are imported by the actions module but unused by this action
-vi.mock('@/lib/integrations/resend', () => ({ sendAccountCreatedEmail: vi.fn() }))
-vi.mock('@/lib/env', () => ({ env: { resendApiKey: 'k', appUrl: 'http://localhost:3000' } }))
+// email/env are imported by the actions module but unused by this action
+vi.mock('@/lib/integrations/email', () => ({ sendAccountCreatedEmail: vi.fn() }))
+vi.mock('@/lib/env', () => ({ env: { mailEnabled: true, appUrl: 'http://localhost:3000' } }))
 
 function asManager() {
   getCurrentUser.mockResolvedValue({

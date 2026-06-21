@@ -14,12 +14,16 @@ vi.mock('@/lib/supabase/get-current-user', () => ({
   }),
 }))
 
-vi.mock('@/lib/integrations/resend', () => ({
+vi.mock('@/lib/integrations/email', () => ({
   sendAccountCreatedEmail: vi.fn().mockResolvedValue(undefined),
+  sendPasswordResetEmail:  vi.fn().mockResolvedValue(undefined),
 }))
 
+const activationMocks = vi.hoisted(() => ({ createActivationToken: vi.fn() }))
+vi.mock('@/lib/auth/activation-token', () => activationMocks)
+
 vi.mock('@/lib/env', () => ({
-  env: { resendApiKey: 'key-test', appUrl: 'http://localhost:3000' },
+  env: { mailEnabled: true, appUrl: 'http://localhost:3000' },
 }))
 
 // ── Supabase server client ────────────────────────────────────────────
@@ -41,6 +45,7 @@ vi.mock('@/lib/supabase/server', () => ({
 const mockCreateUser     = vi.fn()
 const mockGenerateLink   = vi.fn()
 const mockUpdateUserById = vi.fn()
+const mockDeleteUser     = vi.fn()
 
 vi.mock('@/lib/supabase/admin', () => ({
   createAdminClient: vi.fn(() => ({
@@ -49,6 +54,7 @@ vi.mock('@/lib/supabase/admin', () => ({
         createUser:     mockCreateUser,
         generateLink:   mockGenerateLink,
         updateUserById: mockUpdateUserById,
+        deleteUser:     mockDeleteUser,
       },
     },
   })),
@@ -77,6 +83,8 @@ beforeEach(() => {
     error: null,
   })
   mockUpdateUserById.mockResolvedValue({ error: null })
+  mockDeleteUser.mockResolvedValue({ error: null })
+  activationMocks.createActivationToken.mockResolvedValue('secret-abc')
 })
 
 // ─────────────────────────────────────────────────────────────────────
@@ -134,7 +142,7 @@ describe('createUserAction', () => {
 
     expect(result).toEqual({
       ok:        true,
-      link:      'http://localhost:3000/auth/callback?token_hash=tok-123&type=magiclink',
+      link:      'http://localhost:3000/ativar?token=secret-abc',
       emailSent: true,
     })
     expect(mockCreateUser).toHaveBeenCalledWith(
@@ -143,6 +151,8 @@ describe('createUserAction', () => {
     expect(mockInsert).toHaveBeenCalledWith(
       expect.objectContaining({ full_name: 'Novo Usuário', role: 'operator' }),
     )
+    expect(activationMocks.createActivationToken).toHaveBeenCalledWith('new-user-id')
+    expect(mockDeleteUser).not.toHaveBeenCalled()
   })
 
   it('vincula depositorIds quando role é client', async () => {
@@ -185,12 +195,22 @@ describe('createUserAction', () => {
     expect(mockInsert).not.toHaveBeenCalled()
   })
 
-  it('retorna erro quando insert do profile falha', async () => {
+  it('faz rollback (deleteUser) quando insert do profile falha', async () => {
     mockInsert.mockResolvedValue({ error: new Error('constraint violation') })
 
     const result = await createUserAction(BASE_PAYLOAD)
 
     expect(result).toEqual({ error: 'constraint violation' })
+    // Não deixa usuário Auth órfão.
+    expect(mockDeleteUser).toHaveBeenCalledWith('new-user-id')
+  })
+
+  it('não chama deleteUser quando o próprio createUser do auth falha', async () => {
+    mockCreateUser.mockResolvedValue({ data: null, error: new Error('email already exists') })
+
+    await createUserAction(BASE_PAYLOAD)
+
+    expect(mockDeleteUser).not.toHaveBeenCalled()
   })
 })
 
