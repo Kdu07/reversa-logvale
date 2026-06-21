@@ -17,9 +17,13 @@ vi.mock('@/lib/supabase/storage', () => ({
   buildSignedUrlMap: vi.fn().mockResolvedValue(new Map()),
 }))
 
-const fetchInvoiceXml = vi.fn()
-vi.mock('@/lib/integrations/webmania', () => ({
-  fetchInvoiceXml: (k: string) => fetchInvoiceXml(k),
+// env mutável — alternamos nfeioEnabled por teste (vi.hoisted p/ o factory hoisteado)
+const { env } = vi.hoisted(() => ({ env: { nfeioEnabled: true } }))
+vi.mock('@/lib/env', () => ({ env }))
+
+const persistInvoiceFiles = vi.fn()
+vi.mock('@/lib/integrations/nfeio', () => ({
+  persistInvoiceFiles: (k: string) => persistInvoiceFiles(k),
 }))
 
 // --- server client (count action) ---
@@ -36,26 +40,27 @@ vi.mock('@/lib/supabase/server', () => ({
 
 // --- admin client (retry action) ---
 let pendingRows: { access_key: string | null }[] = []
-const uploadMock = vi.fn().mockResolvedValue({ error: null })
-const updateIs   = vi.fn().mockResolvedValue({ error: null })
+const updateIs = vi.fn().mockResolvedValue({ error: null })
+const updateMock = vi.fn(() => ({ eq: () => ({ eq: () => ({ is: updateIs }) }) }))
 vi.mock('@/lib/supabase/admin', () => ({
   createAdminClient: vi.fn(() => ({
     from: () => ({
       select: () => ({
         eq: () => ({ is: () => Promise.resolve({ data: pendingRows, error: null }) }),
       }),
-      update: () => ({ eq: () => ({ eq: () => ({ is: updateIs }) }) }),
+      update: updateMock,
     }),
-    storage: { from: () => ({ upload: uploadMock }) },
   })),
 }))
 
 beforeEach(() => {
   vi.clearAllMocks()
   isSuperUser.mockReturnValue(true)
+  env.nfeioEnabled = true
   countResult.count = 0
   countResult.error = null
   pendingRows = []
+  updateIs.mockResolvedValue({ error: null })
 })
 
 describe('getMissingInvoiceXmlCountAction', () => {
@@ -77,37 +82,42 @@ describe('retryMissingInvoiceXmlAction', () => {
     isSuperUser.mockReturnValue(false)
     const result = await retryMissingInvoiceXmlAction()
     expect(result).toEqual({ error: 'Acesso negado' })
-    expect(fetchInvoiceXml).not.toHaveBeenCalled()
+    expect(persistInvoiceFiles).not.toHaveBeenCalled()
+  })
+
+  it('retorna disabled quando a integração NFEio está desligada', async () => {
+    env.nfeioEnabled = false
+    const result = await retryMissingInvoiceXmlAction()
+    expect(result).toMatchObject({ disabled: true, fetched: 0, failed: 0 })
+    expect(persistInvoiceFiles).not.toHaveBeenCalled()
   })
 
   it('retorna mensagem de vazio quando não há NF pendente', async () => {
     pendingRows = []
     const result = await retryMissingInvoiceXmlAction()
-    expect(result).toMatchObject({ pending: 0, fetched: 0, notImplemented: false })
-    expect(fetchInvoiceXml).not.toHaveBeenCalled()
+    expect(result).toMatchObject({ pending: 0, fetched: 0, disabled: false })
+    expect(persistInvoiceFiles).not.toHaveBeenCalled()
   })
 
-  it('aborta sem upload/update quando a API ainda não está implementada', async () => {
+  it('persiste XML+PDF e vincula as colunas quando a busca tem sucesso', async () => {
     pendingRows = [{ access_key: '111' }, { access_key: '222' }, { access_key: '111' }]
-    fetchInvoiceXml.mockResolvedValue({ ok: false, reason: 'not_implemented', message: 'x' })
+    persistInvoiceFiles.mockResolvedValue({ xmlPath: 'ak/x.xml', pdfPath: 'ak/x.pdf' })
 
     const result = await retryMissingInvoiceXmlAction()
 
-    expect(result).toMatchObject({ notImplemented: true, fetched: 0, failed: 0, pending: 2 })
-    // chaves deduplicadas (111, 222) → mas aborta na primeira chamada
-    expect(fetchInvoiceXml).toHaveBeenCalledTimes(1)
-    expect(uploadMock).not.toHaveBeenCalled()
-    expect(updateIs).not.toHaveBeenCalled()
+    // chaves deduplicadas (111, 222)
+    expect(result).toMatchObject({ fetched: 2, failed: 0, disabled: false, pending: 2 })
+    expect(persistInvoiceFiles).toHaveBeenCalledTimes(2)
+    expect(updateMock).toHaveBeenCalledWith({ invoice_xml_url: 'ak/x.xml', invoice_pdf_url: 'ak/x.pdf' })
   })
 
-  it('faz upload e vincula o XML quando a busca tem sucesso', async () => {
+  it('conta como falha quando o XML não é obtido', async () => {
     pendingRows = [{ access_key: '111' }]
-    fetchInvoiceXml.mockResolvedValue({ ok: true, xml: '<nfe/>' })
+    persistInvoiceFiles.mockResolvedValue({ xmlPath: null, pdfPath: null })
 
     const result = await retryMissingInvoiceXmlAction()
 
-    expect(result).toMatchObject({ fetched: 1, failed: 0, notImplemented: false })
-    expect(uploadMock).toHaveBeenCalledWith('111.xml', '<nfe/>', expect.objectContaining({ upsert: true }))
-    expect(updateIs).toHaveBeenCalled()
+    expect(result).toMatchObject({ fetched: 0, failed: 1, disabled: false })
+    expect(updateMock).not.toHaveBeenCalled()
   })
 })

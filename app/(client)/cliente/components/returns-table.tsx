@@ -11,7 +11,7 @@ import { DecisionModal } from './decision-modal'
 import { PhotoGallery } from '@/components/shared/photo-gallery'
 import { PhotoThumbs } from '@/components/shared/photo-thumbs'
 import { DownloadXmlButton } from '@/components/shared/download-xml-button'
-import { formatDate, xmlDownloadName } from '@/lib/format'
+import { formatDate, xmlDownloadName, danfeDownloadName } from '@/lib/format'
 import { Inbox, ChevronLeft, ChevronRight } from 'lucide-react'
 import type { ReturnRow, DepositorOption } from '../actions'
 import type { ReturnDecision, IdentifierType } from '@/types'
@@ -194,7 +194,16 @@ export function ReturnsTable({
                         <DownloadXmlButton
                           path={row.invoiceXmlPath}
                           filename={xmlDownloadName(row.rv, 'original')}
-                          label="NF"
+                          label="NF (XML)"
+                          className="text-primary hover:underline text-xs font-medium disabled:opacity-50"
+                        />
+                      )}
+                      {row.invoicePdfPath && (
+                        <DownloadXmlButton
+                          path={row.invoicePdfPath}
+                          filename={danfeDownloadName(row.rv)}
+                          bucket="invoice-pdfs"
+                          label="NF (DANFE)"
                           className="text-primary hover:underline text-xs font-medium disabled:opacity-50"
                         />
                       )}
@@ -206,7 +215,7 @@ export function ReturnsTable({
                           className="text-primary hover:underline text-xs font-medium disabled:opacity-50"
                         />
                       )}
-                      {!row.invoiceXmlPath && !(mode === 'history' && row.returnInvoiceXmlPath) && (
+                      {!row.invoiceXmlPath && !row.invoicePdfPath && !(mode === 'history' && row.returnInvoiceXmlPath) && (
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
                     </div>

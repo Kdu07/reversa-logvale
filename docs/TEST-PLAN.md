@@ -51,7 +51,7 @@ absorver variação do v8). Atualize-os conforme cada fase entrar.
 - [middleware.ts](../middleware.ts) — 94%
 - [admin/actions.ts](<../app/(manager)/admin/actions.ts>) (`getDashboardStats`) — 94%
 - [use-barcode-scanner.ts](../hooks/use-barcode-scanner.ts) — 96%
-- `lib/format`, `lib/decisions`, `lib/webmania`, `lib/auth/super`, `lib/env`
+- `lib/format`, `lib/decisions`, `lib/nfeio`, `lib/auth/super`, `lib/env`
 
 ### Lacunas críticas
 | Arquivo | Cov. atual | Funções sem teste |
@@ -65,7 +65,7 @@ absorver variação do v8). Atualize-os conforme cada fase entrar.
 | [operador/actions.ts](<../app/(operator)/operador/actions.ts>) | 0% | `getOperatorHomeStats` |
 | [auth/callback/route.ts](<../app/(public)/auth/callback/route.ts>) | 0% | handler de ativação |
 | [api/auth/signout/route.ts](../app/api/auth/signout/route.ts) | 0% | handler de logout |
-| `lib/integrations/resend.ts` | 0% | envio de e-mail |
+| `lib/integrations/email.ts` | 0% | envio de e-mail (SMTP) |
 | `lib/supabase/get-current-user.ts`, `storage.ts` | ~8% | helpers de auth/storage |
 
 ---
@@ -127,7 +127,7 @@ Para actions de leitura, cobrir adicionalmente os **filtros condicionais** (cada
 - [x] [user-actions.test.ts](../__tests__/actions/user-actions.test.ts) — `updateUserAction`, `resendMagicLinkAction`, `getUsersAction`, `getDepositorsListAction`
   (`createUserAction` + `toggleActiveAction` já cobertos em [users.test.ts](../__tests__/actions/users.test.ts)).
   - update: recria vínculos só para role=client; erro no perfil; acesso negado.
-  - resend: gera link; sem `RESEND_API_KEY`; erro no generateLink; token ausente.
+  - resend: gera link; sem SMTP configurado (`mailEnabled` false); erro no generateLink; token ausente.
   - getUsers: combina auth+profiles+vínculos e ordena; erro do auth; acesso negado.
 - [x] [create-return.test.ts](../__tests__/actions/create-return.test.ts) — `createReturnAction` já cobria
   happy path sem/com fotos, acesso negado, erro de insert e erro de fotos.
@@ -148,7 +148,7 @@ Para actions de leitura, cobrir adicionalmente os **filtros condicionais** (cada
 - [x] [get-admin-returns.test.ts](../__tests__/actions/get-admin-returns.test.ts) — `getAdminReturnsAction` (filtros rv/status, mapeamento de fotos/XML, erro, acesso negado).
 - [x] [operator-home-stats.test.ts](../__tests__/actions/operator-home-stats.test.ts) — `getOperatorHomeStatsAction` (contagens, tratativas urgentes, erro).
 - [x] [get-depositors.test.ts](../__tests__/actions/get-depositors.test.ts) — `getDepositorsAction` (clientNames, busca ilike, vazio, erro, acesso negado).
-- [x] [resend.test.ts](../__tests__/lib/resend.test.ts) — `lib/integrations/resend.ts` (assunto/remetente, erro da API, plural/singular).
+- [x] [email.test.ts](../__tests__/lib/email.test.ts) — `lib/integrations/email.ts` (assunto/remetente, erro de envio SMTP, plural/singular).
 - [x] [storage.test.ts](../__tests__/lib/storage.test.ts) — `buildSignedUrlMap` (lista vazia, mapeamento, entradas inválidas).
 - [x] [get-current-user.test.ts](../__tests__/lib/get-current-user.test.ts) — redirect quando não autenticado; perfil; `getCurrentUserOrNull`.
 
@@ -162,9 +162,9 @@ Para actions de leitura, cobrir adicionalmente os **filtros condicionais** (cada
 - E2E: [client-decisions.spec.ts](../e2e/client-decisions.spec.ts) — captura o evento `download` no histórico e valida `suggestedFilename` (`-nf-devolucao.xml`).
 
 ### Pendências conhecidas
-- **Bug encontrado**: o assunto do e-mail de aviso em [resend.ts](../lib/integrations/resend.ts) gera
+- **Bug encontrado**: o assunto do e-mail de aviso em [email.ts](../lib/integrations/email.ts) gera
   `"N devoluçãoões..."` (concatenação `devolução` + `ões`). O teste fixa o comportamento atual;
-  ao corrigir para `"devoluções"`, atualizar a asserção em `resend.test.ts`.
+  ao corrigir para `"devoluções"`, atualizar a asserção em `email.test.ts`.
 - **Functions em 78%** (não 80): faltam apenas factories finas sem lógica
   (`lib/supabase/server.ts`, `admin.ts`, `middleware.ts`) e o hook `use-audio-feedback.ts`.
   Cobri-los é de baixo valor; ficam como opcional.

@@ -62,20 +62,18 @@ select jobname, schedule from cron.job;
 -- Deve mostrar: auto-decision-job | 0 * * * *
 ```
 
-## 2. Webmania (integração futura)
+## 2. NFEio (consulta de NF-e)
 
-> **Não é necessária para rodar nem para lançar o sistema hoje.** A NF é identificada por
-> parsing local da chave de acesso (CNPJ emissor, número, competência), sem consulta externa.
-> Esta seção fica como referência para quando a consulta de XML/DANFE via API externa for ativada;
-> nesse momento, implemente o corpo de `fetchInvoiceXml()` em `lib/integrations/webmania.ts`.
+> Integração ativa: na bipagem (Etapa 1) o sistema consulta a NFEio pela chave de acesso e
+> persiste o **XML** e o **DANFE (PDF)** no storage, baixáveis nos botões de download.
+> Implementação em `lib/integrations/nfeio.ts`. **Opcional para rodar:** sem `NFEIO_ACCESS_KEY`
+> a integração fica desligada — o recebimento ainda conclui (depositante vem do CNPJ da chave) e
+> o XML/PDF ficam pendentes para o painel super-only de backfill em `/admin/devolucoes`.
 
-1. Crie conta em https://webmaniabr.com
-2. Configure a API NFe (Consulta por Chave de Acesso)
-3. No painel, acesse Configurações → API OAuth e anote as 4 credenciais:
-   - Consumer Key
-   - Consumer Secret
-   - Access Token
-   - Access Token Secret
+1. Crie conta em https://nfe.io
+2. Habilite a API de **Consulta de Notas Fiscais** (productinvoices) para a empresa
+3. Copie a **API Key da empresa** — é o valor de `NFEIO_ACCESS_KEY`, enviado no header
+   HTTP `Authorization` (base da API: `https://nfe.api.nfe.io`)
 
 ## 3. Resend
 
@@ -94,20 +92,22 @@ NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 SUPABASE_SERVICE_ROLE_KEY=eyJ...
 
-# Webmania (4 credenciais OAuth — reservadas para a consulta externa futura; hoje não utilizadas)
-WEBMANIA_CONSUMER_KEY=xxx
-WEBMANIA_CONSUMER_SECRET=xxx
-WEBMANIA_ACCESS_TOKEN=xxx
-WEBMANIA_ACCESS_TOKEN_SECRET=xxx
-WEBMANIA_BASE_URL=https://webmaniabr.com/api
+# NFEio (consulta de NF-e — XML + DANFE). Vazio = integração desligada.
+NFEIO_ACCESS_KEY=xxx
+NFEIO_BASE_URL=https://nfe.api.nfe.io
 
-# Resend
-RESEND_API_KEY=re_xxx
-RESEND_FROM_EMAIL=notificacoes@logvale.com.br
+# E-mail via SMTP (Google Workspace) — SMTP_PASS é um App Password do Google (verificação em 2 etapas)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=notificacoes@logvale.com.br
+SMTP_PASS=
+MAIL_FROM=notificacoes@logvale.com.br
 
 # App
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
+
+> O envio de e-mail é opcional em dev: sem `SMTP_PASS`, a criação de usuário ainda funciona e mostra o link de ativação para envio manual. `SMTP_USER` deve ser uma caixa do domínio (ex.: Google Workspace) e `SMTP_PASS` um **App Password** (não a senha normal).
 
 > Em produção, configure as mesmas variáveis em Vercel → Project Settings → Environment Variables. Veja [DEPLOY.md](DEPLOY.md) para a lista completa.
 

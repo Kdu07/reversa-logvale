@@ -3,8 +3,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/supabase/get-current-user'
 import { isSuperUser } from '@/lib/auth/super'
-import { lookupInvoice } from '@/lib/integrations/webmania'
-import type { InvoiceData } from '@/lib/integrations/webmania'
+import { lookupInvoice } from '@/lib/integrations/nfeio'
+import type { InvoiceData } from '@/lib/integrations/nfeio'
 import type { IdentifierType } from '@/types'
 
 export type { InvoiceData }
@@ -54,6 +54,7 @@ interface CreateReturnPayload {
   itemCount:       number
   depositorId:     string | null
   invoiceXmlPath:  string | null
+  invoicePdfPath:  string | null
   boxPhotosPaths:  string[]
   itemPhotosPaths: string[]
 }
@@ -78,6 +79,7 @@ export async function createReturnAction(
         item_count:       payload.itemCount,
         depositor_id:     payload.depositorId,
         invoice_xml_url:  payload.invoiceXmlPath,
+        invoice_pdf_url:  payload.invoicePdfPath,
         received_by:      user.id,
       })
       .select('id')

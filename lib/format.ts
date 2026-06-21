@@ -27,3 +27,12 @@ export function xmlDownloadName(rv: string, kind: 'original' | 'devolucao'): str
   const safe = (rv || 'nf').replace(/[^\w.-]+/g, '_')
   return `${safe}-nf-${kind}.xml`
 }
+
+/**
+ * Nome de arquivo amigável para o download do DANFE (PDF) da NF original.
+ * Ex.: "RV2024001-danfe.pdf".
+ */
+export function danfeDownloadName(rv: string): string {
+  const safe = (rv || 'nf').replace(/[^\w.-]+/g, '_')
+  return `${safe}-danfe.pdf`
+}

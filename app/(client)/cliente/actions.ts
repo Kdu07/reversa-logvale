@@ -22,6 +22,7 @@ export interface ReturnRow {
   depositorId:    string | null
   depositorName:  string | null
   invoiceXmlPath:       string | null
+  invoicePdfPath:       string | null
   returnInvoiceXmlPath: string | null
   decision:       ReturnDecision | null
   decidedAt:      string | null
@@ -85,7 +86,7 @@ export async function getClientReturnsAction(
       .from('returns')
       .select(
         `id, identifier_type, access_key, postal_code, illegible_token,
-         rv, item_count, received_at, depositor_id, invoice_xml_url,
+         rv, item_count, received_at, depositor_id, invoice_xml_url, invoice_pdf_url,
          depositors!depositor_id(razao_social),
          return_photos(storage_path, photo_type, position)`,
         { count: 'exact' },
@@ -160,6 +161,7 @@ export async function getClientReturnsAction(
         depositorId:    r.depositor_id,
         depositorName:  dep?.razao_social ?? null,
         invoiceXmlPath:       r.invoice_xml_url ?? null,
+        invoicePdfPath:       r.invoice_pdf_url ?? null,
         returnInvoiceXmlPath: null, // pendentes ainda não têm decisão/XML de devolução
         decision:       null,
         decidedAt:      null,
@@ -190,7 +192,7 @@ export async function getClientHistoryAction(
       .from('returns')
       .select(
         `id, identifier_type, access_key, postal_code, illegible_token,
-         rv, item_count, received_at, depositor_id, invoice_xml_url, return_invoice_xml_url,
+         rv, item_count, received_at, depositor_id, invoice_xml_url, invoice_pdf_url, return_invoice_xml_url,
          decision, decided_at, decided_by_type,
          depositors!depositor_id(razao_social),
          return_photos(storage_path, photo_type, position)`,
@@ -266,6 +268,7 @@ export async function getClientHistoryAction(
         depositorId:    r.depositor_id,
         depositorName:  dep?.razao_social ?? null,
         invoiceXmlPath:       r.invoice_xml_url        ?? null,
+        invoicePdfPath:       r.invoice_pdf_url        ?? null,
         returnInvoiceXmlPath: r.return_invoice_xml_url ?? null,
         decision:       r.decision as ReturnDecision | null,
         decidedAt:      r.decided_at,
@@ -380,6 +383,7 @@ export async function exportHistoryAction(): Promise<
           depositorId:    null,
           depositorName:  dep?.razao_social ?? null,
           invoiceXmlPath:       null,
+          invoicePdfPath:       null,
           returnInvoiceXmlPath: null,
           decision:       r.decision as ReturnDecision | null,
           decidedAt:      r.decided_at,

@@ -14,7 +14,7 @@ vi.mock('@/lib/supabase/get-current-user', () => ({
   getCurrentUser: vi.fn(),
 }))
 
-vi.mock('@/lib/integrations/webmania', () => ({
+vi.mock('@/lib/integrations/nfeio', () => ({
   lookupInvoice: vi.fn(),
 }))
 
@@ -37,6 +37,7 @@ const BASE_PAYLOAD = {
   itemCount:       3,
   depositorId:     'dep-1',
   invoiceXmlPath:  null,
+  invoicePdfPath:  null,
   boxPhotosPaths:  [],
   itemPhotosPaths: [],
 }

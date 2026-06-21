@@ -116,7 +116,7 @@ Deve aparecer `auto-decision-job` com schedule `0 * * * *`.
 
 As Edge Functions enviam e-mails de aviso (48h) e limpam fotos antigas (1 ano). O deploy e a configuração de secrets são feitos via Supabase CLI.
 
-➡️ **Comandos completos (deploy + secrets) em [JOBS.md](JOBS.md), seção 2.** Em resumo: `supabase functions deploy warning-email` e `photo-cleanup`, depois `supabase secrets set` para `RESEND_API_KEY`, `RESEND_FROM_EMAIL` e `NEXT_PUBLIC_APP_URL`.
+➡️ **Comandos completos (deploy + secrets) em [JOBS.md](JOBS.md), seção 2.** Em resumo: `supabase functions deploy warning-email` e `photo-cleanup`, depois `supabase secrets set` para `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` e `NEXT_PUBLIC_APP_URL`.
 
 > `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` são injetados automaticamente pelo runtime das Edge Functions — **não** os configure como secret.
 
@@ -130,21 +130,28 @@ As Edge Functions precisam ser chamadas via HTTP pelo cron (`warning-email` de h
 
 ---
 
-### 1.9 Configurar o SMTP (E-mail Auth)
+### 1.9 Configurar o envio de e-mail (SMTP)
 
-Os e-mails da aplicação (link de ativação e avisos de pendência) são enviados pelo Resend via SDK (`lib/integrations/resend.ts`), independentes deste SMTP. Configure o SMTP custom abaixo para que os e-mails **nativos do Supabase** (recuperação de senha, confirmação de troca de e-mail) saiam com seu domínio:
+Os e-mails da aplicação (link de ativação e avisos de pendência) são enviados por **SMTP via Nodemailer** (`lib/integrations/email.ts`) e, no job de aviso, por `denomailer` na Edge Function. Como o domínio `logvale.com.br` usa **Google Workspace**, o caminho recomendado é o SMTP do próprio Google — sem registros de DNS extras e com ótima entregabilidade.
 
-1. Vá em **Project Settings → Authentication → SMTP Settings**
-2. Habilite **Enable Custom SMTP**
-3. Use as credenciais do Resend (ou outro provedor SMTP):
-   - **Host:** `smtp.resend.com`
-   - **Port:** `465`
-   - **User:** `resend`
-   - **Password:** sua `RESEND_API_KEY`
-   - **Sender email:** `notificacoes@seudominio.com.br`
-4. Em **URL Configuration**, defina:
-   - **Site URL:** `https://seudominio.com.br`
-   - **Redirect URLs:** adicione `https://seudominio.com.br/auth/callback`
+**Passo a passo (Google Workspace):**
+
+1. Use ou crie uma caixa, ex.: `notificacoes@logvale.com.br`.
+2. Ative a **verificação em 2 etapas** nessa conta Google (obrigatório para gerar App Password).
+3. Em **Conta Google → Segurança → Senhas de app**, gere uma senha de app (16 caracteres).
+4. Configure as variáveis (locais e na Vercel — ver Parte 2.2):
+   - `SMTP_HOST=smtp.gmail.com`
+   - `SMTP_PORT=587` (ou `465`)
+   - `SMTP_USER=notificacoes@logvale.com.br`
+   - `SMTP_PASS=<app password de 16 caracteres>`
+   - `MAIL_FROM=notificacoes@logvale.com.br`
+5. **Edge Function** (`warning-email`): defina os mesmos `SMTP_*`/`MAIL_FROM` como **secrets** do Supabase: `supabase secrets set SMTP_HOST=... SMTP_PORT=... SMTP_USER=... SMTP_PASS=... MAIL_FROM=...` e redeploy (`supabase functions deploy warning-email`).
+
+> Sem `SMTP_PASS`, o envio fica desligado; a criação de usuário ainda funciona e exibe o link de ativação para envio manual.
+
+**E-mails nativos do Supabase** (recuperação de senha, confirmação de troca de e-mail) usam o SMTP configurado em **Project Settings → Authentication → SMTP Settings** — pode apontar para o mesmo `smtp.gmail.com`. Em **URL Configuration**, defina:
+- **Site URL:** `https://seudominio.com.br`
+- **Redirect URLs:** adicione `https://seudominio.com.br/auth/callback`
 
 ---
 
@@ -174,13 +181,13 @@ Ainda na tela de importação (ou em **Settings → Environment Variables** depo
 | `SUPABASE_SERVICE_ROLE_KEY` | `eyJ...` | Production, Preview |
 | `NEXT_PUBLIC_APP_URL` | `https://seudominio.com.br` | Production |
 | `NEXT_PUBLIC_APP_URL` | `https://logvale-dev.vercel.app` | Preview |
-| `WEBMANIA_CONSUMER_KEY` | `seu-consumer-key` | (opcional — integração futura) |
-| `WEBMANIA_CONSUMER_SECRET` | `seu-consumer-secret` | (opcional — integração futura) |
-| `WEBMANIA_ACCESS_TOKEN` | `seu-access-token` | (opcional — integração futura) |
-| `WEBMANIA_ACCESS_TOKEN_SECRET` | `seu-access-token-secret` | (opcional — integração futura) |
-| `WEBMANIA_BASE_URL` | `https://webmaniabr.com/api` | (opcional — integração futura) |
-| `RESEND_API_KEY` | `re_xxx` | Production, Preview |
-| `RESEND_FROM_EMAIL` | `notificacoes@seudominio.com.br` | Production, Preview |
+| `NFEIO_ACCESS_KEY` | `<API Key da empresa>` | Production, Preview (vazio = consulta desligada) |
+| `NFEIO_BASE_URL` | `https://nfe.api.nfe.io` | (opcional — default já aplicado) |
+| `SMTP_HOST` | `smtp.gmail.com` | Production, Preview |
+| `SMTP_PORT` | `587` | Production, Preview |
+| `SMTP_USER` | `notificacoes@seudominio.com.br` | Production, Preview |
+| `SMTP_PASS` | `<app password do Google>` | Production, Preview |
+| `MAIL_FROM` | `notificacoes@seudominio.com.br` | Production, Preview |
 | `NEXT_PUBLIC_SENTRY_DSN` | `https://...@sentry.io/...` | Production |
 | `SENTRY_DSN` | `https://...@sentry.io/...` | Production |
 | `NODE_ENV` | `production` | Production |
@@ -220,28 +227,29 @@ Para adicionar os secrets do CI no GitHub:
 
 ## Parte 3 — Serviços Externos
 
-### 3.1 Webmania (Consulta NF-e) — integração futura
+### 3.1 NFEio (Consulta NF-e — XML + DANFE)
 
-> **Não é necessária para o deploy nem para o launch.** Hoje a NF é identificada por parsing
-> local da chave de acesso (CNPJ emissor, número, competência), sem consulta externa. As etapas
-> abaixo só se aplicam quando a consulta de XML/DANFE via API externa for ativada — nesse momento,
-> implemente o corpo de `fetchInvoiceXml()` em `lib/integrations/webmania.ts`.
+> Ativa no fluxo do operador: na bipagem o sistema consulta a NFEio pela chave de acesso e
+> persiste o XML e o DANFE (PDF), baixáveis nos botões de download. **Opcional para o deploy:**
+> sem `NFEIO_ACCESS_KEY` a consulta fica desligada — o recebimento conclui via parsing local da
+> chave e o XML/PDF ficam pendentes para o painel super-only de backfill.
 
-1. Crie conta em [webmaniabr.com](https://webmaniabr.com)
-2. Acesse **API → NFe → Consulta por Chave de Acesso**
-3. Em Configurações → API OAuth, anote as 4 credenciais: **Consumer Key**, **Consumer Secret**, **Access Token** e **Access Token Secret**
-4. Configure em Vercel Environment Variables para produção (os 4 valores + `WEBMANIA_BASE_URL`)
+1. Crie conta em [nfe.io](https://nfe.io)
+2. Habilite a API de **Consulta de Notas Fiscais** (productinvoices) para a empresa
+3. Copie a **API Key da empresa** (enviada no header `Authorization`)
+4. Configure `NFEIO_ACCESS_KEY` em Vercel Environment Variables para produção (e, se quiser
+   sobrescrever a base, `NFEIO_BASE_URL`)
 
-> Enquanto a integração não estiver ativa, as variáveis `WEBMANIA_*` podem ficar em branco — o recebimento funciona normalmente via parsing local da chave.
+### 3.2 E-mail SMTP (Google Workspace)
 
-### 3.2 Resend (E-mails Transacionais)
+Como `logvale.com.br` já usa Google Workspace para e-mail, o envio transacional sai pelo SMTP do Google — sem registros de DNS adicionais (o SPF/DKIM do Google já autentica o domínio).
 
-1. Crie conta em [resend.com](https://resend.com)
-2. Vá em **Domains → Add Domain** e adicione `seudominio.com.br`
-3. Configure os registros DNS que o Resend mostrar (TXT, MX, DKIM)
-4. Aguarde a verificação (~24h) — status ficará verde
-5. Vá em **API Keys → Create API Key** e copie a chave
-6. Configure `RESEND_API_KEY` no Vercel e nos secrets das Edge Functions
+1. Use/crie a caixa `notificacoes@logvale.com.br`
+2. Ative **verificação em 2 etapas** na conta Google
+3. Gere uma **Senha de app** em Conta Google → Segurança → Senhas de app
+4. Configure `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` no Vercel e nos secrets das Edge Functions (ver 1.9)
+
+> Detalhes e passo a passo completo na seção **1.9**.
 
 ### 3.3 Sentry (Monitoramento de Erros) — Opcional
 
@@ -277,7 +285,7 @@ Execute estes passos **na ordem** antes de liberar para usuários reais:
 - [ ] `NEXT_PUBLIC_APP_URL` atualizado para domínio de produção
 
 ### Serviços Externos
-- [ ] Webmania: **opcional/futuro** — só quando a consulta externa de NF for ativada
+- [ ] NFEio: `NFEIO_ACCESS_KEY` configurada (opcional — sem ela a consulta de XML/DANFE fica desligada)
 - [ ] Resend: domínio verificado, API key configurada
 - [ ] GitHub Secrets configurados para CI/CD
 
@@ -298,12 +306,12 @@ Execute estes passos **na ordem** antes de liberar para usuários reais:
 |---|---|---|
 | Supabase | Pro | $25/mês |
 | Vercel | Hobby (Free) | $0 |
-| Webmania | consulta externa não ativa | — |
+| NFEio | consulta de NF-e (XML + DANFE) | conforme plano contratado |
 | Resend | Free (3.000 e-mails/mês) | $0 |
 | Domínio | .com.br anual | ~R$ 40/mês |
-| **Total** | | **~R$ 150/mês** |
+| **Total** | | **~R$ 150/mês + NFEio** |
 
-> Ao ativar a consulta externa de NF, somar ~R$ 150/mês de Webmania (~2.000 consultas/mês, cache ~50%) → total ~R$ 300/mês.
+> A NFEio é cobrada por consulta conforme o plano contratado; o XML/DANFE é deduplicado por chave de acesso (`ak/<chave>`), então NFs repetidas não geram nova consulta de armazenamento.
 
 > Vercel Hobby tem limite de 100 GB de banda/mês — suficiente para este volume. Mude para Pro ($20/mês) se precisar de SLA, equipe ou mais builds simultâneos.
 
@@ -321,4 +329,4 @@ Execute estes passos **na ordem** antes de liberar para usuários reais:
 | Vercel → Settings → Domains | Domínio customizado |
 | GitHub → Settings → Secrets → Actions | Secrets do CI |
 | Resend → Domains | Verificação de domínio para e-mail |
-| Webmania → API | Token e Consumer Secret (integração futura) |
+| NFEio → API Keys | API Key da empresa (`NFEIO_ACCESS_KEY`) |

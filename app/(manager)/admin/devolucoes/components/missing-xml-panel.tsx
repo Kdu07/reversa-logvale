@@ -26,7 +26,7 @@ export function MissingXmlPanel({ count }: Props) {
         setFeedback({ tone: 'error', text: result.error })
         return
       }
-      if (result.notImplemented) {
+      if (result.disabled) {
         setFeedback({ tone: 'info', text: result.message })
         return
       }
