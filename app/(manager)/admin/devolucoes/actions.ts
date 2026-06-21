@@ -6,7 +6,8 @@ import { assertManager } from '@/lib/supabase/assert-role'
 import { getCurrentUser } from '@/lib/supabase/get-current-user'
 import { isSuperUser } from '@/lib/auth/super'
 import { buildSignedUrlMap } from '@/lib/supabase/storage'
-import { fetchInvoiceXml } from '@/lib/integrations/webmania'
+import { persistInvoiceFiles } from '@/lib/integrations/nfeio'
+import { env } from '@/lib/env'
 import { revalidatePath } from 'next/cache'
 import type { ReturnStatus, ReturnDecision, IdentifierType } from '@/types'
 
@@ -27,6 +28,7 @@ export interface AdminReturnRow {
   illegibleToken:      string | null
   itemCount:           number
   invoiceXmlPath:       string | null
+  invoicePdfPath:       string | null
   returnInvoiceXmlPath: string | null
   boxPhotoUrls:        string[]
   itemPhotoUrls:       string[]
@@ -52,7 +54,7 @@ export async function getAdminReturnsAction(filters?: {
       .select(
         `id, rv, status, decision, decided_by_type, received_at, decided_at, processed_at,
          identifier_type, access_key, postal_code, illegible_token, item_count,
-         invoice_xml_url, return_invoice_xml_url,
+         invoice_xml_url, invoice_pdf_url, return_invoice_xml_url,
          depositors!depositor_id(razao_social),
          profiles!received_by(full_name),
          return_photos(photo_type, storage_path, position)`,
@@ -105,6 +107,7 @@ export async function getAdminReturnsAction(filters?: {
         illegibleToken:      r.illegible_token,
         itemCount:           r.item_count,
         invoiceXmlPath:       r.invoice_xml_url        ?? null,
+        invoicePdfPath:       r.invoice_pdf_url        ?? null,
         returnInvoiceXmlPath: r.return_invoice_xml_url ?? null,
         boxPhotoUrls:        photos.box.map((p)  => boxMap.get(p.storage_path)  ?? '').filter(Boolean),
         itemPhotoUrls:       photos.item.map((p) => itemMap.get(p.storage_path) ?? '').filter(Boolean),
@@ -122,11 +125,11 @@ export async function getAdminReturnsAction(filters?: {
 // =====================================================================
 
 export interface RetryInvoiceFetchResult {
-  pending:        number
-  fetched:        number
-  failed:         number
-  notImplemented: boolean
-  message:        string
+  pending:  number
+  fetched:  number
+  failed:   number
+  disabled: boolean
+  message:  string
 }
 
 export async function getMissingInvoiceXmlCountAction(): Promise<
@@ -152,6 +155,12 @@ export async function retryMissingInvoiceXmlAction(): Promise<
 > {
   try {
     if (!isSuperUser(await getCurrentUser())) return { error: 'Acesso negado' }
+
+    // Integração desligada (sem NFEIO_ACCESS_KEY): não há o que buscar
+    if (!env.nfeioEnabled) {
+      return { pending: 0, fetched: 0, failed: 0, disabled: true, message: 'Integração NFEio desativada (NFEIO_ACCESS_KEY ausente).' }
+    }
+
     const supabase = createAdminClient()
 
     const { data, error } = await supabase
@@ -161,49 +170,30 @@ export async function retryMissingInvoiceXmlAction(): Promise<
       .is('invoice_xml_url', null)
     if (error) throw error
 
-    // O XML é por NF (chave de acesso), não por devolução — busca cada chave uma vez
+    // O XML/DANFE é por NF (chave de acesso), não por devolução — busca cada chave uma vez
     const keys = Array.from(
       new Set((data ?? []).map((r) => r.access_key).filter((k): k is string => !!k)),
     )
 
     if (keys.length === 0) {
-      return { pending: 0, fetched: 0, failed: 0, notImplemented: false, message: 'Nenhuma NF pendente de XML.' }
+      return { pending: 0, fetched: 0, failed: 0, disabled: false, message: 'Nenhuma NF pendente de XML.' }
     }
 
     let fetched = 0
     let failed  = 0
 
     for (const accessKey of keys) {
-      const result = await fetchInvoiceXml(accessKey)
+      // persistInvoiceFiles baixa XML + DANFE e faz upload (upsert) nos buckets
+      const { xmlPath, pdfPath } = await persistInvoiceFiles(accessKey)
 
-      // API ainda indisponível: aborta sem martelar e informa o operador
-      if (!result.ok && result.reason === 'not_implemented') {
-        return {
-          pending:        keys.length,
-          fetched:        0,
-          failed:         0,
-          notImplemented: true,
-          message:        'API de consulta de NF ainda não implementada — nenhum XML buscado.',
-        }
-      }
-
-      if (!result.ok) {
-        failed++
-        continue
-      }
-
-      const path = `${accessKey}.xml`
-      const { error: uploadErr } = await supabase.storage
-        .from('invoice-xmls')
-        .upload(path, result.xml, { upsert: true, contentType: 'application/xml' })
-      if (uploadErr) {
+      if (!xmlPath) {
         failed++
         continue
       }
 
       const { error: updateErr } = await supabase
         .from('returns')
-        .update({ invoice_xml_url: path })
+        .update({ invoice_xml_url: xmlPath, invoice_pdf_url: pdfPath })
         .eq('identifier_type', 'access_key')
         .eq('access_key', accessKey)
         .is('invoice_xml_url', null)
@@ -217,11 +207,11 @@ export async function retryMissingInvoiceXmlAction(): Promise<
 
     revalidatePath('/admin/devolucoes')
     return {
-      pending:        keys.length,
+      pending:  keys.length,
       fetched,
       failed,
-      notImplemented: false,
-      message:        `${fetched} XML(s) baixado(s), ${failed} falha(s) de ${keys.length} NF(s) pendente(s).`,
+      disabled: false,
+      message:  `${fetched} XML(s) baixado(s), ${failed} falha(s) de ${keys.length} NF(s) pendente(s).`,
     }
   } catch (err) {
     return { error: err instanceof Error ? err.message : 'Erro interno' }

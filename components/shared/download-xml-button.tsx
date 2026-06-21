@@ -4,10 +4,12 @@ import { useState } from 'react'
 import { getXmlDownloadUrlAction } from '@/lib/actions/xml-download'
 
 interface DownloadXmlButtonProps {
-  /** Caminho do arquivo no bucket `invoice-xmls`. */
+  /** Caminho do arquivo no bucket (relativo ao bucket). */
   path:          string
-  /** Nome com que o arquivo será salvo (ver `xmlDownloadName`). */
+  /** Nome com que o arquivo será salvo (ver `xmlDownloadName`/`danfeDownloadName`). */
   filename:      string
+  /** Bucket de origem: `invoice-xmls` (default) ou `invoice-pdfs`. */
+  bucket?:       string
   label?:        string
   loadingLabel?: string
   className?:    string
@@ -25,6 +27,7 @@ interface DownloadXmlButtonProps {
 export function DownloadXmlButton({
   path,
   filename,
+  bucket,
   label        = 'Baixar XML',
   loadingLabel = 'Baixando…',
   className,
@@ -33,7 +36,7 @@ export function DownloadXmlButton({
 
   async function handleClick() {
     setLoading(true)
-    const url = await getXmlDownloadUrlAction(path, filename)
+    const url = await getXmlDownloadUrlAction(path, filename, bucket)
     setLoading(false)
     if (!url) return
 

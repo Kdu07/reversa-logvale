@@ -27,7 +27,7 @@ Este sistema substitui processo manual por plataforma web unificada.
 | Jobs | Supabase Edge Functions + pg_cron |
 | E-mail | Resend |
 | Hosting | Vercel |
-| API NF | Chave de acesso (parsing local); consulta externa Webmania planejada |
+| API NF | Chave de acesso (parsing local) + consulta NFEio (XML + DANFE) |
 | Idioma/Fuso | PT-BR / America/Sao_Paulo |
 
 ### 1.4 Identidade Visual
@@ -49,7 +49,7 @@ Este sistema substitui processo manual por plataforma web unificada.
 - **ClientDepositor:** N:N entre clientes e depositantes
 - **Return:** entidade central com ciclo de vida
 - **ReturnPhoto:** fotos vinculadas (caixa ou item)
-- **InvoiceCache:** tabela `invoice_cache` reservada para a consulta externa futura — atualmente não usada
+- **InvoiceCache:** tabela `invoice_cache` legada — não usada (o XML/DANFE da NFEio é persistido em storage: buckets `invoice-xmls`/`invoice-pdfs`)
 
 ### 2.2 Ciclo de Vida do Return
 ```
@@ -265,18 +265,24 @@ Templates com identidade Logvale.
 
 ## 5. Integrações
 
-### 5.1 Webmania (consulta de NF — integração futura)
-**Estado atual:** não há consulta externa. `lookupInvoice` (`lib/integrations/webmania.ts`) faz
-apenas **parsing local da chave de acesso** — extrai CNPJ emissor, número e mês/ano de emissão e
-sugere o depositante pelo CNPJ. Sem retry, sem cache, sem dependência de rede.
+### 5.1 NFEio (consulta de NF-e — XML + DANFE)
+**Estado atual:** integração ativa em `lib/integrations/nfeio.ts`. `lookupInvoice` faz o
+**parsing local da chave de acesso** (CNPJ emissor → depositante) e, na mesma chamada (Etapa 1),
+consulta a NFEio para baixar o **XML** (`/v2/productinvoices/{chave}.xml`) e o **DANFE PDF**
+(`.pdf`), persistindo-os em `invoice-xmls`/`invoice-pdfs` (path `ak/<chave>.{xml,pdf}`, dedup por
+chave). Autenticação: `NFEIO_ACCESS_KEY` (API Key da empresa) no header `Authorization`.
 
-**Planejado:** consulta do XML/DANFE via API externa Webmania.
-- Credenciais OAuth via env (reservadas, ainda não usadas): `WEBMANIA_CONSUMER_KEY`, `WEBMANIA_CONSUMER_SECRET`, `WEBMANIA_ACCESS_TOKEN`, `WEBMANIA_ACCESS_TOKEN_SECRET`
-- Backfill já implementado: `fetchInvoiceXml()` (hoje stub) + ação super-only `retryMissingInvoiceXmlAction`, acionada pelo botão **"Tentar consultas novamente"** no painel super de `/admin/devoluções` — busca em lote os XMLs das devoluções por chave de acesso ainda sem XML. Quando a API existir, basta implementar o corpo de `fetchInvoiceXml()`.
+- **Degradação graciosa:** falha da NFEio (404/401/timeout) ou ausência de `NFEIO_ACCESS_KEY` não
+  bloqueia o recebimento — a devolução é criada e o XML/PDF ficam pendentes.
+- **Backfill super-only:** `retryMissingInvoiceXmlAction` (via `persistInvoiceFiles`), acionada pelo
+  botão **"Tentar consultas novamente"** no painel super de `/admin/devoluções` — busca em lote o
+  XML+DANFE das devoluções por chave de acesso ainda sem XML; reporta `disabled` quando a
+  integração está desligada.
 
-### 5.2 Resend
-- API key via env `RESEND_API_KEY`
-- Domínio verificado: `notificacoes@logvale.com.br`
+### 5.2 E-mail (SMTP)
+- Envio via Nodemailer sobre SMTP (Google Workspace); job de aviso usa `denomailer` na Edge Function
+- Credenciais via env: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM`
+- Remetente: `notificacoes@logvale.com.br` (App Password do Google)
 - React Email components
 
 ### 5.3 Supabase Buckets
@@ -312,7 +318,7 @@ sugere o depositante pelo CNPJ. Sem retry, sem cache, sem dependência de rede.
 - Tempo recebimento: < 90s
 - Decisão manual: > 70%
 - Decisão cliente: < 24h
-- Erro Webmania: < 5% (N/A enquanto a consulta externa não estiver ativa)
+- Erro NFEio: < 5% (consultas com falha caem no backfill super-only)
 - Disponibilidade: > 99.9%
 
 ## 8. Roadmap (Concluído — v1.0)

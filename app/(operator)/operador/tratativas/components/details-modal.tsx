@@ -7,7 +7,7 @@ import { PhotoGallery } from '@/components/shared/photo-gallery'
 import { PhotoThumbs } from '@/components/shared/photo-thumbs'
 import { DownloadXmlButton } from '@/components/shared/download-xml-button'
 import { DECISION_META } from '@/lib/decisions'
-import { formatDate, identifierLabel, xmlDownloadName } from '@/lib/format'
+import { formatDate, identifierLabel, xmlDownloadName, danfeDownloadName } from '@/lib/format'
 import { processReturnAction } from '../actions'
 import type { TrativaRow } from '../actions'
 
@@ -92,16 +92,29 @@ export function DetailsModal({ row, onClose, onComplete }: DetailsModalProps) {
               </div>
             </div>
 
-            {(row.invoiceXmlPath || row.returnInvoiceXmlPath) && (
+            {(row.invoiceXmlPath || row.invoicePdfPath || row.returnInvoiceXmlPath) && (
               <div className="space-y-2">
-                {row.invoiceXmlPath && (
+                {(row.invoiceXmlPath || row.invoicePdfPath) && (
                   <div>
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">NF Original</p>
-                    <DownloadXmlButton
-                      path={row.invoiceXmlPath}
-                      filename={xmlDownloadName(row.rv, 'original')}
-                      className="text-sm text-primary hover:underline disabled:opacity-50"
-                    />
+                    <div className="flex gap-4">
+                      {row.invoiceXmlPath && (
+                        <DownloadXmlButton
+                          path={row.invoiceXmlPath}
+                          filename={xmlDownloadName(row.rv, 'original')}
+                          className="text-sm text-primary hover:underline disabled:opacity-50"
+                        />
+                      )}
+                      {row.invoicePdfPath && (
+                        <DownloadXmlButton
+                          path={row.invoicePdfPath}
+                          filename={danfeDownloadName(row.rv)}
+                          bucket="invoice-pdfs"
+                          label="Baixar DANFE (PDF)"
+                          className="text-sm text-primary hover:underline disabled:opacity-50"
+                        />
+                      )}
+                    </div>
                   </div>
                 )}
                 {row.returnInvoiceXmlPath && (

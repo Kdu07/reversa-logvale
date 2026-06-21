@@ -23,6 +23,7 @@ export interface TrativaRow {
   depositorName:  string | null
   clientName:     string | null
   invoiceXmlPath:       string | null
+  invoicePdfPath:       string | null
   returnInvoiceXmlPath: string | null
   boxPhotoUrls:   string[]
   itemPhotoUrls:  string[]
@@ -51,7 +52,7 @@ export async function getTrativasAction(
       .select(
         `id, rv, identifier_type, access_key, postal_code, illegible_token,
          item_count, received_at, decided_at, decided_by_type, decision,
-         depositor_id, invoice_xml_url, return_invoice_xml_url,
+         depositor_id, invoice_xml_url, invoice_pdf_url, return_invoice_xml_url,
          depositors!depositor_id(razao_social),
          profiles!decided_by(full_name),
          return_photos(storage_path, photo_type, position)`,
@@ -115,6 +116,7 @@ export async function getTrativasAction(
         depositorName:  dep?.razao_social    ?? null,
         clientName:     r.decided_by_type === 'client' ? (client?.full_name ?? null) : null,
         invoiceXmlPath:       r.invoice_xml_url        ?? null,
+        invoicePdfPath:       r.invoice_pdf_url        ?? null,
         returnInvoiceXmlPath: r.return_invoice_xml_url ?? null,
         boxPhotoUrls:   boxUrls,
         itemPhotoUrls:  itemUrls,

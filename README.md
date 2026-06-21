@@ -99,7 +99,7 @@ npm run dev                  # http://localhost:3000
 
 Configure o Supabase (projeto, migrations, Auth Hook e primeiro manager) seguindo o guia completo em [docs/SETUP.md](docs/SETUP.md).
 
-A integração Resend é opcional em desenvolvimento (o sistema funciona sem ela). A consulta externa de NF (Webmania) ainda não está ativa — a identificação usa parsing local da chave de acesso; as variáveis `WEBMANIA_*` ficam reservadas para essa integração futura.
+A integração de e-mail é opcional em desenvolvimento (o sistema funciona sem ela). A consulta de NF-e usa a **NFEio**: na bipagem, além do parsing local da chave de acesso, o sistema baixa o XML e o DANFE (PDF) e os disponibiliza para download. Sem `NFEIO_ACCESS_KEY` a consulta fica desligada e o recebimento conclui via parsing local da chave.
 
 ## Comandos
 

@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { lookupInvoiceAction } from '@/app/(operator)/operador/recebimento/actions'
 
-vi.mock('@/lib/integrations/webmania', () => ({
+vi.mock('@/lib/integrations/nfeio', () => ({
   lookupInvoice: vi.fn(),
 }))
 
 // lookupInvoiceAction não usa getCurrentUser, sem mock necessário
 
-import { lookupInvoice } from '@/lib/integrations/webmania'
+import { lookupInvoice } from '@/lib/integrations/nfeio'
 
 const VALID_KEY = '12345678901234567890123456789012345678901234' // 44 dígitos
 
@@ -15,8 +15,9 @@ const MOCK_INVOICE_DATA = {
   accessKey:      VALID_KEY,
   emitterCnpj:    '12345678000199',
   invoiceNumber:  '000001',
-  emissionDate:   '2024-01-15',
-  xmlStoragePath: 'invoice-xmls/abc.xml',
+  emittedAt:      '2024-01-15',
+  xmlStoragePath: 'ak/abc.xml',
+  pdfStoragePath: 'ak/abc.pdf',
   depositorId:    'dep-1',
   depositorName:  'Empresa Teste Ltda',
 }
@@ -62,11 +63,11 @@ describe('lookupInvoiceAction', () => {
   })
 
   it('retorna {error} quando lookupInvoice lança exceção', async () => {
-    vi.mocked(lookupInvoice).mockRejectedValue(new Error('Webmania indisponível'))
+    vi.mocked(lookupInvoice).mockRejectedValue(new Error('NFEio indisponível'))
 
     const result = await lookupInvoiceAction(VALID_KEY)
 
-    expect(result).toEqual({ error: 'Webmania indisponível' })
+    expect(result).toEqual({ error: 'NFEio indisponível' })
   })
 
   it('retorna mensagem genérica para erros não-Error', async () => {

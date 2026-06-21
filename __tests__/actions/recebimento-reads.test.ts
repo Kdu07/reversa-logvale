@@ -7,7 +7,7 @@ vi.mock('@/lib/supabase/get-current-user', () => ({
   getCurrentUser: () => getCurrentUser(),
 }))
 
-vi.mock('@/lib/integrations/webmania', () => ({ lookupInvoice: vi.fn() }))
+vi.mock('@/lib/integrations/nfeio', () => ({ lookupInvoice: vi.fn() }))
 
 // ── Supabase server client ───────────────────────────────────────────
 let depositorsResult: { data: unknown; error: unknown }

@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { DownloadXmlButton } from '@/components/shared/download-xml-button'
-import { xmlDownloadName } from '@/lib/format'
+import { xmlDownloadName, danfeDownloadName } from '@/lib/format'
 import type { ReceivingState } from '../receiving-flow'
 
 interface StepReviewProps {
@@ -60,6 +60,16 @@ export function StepReview({ state, onConfirm, onGoTo, onBack }: StepReviewProps
             label="Baixar XML da NF"
             loadingLabel="Gerando link…"
             className="mt-1 text-xs text-primary hover:underline disabled:opacity-50"
+          />
+        )}
+        {state.invoiceData?.pdfStoragePath && (
+          <DownloadXmlButton
+            path={state.invoiceData.pdfStoragePath}
+            filename={danfeDownloadName(state.rv)}
+            bucket="invoice-pdfs"
+            label="Baixar DANFE (PDF)"
+            loadingLabel="Gerando link…"
+            className="mt-1 ml-3 text-xs text-primary hover:underline disabled:opacity-50"
           />
         )}
       </ReviewSection>

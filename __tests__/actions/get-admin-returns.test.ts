@@ -7,7 +7,7 @@ vi.mock('@/lib/supabase/get-current-user', () => ({
   getCurrentUser: () => getCurrentUser(),
 }))
 vi.mock('@/lib/auth/super', () => ({ isSuperUser: vi.fn().mockReturnValue(false) }))
-vi.mock('@/lib/integrations/webmania', () => ({ fetchInvoiceXml: vi.fn() }))
+vi.mock('@/lib/integrations/nfeio', () => ({ persistInvoiceFiles: vi.fn() }))
 vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: vi.fn() }))
 
 vi.mock('@/lib/supabase/storage', () => ({
@@ -58,7 +58,7 @@ describe('getAdminReturnsAction', () => {
         id: 'r-1', rv: 'RV-1', status: 'decided', decision: 'discard', decided_by_type: 'client',
         received_at: '2025-01-01', decided_at: '2025-01-02', processed_at: null,
         identifier_type: 'access_key', access_key: '4'.repeat(44), postal_code: null, illegible_token: null,
-        item_count: 2, invoice_xml_url: 'xml/nf.xml', return_invoice_xml_url: 'xml/ret.xml',
+        item_count: 2, invoice_xml_url: 'xml/nf.xml', invoice_pdf_url: 'pdf/nf.pdf', return_invoice_xml_url: 'xml/ret.xml',
         depositors: { razao_social: 'Acme' }, profiles: { full_name: 'Operador X' },
         return_photos: [
           { photo_type: 'box',  storage_path: 'box/b.jpg',  position: 1 },
@@ -78,6 +78,7 @@ describe('getAdminReturnsAction', () => {
       id: 'r-1', depositorName: 'Acme', operatorName: 'Operador X',
       // XMLs saem como path cru (assinados on-click pelo DownloadXmlButton), não como signed URL
       invoiceXmlPath:       'xml/nf.xml',
+      invoicePdfPath:       'pdf/nf.pdf',
       returnInvoiceXmlPath: 'xml/ret.xml',
       boxPhotoUrls:  ['signed:box/a.jpg', 'signed:box/b.jpg'], // ordenado por position
       itemPhotoUrls: ['signed:item/i.jpg'],

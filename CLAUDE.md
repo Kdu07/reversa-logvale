@@ -53,13 +53,13 @@ Three clients with different privilege levels:
 - `lib/supabase/server.ts` — Server-side (anon key + cookie session, for server components/actions)
 - `lib/supabase/admin.ts` — Admin (service role key, bypasses RLS — for manager operations only)
 
-RLS isolates data per client. Storage buckets (`box-photos`, `item-photos`, `invoice-xmls`) are private; access requires signed URLs via `lib/supabase/storage.ts`.
+RLS isolates data per client. Storage buckets (`box-photos`, `item-photos`, `invoice-xmls`, `invoice-pdfs`) are private; access requires signed URLs via `lib/supabase/storage.ts`.
 
-XML downloads (the original NF and the client-uploaded return NF) are signed **on-click** by `getXmlDownloadUrlAction` (`lib/actions/xml-download.ts`) using Supabase's `download` option, so the response carries `Content-Disposition: attachment` and the file saves to the user's device (instead of opening inline) with an RV-based name from `xmlDownloadName` (`<RV>-nf-original.xml` / `<RV>-nf-devolucao.xml`). The shared `components/shared/download-xml-button.tsx` triggers it everywhere (admin, tratativas, client pending/history, operator review). Photos still use the eager batch (`buildSignedUrlMap`); only XMLs sign lazily, which is what lets each file get its own friendly filename.
+XML/PDF downloads (the original NF XML, its DANFE PDF, and the client-uploaded return NF XML) are signed **on-click** by `getXmlDownloadUrlAction` (`lib/actions/xml-download.ts`, which takes an optional `bucket` param) using Supabase's `download` option, so the response carries `Content-Disposition: attachment` and the file saves to the user's device (instead of opening inline) with an RV-based name from `xmlDownloadName` (`<RV>-nf-original.xml` / `<RV>-nf-devolucao.xml`) or `danfeDownloadName` (`<RV>-danfe.pdf`). The shared `components/shared/download-xml-button.tsx` (with optional `bucket` prop) triggers it everywhere (admin, tratativas, client pending/history, operator review). Photos still use the eager batch (`buildSignedUrlMap`); only the fiscal files sign lazily, which is what lets each file get its own friendly filename.
 
 ### Business Logic
 
-**Operator flow:** Barcode scanner (`hooks/use-barcode-scanner.ts`) captures return ID → operator photographs box and items via webcam (`components/shared/webcam-capture.tsx`) → the 44-digit access key is parsed locally (`lookupInvoice` in `lib/integrations/webmania.ts`) to derive emitter CNPJ / invoice number / emission month and auto-suggest the depositor — no external call → operator enters metadata. All in a 7-step wizard at `app/(operator)/operador/recebimento/`.
+**Operator flow:** Barcode scanner (`hooks/use-barcode-scanner.ts`) captures return ID → operator photographs box and items via webcam (`components/shared/webcam-capture.tsx`) → the 44-digit access key is parsed locally (`lookupInvoice` in `lib/integrations/nfeio.ts`) to derive emitter CNPJ / invoice number / emission month and auto-suggest the depositor (by emitter CNPJ); the same call fetches the NF XML + DANFE PDF from NFEio and persists them to storage (best-effort — a NFEio failure never blocks receiving) → operator enters metadata. All in a 7-step wizard at `app/(operator)/operador/recebimento/`.
 
 **Client flow:** Clients review returns in `awaiting_decision` status and choose: return / discard / repackage / store for handling. Auto-decision fires after 72 hours (pg_cron in the database).
 
@@ -67,19 +67,19 @@ XML downloads (the original NF and the client-uploaded return NF) are signed **o
 
 ### Integrations
 
-- **Webmania** (`lib/integrations/webmania.ts`): currently `lookupInvoice` parses the access key locally (no external call, no retry, no cache). External NF/XML consultation is a **planned** integration — `fetchInvoiceXml()` is a stub consumed by the super-only retry action (`retryMissingInvoiceXmlAction`) that backfills missing XMLs. The `WEBMANIA_*` env vars are reserved for that future integration.
-- **Resend** (`lib/integrations/resend.ts`): Transactional email using React Email templates in `emails/`.
+- **NFEio** (`lib/integrations/nfeio.ts`): NF-e consultation by access key. `lookupInvoice` parses the access key locally (emitter CNPJ → depositor) and calls `persistInvoiceFiles`, which fetches the XML (`GET {base}/v2/productinvoices/{key}.xml`) and DANFE PDF (`.pdf`) and uploads them (admin client, upsert) to `invoice-xmls`/`invoice-pdfs` at `ak/<key>.{xml,pdf}`. Auth is the `NFEIO_ACCESS_KEY` (the company API key) sent in the `Authorization` header. `fetchInvoiceXml`/`fetchInvoicePdf` are also reused by the super-only `retryMissingInvoiceXmlAction` to backfill returns whose XML is still missing. All fetches degrade gracefully: when `env.nfeioEnabled` is false (no key) or NFEio returns an error, receiving still completes and the files stay pending for backfill.
+- **Email/SMTP** (`lib/integrations/email.ts`): Transactional email via Nodemailer over SMTP (Google Workspace), using React Email templates in `emails/`. Gated by `env.mailEnabled` (true when `SMTP_HOST`/`SMTP_USER`/`SMTP_PASS` are set); when off, account-creation still surfaces the activation link for manual sending. The `warning-email` Edge Function (Deno) sends via `denomailer` over the same SMTP creds.
 - **Sentry**: Configured in `next.config.mjs` for error tracking.
 
 ### Background Jobs
 
 - **pg_cron (database):** Auto-decision after 72h, defined in migrations.
 - **Supabase Edge Functions:** `supabase/functions/warning-email/` (hourly, warns clients of pending decisions), `supabase/functions/photo-cleanup/` (daily, removes orphaned storage files).
-- **Super-only NF retry:** the `/admin/devolucoes` page shows a panel (super users only) to batch-fetch the XMLs of access-key returns still missing one (`MissingXmlPanel` + `retryMissingInvoiceXmlAction`); a no-op until the external NF consultation API is implemented.
+- **Super-only NF retry:** the `/admin/devolucoes` page shows a panel (super users only) to batch-fetch the XML + DANFE of access-key returns still missing one (`MissingXmlPanel` + `retryMissingInvoiceXmlAction`); reports `disabled` when `NFEIO_ACCESS_KEY` is unset.
 
 ### Key Database Tables
 
-`profiles` (users + roles), `depositors` (CNPJ companies), `returns` (shipments), `return_photos`, `invoice_cache` (legacy — present in the schema but currently unused), `client_depositors` (N:N clients ↔ depositors). Schema in `supabase/migrations/000_schema.sql`.
+`profiles` (users + roles), `depositors` (CNPJ companies), `returns` (shipments; `invoice_xml_url` + `invoice_pdf_url` hold the NFEio XML/DANFE storage paths, `return_invoice_xml_url` the client-uploaded return NF), `return_photos`, `invoice_cache` (legacy — present in the schema but currently unused), `client_depositors` (N:N clients ↔ depositors). Schema in `supabase/migrations/000_schema.sql`; `invoice_pdf_url` + the `invoice-pdfs` bucket are added in `003_nfeio_pdf.sql`.
 
 ### Testing Setup
 
@@ -97,10 +97,12 @@ NEXT_PUBLIC_APP_URL
 
 Optional (integrations):
 ```
-# WEBMANIA_* — reserved for the planned external NF consultation; not used by the code yet
-WEBMANIA_CONSUMER_KEY, WEBMANIA_CONSUMER_SECRET, WEBMANIA_ACCESS_TOKEN, WEBMANIA_ACCESS_TOKEN_SECRET
-WEBMANIA_BASE_URL  (default: https://webmaniabr.com/api)
-RESEND_API_KEY, RESEND_FROM_EMAIL
+# NFEio — NF-e consultation (XML + DANFE) in the operator flow.
+# NFEIO_ACCESS_KEY is the company API key, sent in the `Authorization` header. Unset = disabled.
+NFEIO_ACCESS_KEY
+NFEIO_BASE_URL  (default: https://nfe.api.nfe.io)
+# Email via SMTP (Google Workspace). mailFrom falls back to legacy RESEND_FROM_EMAIL if set.
+SMTP_HOST, SMTP_PORT (default 587), SMTP_USER, SMTP_PASS, MAIL_FROM
 NEXT_PUBLIC_SENTRY_DSN, SENTRY_DSN
 ```
 

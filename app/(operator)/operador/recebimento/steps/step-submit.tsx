@@ -54,6 +54,7 @@ export function StepSubmit({ state, onBack, onReset }: StepSubmitProps) {
         itemCount:       state.itemCount!,
         depositorId:     state.depositorId,
         invoiceXmlPath:  state.invoiceData?.xmlStoragePath ?? null,
+        invoicePdfPath:  state.invoiceData?.pdfStoragePath ?? null,
         boxPhotosPaths:  boxPaths,
         itemPhotosPaths: itemPaths,
       })

@@ -42,12 +42,11 @@ export const env = {
   supabaseAnonKey:        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
   supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
   appUrl:                 process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000',
-  // Webmania — 4 credenciais OAuth (opcionais; dev mock ativo quando ausentes)
-  webmaniaConsumerKey:        process.env.WEBMANIA_CONSUMER_KEY,
-  webmaniaConsumerSecret:     process.env.WEBMANIA_CONSUMER_SECRET,
-  webmaniaAccessToken:        process.env.WEBMANIA_ACCESS_TOKEN,
-  webmaniaAccessTokenSecret:  process.env.WEBMANIA_ACCESS_TOKEN_SECRET,
-  webmaniaBaseUrl:            process.env.WEBMANIA_BASE_URL ?? 'https://webmania.com.br/api',
+  // NFEio — consulta de NF-e por chave de acesso. NFEIO_ACCESS_KEY é a API Key da empresa,
+  // enviada no header `Authorization`. Ausente => integração desligada (XML/PDF ficam pendentes).
+  nfeioApiKey:  process.env.NFEIO_ACCESS_KEY,
+  nfeioBaseUrl: process.env.NFEIO_BASE_URL ?? 'https://nfe.api.nfe.io',
+  nfeioEnabled: Boolean(process.env.NFEIO_ACCESS_KEY),
   resendApiKey:   process.env.RESEND_API_KEY,
   resendFrom:     process.env.RESEND_FROM_EMAIL ?? 'notificacoes@logvale.com.br',
 } as const
