@@ -15,33 +15,31 @@ function computeDeadline(receivedAt?: string, deadlineAt?: string): number {
   return Date.now()
 }
 
-function diffParts(target: number) {
+function formatRemaining(target: number): { text: string; overdue: boolean; critical: boolean } {
   const ms = target - Date.now()
-  const sign = ms < 0 ? -1 : 1
-  const abs = Math.abs(ms)
-  const h = Math.floor(abs / 3_600_000)
-  const m = Math.floor((abs % 3_600_000) / 60_000)
-  const s = Math.floor((abs % 60_000) / 1000)
-  return { sign, h, m, s, totalMs: ms }
+  if (ms <= 0) return { text: 'Expirado', overdue: true, critical: false }
+
+  const critical = ms < 6 * 3_600_000
+  if (ms < 3_600_000) {
+    return { text: `${Math.ceil(ms / 60_000)} min restantes`, overdue: false, critical }
+  }
+  return { text: `${Math.floor(ms / 3_600_000)}h restantes`, overdue: false, critical }
 }
 
 export function CountdownTimer({ deadlineAt, receivedAt, className }: CountdownTimerProps) {
   const [, tick] = useState(0)
   useEffect(() => {
-    const id = setInterval(() => tick((n) => n + 1), 1000)
+    const id = setInterval(() => tick((n) => n + 1), 60_000)
     return () => clearInterval(id)
   }, [])
 
   const deadline = computeDeadline(receivedAt, deadlineAt)
-  const { sign, h, m, s, totalMs } = diffParts(deadline)
-
-  const overdue = sign < 0
-  const critical = !overdue && totalMs < 6 * 3_600_000
+  const { text, overdue, critical } = formatRemaining(deadline)
 
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 font-mono text-xs tabular-nums',
+        'inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs',
         overdue   && 'border-destructive/30 bg-destructive/10 text-destructive',
         critical  && 'border-warning/30 bg-warning/10 text-warning',
         !overdue && !critical && 'border-border bg-muted/60 text-foreground',
@@ -49,8 +47,7 @@ export function CountdownTimer({ deadlineAt, receivedAt, className }: CountdownT
       )}
     >
       <span className={cn('h-1.5 w-1.5 rounded-full', overdue ? 'bg-destructive' : critical ? 'bg-warning' : 'bg-success')} />
-      {overdue ? 'atrasado ' : ''}
-      {String(h).padStart(2, '0')}:{String(m).padStart(2, '0')}:{String(s).padStart(2, '0')}
+      {text}
     </span>
   )
 }

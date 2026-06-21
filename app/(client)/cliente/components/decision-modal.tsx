@@ -105,7 +105,6 @@ export function DecisionModal({ row, decision, onClose, onSuccess }: DecisionMod
 
         <div className="rounded-lg border bg-muted/30 p-3 space-y-1 text-sm">
           <p className="text-xs font-medium text-muted-foreground mb-1">Resumo da Devolução</p>
-          <p><span className="text-muted-foreground">RV:</span> <span className="font-mono">{row.rv}</span></p>
           <p><span className="text-muted-foreground">Data:</span> {formatDate(row.receivedAt)}</p>
           <p><span className="text-muted-foreground">Itens:</span> {row.itemCount}</p>
           <p><span className="text-muted-foreground">Identificador:</span> <span className="font-mono text-xs break-all">{identifierLabel(row)}</span></p>
