@@ -13,14 +13,23 @@ function transport(): Transporter {
     host:   env.smtpHost,
     port:   env.smtpPort,
     secure: env.smtpPort === 465, // 465 = TLS implícito; 587 = STARTTLS
-    auth:   { user: env.smtpUser, pass: env.smtpPass },
+    // OAuth2 com Service Account: o Nodemailer gera o token (JWT bearer) e impersona
+    // `user` via Domain-Wide Delegation — sem senha nem App Password.
+    auth: {
+      type:          'OAuth2',
+      user:          env.gmailOAuthUser,     // caixa impersonada (sub do JWT)
+      serviceClient: env.googleSaClientId,   // client_id (Unique ID) da service account
+      privateKey:    env.googleSaPrivateKey, // private_key da service account
+    },
   })
   return cached
 }
 
-/** True quando há host + usuário + senha SMTP configurados. */
+/** True quando há host + caixa impersonada + credenciais OAuth2 da service account. */
 export function isEmailConfigured(): boolean {
-  return Boolean(env.smtpHost && env.smtpUser && env.smtpPass)
+  return Boolean(
+    env.smtpHost && env.gmailOAuthUser && env.googleSaClientId && env.googleSaPrivateKey,
+  )
 }
 
 export async function sendAccountCreatedEmail(params: {

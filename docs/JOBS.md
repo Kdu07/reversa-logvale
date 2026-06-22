@@ -41,13 +41,14 @@ supabase functions deploy photo-cleanup
 
 ```bash
 supabase secrets set \
-  SMTP_HOST=smtp.gmail.com \
-  SMTP_PORT=587 \
-  SMTP_USER=notificacoes@logvale.com.br \
-  SMTP_PASS=<app-password-do-google> \
-  MAIL_FROM=notificacoes@logvale.com.br \
+  GMAIL_OAUTH_USER=cadu@logvale.com.br \
+  GOOGLE_SA_CLIENT_ID=<Unique ID numérico da service account> \
+  GOOGLE_SA_PRIVATE_KEY="$(cat sa-key.pem)" \
+  MAIL_FROM=cadu@logvale.com.br \
   NEXT_PUBLIC_APP_URL=https://logvale.com.br
 ```
+
+> O `warning-email` envia pela **Gmail API REST** usando OAuth2 / Service Account (Domain-Wide Delegation): gera o token via JWT bearer (assinado com `GOOGLE_SA_PRIVATE_KEY`) e impersona `GMAIL_OAUTH_USER`. Não há `SMTP_PASS`. O issuer do JWT aceita o Unique ID (`GOOGLE_SA_CLIENT_ID`) ou o `GOOGLE_SA_CLIENT_EMAIL` — basta definir um deles. Garanta que a `private_key` mantenha as quebras de linha (use a chave do JSON da service account).
 
 > As variáveis `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` são injetadas automaticamente pelo runtime Supabase.
 

@@ -279,10 +279,10 @@ chave). Autenticação: `NFEIO_ACCESS_KEY` (API Key da empresa) no header `Autho
   XML+DANFE das devoluções por chave de acesso ainda sem XML; reporta `disabled` quando a
   integração está desligada.
 
-### 5.2 E-mail (SMTP)
-- Envio via Nodemailer sobre SMTP (Google Workspace); job de aviso usa `denomailer` na Edge Function
-- Credenciais via env: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM`
-- Remetente: `notificacoes@logvale.com.br` (App Password do Google)
+### 5.2 E-mail (SMTP via OAuth2 / Service Account)
+- Envio via Nodemailer sobre SMTP (Google Workspace) com OAuth2 / Service Account (Domain-Wide Delegation); job de aviso usa a Gmail API REST na Edge Function
+- Credenciais via env: `SMTP_HOST`, `SMTP_PORT`, `MAIL_FROM`, `GMAIL_OAUTH_USER`, `GOOGLE_SA_CLIENT_ID`, `GOOGLE_SA_PRIVATE_KEY` (e `GOOGLE_SA_CLIENT_EMAIL` na Edge Function)
+- Remetente: `cadu@logvale.com.br` (sem App Password — service account impersona a caixa)
 - React Email components
 
 ### 5.3 Supabase Buckets

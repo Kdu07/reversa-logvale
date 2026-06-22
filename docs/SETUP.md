@@ -96,18 +96,24 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
 NFEIO_ACCESS_KEY=xxx
 NFEIO_BASE_URL=https://nfe.api.nfe.io
 
-# E-mail via SMTP (Google Workspace) — SMTP_PASS é um App Password do Google (verificação em 2 etapas)
+# E-mail via SMTP (Google Workspace) com OAuth2 / Service Account — sem senha/App Password
 SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=notificacoes@logvale.com.br
-SMTP_PASS=
-MAIL_FROM=notificacoes@logvale.com.br
+SMTP_PORT=465
+MAIL_FROM=cadu@logvale.com.br
+GMAIL_OAUTH_USER=cadu@logvale.com.br          # caixa impersonada pela service account
+GOOGLE_SA_CLIENT_ID=                          # "ID exclusivo" (numérico) da service account
+GOOGLE_SA_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+GOOGLE_SA_CLIENT_EMAIL=                        # client_email da SA (usado pela Edge Function)
 
 # App
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
-> O envio de e-mail é opcional em dev: sem `SMTP_PASS`, a criação de usuário ainda funciona e mostra o link de ativação para envio manual. `SMTP_USER` deve ser uma caixa do domínio (ex.: Google Workspace) e `SMTP_PASS` um **App Password** (não a senha normal).
+> **Por que OAuth2 e não App Password?** O domínio é um Google Workspace gerenciado sem verificação em 2 etapas, então não é possível gerar App Password. Em vez disso, uma **Service Account** com **Domain-Wide Delegation** impersona a caixa `GMAIL_OAUTH_USER` e o Nodemailer obtém o token automaticamente — sem senha.
+>
+> **Etapa manual (uma vez):** no Google Cloud Console crie um projeto, ative a **Gmail API**, crie uma **conta de serviço** e gere uma **chave JSON** (dela vêm `client_id`/`GOOGLE_SA_CLIENT_ID`, `client_email`/`GOOGLE_SA_CLIENT_EMAIL` e `private_key`/`GOOGLE_SA_PRIVATE_KEY`). No Admin Console (`admin.google.com`) → **Segurança → Controles de API → Delegação em todo o domínio**, autorize o **ID do cliente** (Unique ID) com o escopo `https://mail.google.com/`.
+>
+> O envio é opcional em dev: sem `GOOGLE_SA_CLIENT_ID`/`GOOGLE_SA_PRIVATE_KEY`, a criação de usuário ainda funciona e mostra o link de ativação para envio manual.
 
 > Em produção, configure as mesmas variáveis em Vercel → Project Settings → Environment Variables. Veja [DEPLOY.md](DEPLOY.md) para a lista completa.
 

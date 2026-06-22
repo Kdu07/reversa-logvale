@@ -15,12 +15,13 @@ vi.mock('@/emails/PendingDecisionWarning', () => ({ PendingDecisionWarningEmail:
 
 vi.mock('@/lib/env', () => ({
   env: {
-    appUrl:   'http://localhost:3000',
-    mailFrom: 'no-reply@logvale.com.br',
-    smtpHost: 'smtp.gmail.com',
-    smtpPort: 587,
-    smtpUser: 'no-reply@logvale.com.br',
-    smtpPass: 'app-password',
+    appUrl:             'http://localhost:3000',
+    mailFrom:           'no-reply@logvale.com.br',
+    smtpHost:           'smtp.gmail.com',
+    smtpPort:           465,
+    gmailOAuthUser:     'no-reply@logvale.com.br',
+    googleSaClientId:   '1234567890',
+    googleSaPrivateKey: '-----BEGIN PRIVATE KEY-----\nfake\n-----END PRIVATE KEY-----\n',
   },
 }))
 

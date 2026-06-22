@@ -134,7 +134,7 @@ Deve aparecer `auto-decision-job` com schedule `0 * * * *`.
 
 As Edge Functions enviam e-mails de aviso (48h) e limpam fotos antigas (1 ano). O deploy e a configuração de secrets são feitos via Supabase CLI.
 
-➡️ **Comandos completos (deploy + secrets) em [JOBS.md](JOBS.md), seção 2.** Em resumo: `supabase functions deploy warning-email` e `photo-cleanup`, depois `supabase secrets set` para `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` e `NEXT_PUBLIC_APP_URL`.
+➡️ **Comandos completos (deploy + secrets) em [JOBS.md](JOBS.md), seção 2.** Em resumo: `supabase functions deploy warning-email` e `photo-cleanup`, depois `supabase secrets set` para `GMAIL_OAUTH_USER`, `GOOGLE_SA_CLIENT_EMAIL`, `GOOGLE_SA_PRIVATE_KEY`, `MAIL_FROM` e `NEXT_PUBLIC_APP_URL`.
 
 > `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` são injetados automaticamente pelo runtime das Edge Functions — **não** os configure como secret.
 
@@ -150,22 +150,23 @@ As Edge Functions precisam ser chamadas via HTTP pelo cron (`warning-email` de h
 
 ### 1.9 Configurar o envio de e-mail (SMTP)
 
-Os e-mails da aplicação (link de ativação e avisos de pendência) são enviados por **SMTP via Nodemailer** (`lib/integrations/email.ts`) e, no job de aviso, por `denomailer` na Edge Function. Como o domínio `logvale.com.br` usa **Google Workspace**, o caminho recomendado é o SMTP do próprio Google — sem registros de DNS extras e com ótima entregabilidade.
+Os e-mails da aplicação (link de ativação e avisos de pendência) são enviados via **Google Workspace com OAuth2 / Service Account** — o app usa Nodemailer (`lib/integrations/email.ts`) e o job de aviso usa a Gmail API REST na Edge Function. Como o Workspace é gerenciado **sem verificação em 2 etapas**, não há App Password: uma **Service Account** com **Domain-Wide Delegation** impersona a caixa remetente. Sem registros de DNS extras (o SPF/DKIM do Google já autentica) e com ótima entregabilidade.
 
-**Passo a passo (Google Workspace):**
+**Passo a passo (etapa manual, uma vez):**
 
-1. Use ou crie uma caixa, ex.: `notificacoes@logvale.com.br`.
-2. Ative a **verificação em 2 etapas** nessa conta Google (obrigatório para gerar App Password).
-3. Em **Conta Google → Segurança → Senhas de app**, gere uma senha de app (16 caracteres).
+1. **Google Cloud Console:** crie/selecione um projeto, ative a **Gmail API**, crie uma **conta de serviço** (`logvale-mailer`) e gere uma **chave JSON**. Anote `client_id` (Unique ID), `client_email` e `private_key`.
+2. **Admin Console** (`admin.google.com`, Super Admin): **Segurança → Controles de acesso e dados → Controles de API → Delegação em todo o domínio → Adicionar novo** → cole o **ID do cliente** (Unique ID numérico) e o escopo `https://mail.google.com/` → **Autorizar**.
+3. Garanta que a caixa remetente (ex.: `cadu@logvale.com.br`) exista e esteja ativa.
 4. Configure as variáveis (locais e na Vercel — ver Parte 2.2):
    - `SMTP_HOST=smtp.gmail.com`
-   - `SMTP_PORT=587` (ou `465`)
-   - `SMTP_USER=notificacoes@logvale.com.br`
-   - `SMTP_PASS=<app password de 16 caracteres>`
-   - `MAIL_FROM=notificacoes@logvale.com.br`
-5. **Edge Function** (`warning-email`): defina os mesmos `SMTP_*`/`MAIL_FROM` como **secrets** do Supabase: `supabase secrets set SMTP_HOST=... SMTP_PORT=... SMTP_USER=... SMTP_PASS=... MAIL_FROM=...` e redeploy (`supabase functions deploy warning-email`).
+   - `SMTP_PORT=465`
+   - `MAIL_FROM=cadu@logvale.com.br`
+   - `GMAIL_OAUTH_USER=cadu@logvale.com.br`
+   - `GOOGLE_SA_CLIENT_ID=<Unique ID numérico>`
+   - `GOOGLE_SA_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"`
+5. **Edge Function** (`warning-email`): defina `GMAIL_OAUTH_USER`, `GOOGLE_SA_CLIENT_EMAIL`, `GOOGLE_SA_PRIVATE_KEY` e `MAIL_FROM` como **secrets** do Supabase (`supabase secrets set ...`) e redeploy (`supabase functions deploy warning-email`). Ver [JOBS.md](JOBS.md), seção 2.
 
-> Sem `SMTP_PASS`, o envio fica desligado; a criação de usuário ainda funciona e exibe o link de ativação para envio manual.
+> Sem `GOOGLE_SA_CLIENT_ID`/`GOOGLE_SA_PRIVATE_KEY`, o envio fica desligado; a criação de usuário ainda funciona e exibe o link de ativação para envio manual.
 
 **E-mails nativos do Supabase** (recuperação de senha, confirmação de troca de e-mail) usam o SMTP configurado em **Project Settings → Authentication → SMTP Settings** — pode apontar para o mesmo `smtp.gmail.com`. Em **URL Configuration**, defina:
 - **Site URL:** `https://seudominio.com.br`
@@ -202,10 +203,11 @@ Ainda na tela de importação (ou em **Settings → Environment Variables** depo
 | `NFEIO_ACCESS_KEY` | `<API Key da empresa>` | Production, Preview (vazio = consulta desligada) |
 | `NFEIO_BASE_URL` | `https://nfe.api.nfe.io` | (opcional — default já aplicado) |
 | `SMTP_HOST` | `smtp.gmail.com` | Production, Preview |
-| `SMTP_PORT` | `587` | Production, Preview |
-| `SMTP_USER` | `notificacoes@seudominio.com.br` | Production, Preview |
-| `SMTP_PASS` | `<app password do Google>` | Production, Preview |
-| `MAIL_FROM` | `notificacoes@seudominio.com.br` | Production, Preview |
+| `SMTP_PORT` | `465` | Production, Preview |
+| `MAIL_FROM` | `cadu@seudominio.com.br` | Production, Preview |
+| `GMAIL_OAUTH_USER` | `cadu@seudominio.com.br` | Production, Preview |
+| `GOOGLE_SA_CLIENT_ID` | `<Unique ID numérico da service account>` | Production, Preview |
+| `GOOGLE_SA_PRIVATE_KEY` | `-----BEGIN PRIVATE KEY-----\n...` | Production, Preview |
 | `NEXT_PUBLIC_SENTRY_DSN` | `https://...@sentry.io/...` | Production |
 | `SENTRY_DSN` | `https://...@sentry.io/...` | Production |
 | `NODE_ENV` | `production` | Production |
@@ -258,14 +260,13 @@ Para adicionar os secrets do CI no GitHub:
 4. Configure `NFEIO_ACCESS_KEY` em Vercel Environment Variables para produção (e, se quiser
    sobrescrever a base, `NFEIO_BASE_URL`)
 
-### 3.2 E-mail SMTP (Google Workspace)
+### 3.2 E-mail SMTP (Google Workspace via OAuth2 / Service Account)
 
-Como `logvale.com.br` já usa Google Workspace para e-mail, o envio transacional sai pelo SMTP do Google — sem registros de DNS adicionais (o SPF/DKIM do Google já autentica o domínio).
+Como `logvale.com.br` já usa Google Workspace para e-mail, o envio transacional sai pelo Google — sem registros de DNS adicionais (o SPF/DKIM do Google já autentica o domínio). Como o Workspace é gerenciado **sem verificação em 2 etapas**, a autenticação é por **Service Account com Domain-Wide Delegation** (não App Password).
 
-1. Use/crie a caixa `notificacoes@logvale.com.br`
-2. Ative **verificação em 2 etapas** na conta Google
-3. Gere uma **Senha de app** em Conta Google → Segurança → Senhas de app
-4. Configure `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` no Vercel e nos secrets das Edge Functions (ver 1.9)
+1. **Google Cloud Console:** ative a Gmail API, crie uma service account e gere a chave JSON
+2. **Admin Console:** autorize o Unique ID da service account com o escopo `https://mail.google.com/` (Delegação em todo o domínio)
+3. Configure `SMTP_HOST`, `SMTP_PORT`, `MAIL_FROM`, `GMAIL_OAUTH_USER`, `GOOGLE_SA_CLIENT_ID`, `GOOGLE_SA_PRIVATE_KEY` no Vercel; e `GOOGLE_SA_CLIENT_EMAIL` (em vez de `GOOGLE_SA_CLIENT_ID`) nos secrets das Edge Functions (ver 1.9)
 
 > Detalhes e passo a passo completo na seção **1.9**.
 

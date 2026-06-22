@@ -1,16 +1,18 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts'
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 )
-const SMTP_HOST = Deno.env.get('SMTP_HOST')!
-const SMTP_PORT = Number(Deno.env.get('SMTP_PORT') ?? 465)
-const SMTP_USER = Deno.env.get('SMTP_USER')!
-const SMTP_PASS = Deno.env.get('SMTP_PASS')!
-const FROM      = Deno.env.get('MAIL_FROM') ?? 'notificacoes@logvale.com.br'
-const APP_URL   = Deno.env.get('NEXT_PUBLIC_APP_URL') ?? 'https://logvale.com.br'
+// Envio via Gmail API REST com OAuth2 / Service Account (Domain-Wide Delegation):
+// a service account impersona OAUTH_USER, sem senha/App Password.
+// O issuer (iss) do JWT pode ser o client_email OU o Unique ID numérico — o Google aceita ambos.
+const SA_ISS          = Deno.env.get('GOOGLE_SA_CLIENT_EMAIL') ?? Deno.env.get('GOOGLE_SA_CLIENT_ID')!
+const SA_PRIVATE_KEY  = (Deno.env.get('GOOGLE_SA_PRIVATE_KEY') ?? '').replace(/\\n/g, '\n')
+const OAUTH_USER      = Deno.env.get('GMAIL_OAUTH_USER') ?? Deno.env.get('MAIL_FROM') ?? 'cadu@logvale.com.br'
+const FROM            = Deno.env.get('MAIL_FROM') ?? OAUTH_USER
+const APP_URL         = Deno.env.get('NEXT_PUBLIC_APP_URL') ?? 'https://logvale.com.br'
+const GMAIL_SCOPE     = 'https://www.googleapis.com/auth/gmail.send'
 
 interface WarningRow {
   id:          string
@@ -42,53 +44,137 @@ Deno.serve(async (_req) => {
     byClient.get(r.client_id)!.push(r)
   }
 
-  const smtp = new SMTPClient({
-    connection: {
-      hostname: SMTP_HOST,
-      port:     SMTP_PORT,
-      tls:      SMTP_PORT === 465, // 465 = TLS implícito; 587 = STARTTLS
-      auth:     { username: SMTP_USER, password: SMTP_PASS },
-    },
-  })
+  let accessToken: string
+  try {
+    accessToken = await getAccessToken()
+  } catch (e) {
+    console.error('[warning-email] OAuth token error:', e)
+    return json({ sent: 0, error: 'oauth_token' }, 500)
+  }
 
   let sent = 0
-  try {
-    for (const [clientId, clientRows] of byClient) {
-      try {
-        const { data: { user }, error: userErr } = await supabase.auth.admin.getUserById(clientId)
-        if (userErr || !user?.email) {
-          console.warn(`[warning-email] no email for client ${clientId}`)
-          continue
-        }
-
-        const returns = clientRows.map((r) => ({ rv: r.rv, receivedAt: r.received_at }))
-
-        await smtp.send({
-          from:    FROM,
-          to:      user.email,
-          subject: `${returns.length} devolução${returns.length > 1 ? 'ões' : ''} pendente${returns.length > 1 ? 's' : ''} de decisão`,
-          html:    buildHtml(returns, APP_URL),
-          content: 'auto',
-        })
-
-        const ids = clientRows.map((r) => r.id)
-        await supabase
-          .from('returns')
-          .update({ warning_sent_at: new Date().toISOString() })
-          .in('id', ids)
-
-        console.log(`[warning-email] sent to ${user.email} (${ids.length} returns)`)
-        sent++
-      } catch (e) {
-        console.error(`[warning-email] failed for client ${clientId}:`, e)
+  for (const [clientId, clientRows] of byClient) {
+    try {
+      const { data: { user }, error: userErr } = await supabase.auth.admin.getUserById(clientId)
+      if (userErr || !user?.email) {
+        console.warn(`[warning-email] no email for client ${clientId}`)
+        continue
       }
+
+      const returns = clientRows.map((r) => ({ rv: r.rv, receivedAt: r.received_at }))
+      const subject = `${returns.length} devolução${returns.length > 1 ? 'ões' : ''} pendente${returns.length > 1 ? 's' : ''} de decisão`
+
+      await sendGmail(accessToken, {
+        to:      user.email,
+        subject,
+        html:    buildHtml(returns, APP_URL),
+      })
+
+      const ids = clientRows.map((r) => r.id)
+      await supabase
+        .from('returns')
+        .update({ warning_sent_at: new Date().toISOString() })
+        .in('id', ids)
+
+      console.log(`[warning-email] sent to ${user.email} (${ids.length} returns)`)
+      sent++
+    } catch (e) {
+      console.error(`[warning-email] failed for client ${clientId}:`, e)
     }
-  } finally {
-    await smtp.close()
   }
 
   return json({ sent })
 })
+
+/** base64url (sem padding) a partir de bytes ou string UTF-8. */
+function base64url(input: Uint8Array | string): string {
+  const bytes = typeof input === 'string' ? new TextEncoder().encode(input) : input
+  let bin = ''
+  for (const b of bytes) bin += String.fromCharCode(b)
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+/** base64 padrão (com padding) — usado no corpo MIME e no encoded-word do assunto. */
+function base64(input: Uint8Array | string): string {
+  const bytes = typeof input === 'string' ? new TextEncoder().encode(input) : input
+  let bin = ''
+  for (const b of bytes) bin += String.fromCharCode(b)
+  return btoa(bin)
+}
+
+function pemToPkcs8(pem: string): Uint8Array {
+  const b64 = pem
+    .replace('-----BEGIN PRIVATE KEY-----', '')
+    .replace('-----END PRIVATE KEY-----', '')
+    .replace(/\s+/g, '')
+  const bin = atob(b64)
+  const der = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i++) der[i] = bin.charCodeAt(i)
+  return der
+}
+
+/** Gera um access token via fluxo JWT bearer (service account impersonando OAUTH_USER). */
+async function getAccessToken(): Promise<string> {
+  const now    = Math.floor(Date.now() / 1000)
+  const header = base64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))
+  const claim  = base64url(JSON.stringify({
+    iss:   SA_ISS,
+    sub:   OAUTH_USER,
+    scope: GMAIL_SCOPE,
+    aud:   'https://oauth2.googleapis.com/token',
+    iat:   now,
+    exp:   now + 3600,
+  }))
+  const unsigned = `${header}.${claim}`
+
+  const key = await crypto.subtle.importKey(
+    'pkcs8',
+    pemToPkcs8(SA_PRIVATE_KEY),
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  )
+  const sig = await crypto.subtle.sign(
+    'RSASSA-PKCS1-v1_5',
+    key,
+    new TextEncoder().encode(unsigned),
+  )
+  const jwt = `${unsigned}.${base64url(new Uint8Array(sig))}`
+
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body:    new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion:  jwt,
+    }),
+  })
+  if (!res.ok) throw new Error(`token ${res.status}: ${await res.text()}`)
+  const data = await res.json()
+  return data.access_token as string
+}
+
+/** Envia um e-mail HTML pela Gmail API REST (users/me = a caixa impersonada). */
+async function sendGmail(token: string, msg: { to: string; subject: string; html: string }): Promise<void> {
+  const body = base64(new TextEncoder().encode(msg.html)).replace(/(.{76})/g, '$1\r\n')
+  const mime = [
+    `From: ${FROM}`,
+    `To: ${msg.to}`,
+    `Subject: =?UTF-8?B?${base64(msg.subject)}?=`,
+    'MIME-Version: 1.0',
+    'Content-Type: text/html; charset=UTF-8',
+    'Content-Transfer-Encoding: base64',
+    '',
+    body,
+  ].join('\r\n')
+
+  const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+    method:  'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ raw: base64url(new TextEncoder().encode(mime)) }),
+  })
+  if (!res.ok) throw new Error(`gmail send ${res.status}: ${await res.text()}`)
+}
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {

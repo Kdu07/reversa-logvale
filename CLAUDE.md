@@ -76,7 +76,7 @@ XML/PDF downloads (the original NF XML, its DANFE PDF, and the client-uploaded r
 ### Integrations
 
 - **NFEio** (`lib/integrations/nfeio.ts`): NF-e consultation by access key. `lookupInvoice` parses the access key locally (emitter CNPJ → depositor) and calls `persistInvoiceFiles`, which fetches the XML (`GET {base}/v2/productinvoices/{key}.xml`) and DANFE PDF (`.pdf`) and uploads them (admin client, upsert) to `invoice-xmls`/`invoice-pdfs` at `ak/<key>.{xml,pdf}`. Auth is the `NFEIO_ACCESS_KEY` (the company API key) sent in the `Authorization` header. `fetchInvoiceXml`/`fetchInvoicePdf` are also reused by the super-only `retryMissingInvoiceXmlAction` to backfill returns whose XML is still missing. All fetches degrade gracefully: when `env.nfeioEnabled` is false (no key) or NFEio returns an error, receiving still completes and the files stay pending for backfill.
-- **Email/SMTP** (`lib/integrations/email.ts`): Transactional email via Nodemailer over SMTP (Google Workspace), using React Email templates in `emails/` (`AccountCreated` for activation, `PasswordReset` for recovery, `PendingDecisionWarning`). Gated by `env.mailEnabled` (true when `SMTP_HOST`/`SMTP_USER`/`SMTP_PASS` are set); when off, account-creation/resend still surface the link for manual sending. The `warning-email` Edge Function (Deno) sends via `denomailer` over the same SMTP creds.
+- **Email/SMTP** (`lib/integrations/email.ts`): Transactional email via Nodemailer over SMTP (Google Workspace) authenticated with **OAuth2 / a Service Account + Domain-Wide Delegation** — no password/App Password (the Workspace is managed without 2FA, so App Passwords can't be generated). The service account impersonates `GMAIL_OAUTH_USER` via the `serviceClient` (`GOOGLE_SA_CLIENT_ID`) + `privateKey` (`GOOGLE_SA_PRIVATE_KEY`) and Nodemailer mints the token. Uses React Email templates in `emails/` (`AccountCreated` for activation, `PasswordReset` for recovery, `PendingDecisionWarning`). Gated by `env.mailEnabled` (true when `SMTP_HOST` + `GMAIL_OAUTH_USER` + `GOOGLE_SA_CLIENT_ID` + `GOOGLE_SA_PRIVATE_KEY` are set); when off, account-creation/resend still surface the link for manual sending. The `warning-email` Edge Function (Deno) sends via the **Gmail API REST**, minting the OAuth2 token itself (JWT bearer signed with `GOOGLE_SA_PRIVATE_KEY`, `GOOGLE_SA_CLIENT_EMAIL` as issuer).
 - **Sentry**: Configured in `next.config.mjs` for error tracking.
 
 ### Background Jobs
@@ -109,8 +109,11 @@ Optional (integrations):
 # NFEIO_ACCESS_KEY is the company API key, sent in the `Authorization` header. Unset = disabled.
 NFEIO_ACCESS_KEY
 NFEIO_BASE_URL  (default: https://nfe.api.nfe.io)
-# Email via SMTP (Google Workspace). mailFrom falls back to legacy RESEND_FROM_EMAIL if set.
-SMTP_HOST, SMTP_PORT (default 587), SMTP_USER, SMTP_PASS, MAIL_FROM
+# Email via SMTP (Google Workspace) with OAuth2 / Service Account (Domain-Wide Delegation).
+# mailFrom falls back to legacy RESEND_FROM_EMAIL if set.
+SMTP_HOST, SMTP_PORT (default 465), MAIL_FROM, GMAIL_OAUTH_USER (impersonated mailbox),
+GOOGLE_SA_CLIENT_ID (Nodemailer serviceClient), GOOGLE_SA_PRIVATE_KEY,
+GOOGLE_SA_CLIENT_EMAIL (Edge Function only — JWT issuer)
 NEXT_PUBLIC_SENTRY_DSN, SENTRY_DSN
 ```
 

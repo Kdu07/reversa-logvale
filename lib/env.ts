@@ -47,11 +47,22 @@ export const env = {
   nfeioApiKey:  process.env.NFEIO_ACCESS_KEY,
   nfeioBaseUrl: process.env.NFEIO_BASE_URL ?? 'https://nfe.api.nfe.io',
   nfeioEnabled: Boolean(process.env.NFEIO_ACCESS_KEY),
-  // E-mail transacional via SMTP (Google Workspace). mailFrom aceita o legado RESEND_FROM_EMAIL.
+  // E-mail transacional via SMTP (Google Workspace) com OAuth2 / Service Account.
+  // A service account "impersona" a caixa em gmailOAuthUser via Domain-Wide Delegation,
+  // então não há senha/App Password (incompatível com Workspace sem verificação em 2 etapas).
   smtpHost:    process.env.SMTP_HOST,
-  smtpPort:    process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 587,
-  smtpUser:    process.env.SMTP_USER,
-  smtpPass:    process.env.SMTP_PASS,
+  smtpPort:    process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 465,
+  // Caixa impersonada (default: o próprio MAIL_FROM, se definido).
+  gmailOAuthUser:   process.env.GMAIL_OAUTH_USER ?? process.env.SMTP_USER ?? process.env.MAIL_FROM,
+  // client_id (Unique ID numérico) da service account = serviceClient do Nodemailer.
+  googleSaClientId: process.env.GOOGLE_SA_CLIENT_ID,
+  // private_key da service account; aceita `\n` literais vindos do .env / secrets.
+  googleSaPrivateKey: process.env.GOOGLE_SA_PRIVATE_KEY?.replace(/\\n/g, '\n'),
   mailFrom:    process.env.MAIL_FROM ?? process.env.RESEND_FROM_EMAIL ?? 'notificacoes@logvale.com.br',
-  mailEnabled: Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS),
+  mailEnabled: Boolean(
+    process.env.SMTP_HOST &&
+    (process.env.GMAIL_OAUTH_USER ?? process.env.SMTP_USER ?? process.env.MAIL_FROM) &&
+    process.env.GOOGLE_SA_CLIENT_ID &&
+    process.env.GOOGLE_SA_PRIVATE_KEY,
+  ),
 } as const
