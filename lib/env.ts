@@ -37,6 +37,26 @@ function validateEnv() {
 
 validateEnv()
 
+/**
+ * Normaliza a private key da service account vinda de env/secret. Cobre os dois
+ * erros mais comuns ao colar o valor na Vercel/Supabase:
+ *   1. aspas envolventes acidentais ("-----BEGIN...-----END...\n");
+ *   2. quebras de linha escritas como `\n` literais.
+ * Sem isso, uma chave com aspas faz o `crypto.sign()` falhar e o Nodemailer
+ * mascara o erro como "Can't generate token. Check your auth options".
+ */
+function normalizePrivateKey(raw?: string): string | undefined {
+  if (!raw) return undefined
+  let key = raw.trim()
+  if (
+    (key.startsWith('"') && key.endsWith('"')) ||
+    (key.startsWith("'") && key.endsWith("'"))
+  ) {
+    key = key.slice(1, -1)
+  }
+  return key.replace(/\\n/g, '\n')
+}
+
 export const env = {
   supabaseUrl:            process.env.NEXT_PUBLIC_SUPABASE_URL!,
   supabaseAnonKey:        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -56,8 +76,9 @@ export const env = {
   gmailOAuthUser:   process.env.GMAIL_OAUTH_USER ?? process.env.SMTP_USER ?? process.env.MAIL_FROM,
   // client_id (Unique ID numérico) da service account = serviceClient do Nodemailer.
   googleSaClientId: process.env.GOOGLE_SA_CLIENT_ID,
-  // private_key da service account; aceita `\n` literais vindos do .env / secrets.
-  googleSaPrivateKey: process.env.GOOGLE_SA_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+  // private_key da service account; tolera `\n` literais e aspas envolventes
+  // (erros comuns ao colar o valor na Vercel/secrets). Ver normalizePrivateKey.
+  googleSaPrivateKey: normalizePrivateKey(process.env.GOOGLE_SA_PRIVATE_KEY),
   mailFrom:    process.env.MAIL_FROM ?? process.env.RESEND_FROM_EMAIL ?? 'notificacoes@logvale.com.br',
   mailEnabled: Boolean(
     process.env.SMTP_HOST &&

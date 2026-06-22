@@ -24,7 +24,7 @@ max_rows = 1000
 [auth]
 enabled = true
 # URL da aplicação (atualizar para produção)
-site_url = "http://localhost:3000"
+site_url = "https://reversa-logvale.vercel.app"
 # URLs de redirect permitidas (adicione o domínio de produção)
 # Após definir domínio no Vercel, adicione: "https://seudominio.com.br/auth/callback"
 # Necessário para os links de redefinição de senha (recovery) funcionarem.
