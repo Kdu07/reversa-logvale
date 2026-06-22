@@ -28,21 +28,32 @@ site_url = "https://reversa-logvale.vercel.app"
 # URLs de redirect permitidas (adicione o domínio de produção)
 # Após definir domínio no Vercel, adicione: "https://seudominio.com.br/auth/callback"
 # Necessário para os links de redefinição de senha (recovery) funcionarem.
-additional_redirect_urls = ["http://localhost:3000/auth/callback"]
+additional_redirect_urls = ["https://reversa-logvale.vercel.app/auth/callback", "http://localhost:3000/auth/callback"]
 jwt_expiry = 3600
 enable_refresh_token_rotation = true
 refresh_token_reuse_interval = 10
 enable_signup = false          # Cadastro só via convite (manager cria usuários)
 enable_anonymous_sign_ins = false
 
+# Custom Access Token Hook — injeta role/active/terms_accepted_at no JWT.
+# Função criada em supabase/migrations/002_auth_hook.sql.
+[auth.hook.custom_access_token]
+enabled = true
+uri = "pg-functions://postgres/public/custom_access_token_hook"
+
 [auth.email]
-enable_signup = false
+# true = provedor de e-mail HABILITADO (necessário para login por e-mail+senha).
+# O cadastro público continua FECHADO pelo [auth] enable_signup = false (global,
+# só por convite). Deixar false aqui desativa o provedor inteiro (email_provider_disabled).
+enable_signup = true
 double_confirm_changes = true
 enable_confirmations = false   # Magic link já valida; confirmação dupla desnecessária
 # Validade dos links de e-mail gerados pelo Supabase (recovery / redefinição de
 # senha). A ativação de conta NÃO usa OTP: usa um token próprio (/ativar, tabela
 # activation_tokens) que vale até a conta ser ativada. 86400s = 24h.
 otp_expiry = 86400
+otp_length = 8                 # Mantém OTP de 8 dígitos (evita downgrade no push)
+max_frequency = "60s"          # Rate limit de e-mails do Supabase (evita downgrade p/ 1s)
 
 # ─── Storage ─────────────────────────────────────────────────────────────────
 [storage]
