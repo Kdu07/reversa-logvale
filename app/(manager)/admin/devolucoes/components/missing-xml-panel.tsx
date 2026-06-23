@@ -4,22 +4,28 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { FileSearch, RefreshCw } from 'lucide-react'
-import { retryMissingInvoiceXmlAction } from '../actions'
+import { ChevronDown, ChevronUp, FileSearch, RefreshCw } from 'lucide-react'
+import { retryMissingInvoiceXmlAction, type InvoiceFetchError } from '../actions'
 
 interface Props {
   count: number
 }
 
-type Feedback = { tone: 'info' | 'success' | 'error'; text: string }
+type Feedback = {
+  tone: 'info' | 'success' | 'error'
+  text: string
+  errors?: InvoiceFetchError[]
+}
 
 export function MissingXmlPanel({ count }: Props) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [feedback, setFeedback] = useState<Feedback | null>(null)
+  const [showLogs, setShowLogs] = useState(false)
 
   function handleRetry() {
     setFeedback(null)
+    setShowLogs(false)
     startTransition(async () => {
       const result = await retryMissingInvoiceXmlAction()
       if ('error' in result) {
@@ -30,7 +36,11 @@ export function MissingXmlPanel({ count }: Props) {
         setFeedback({ tone: 'info', text: result.message })
         return
       }
-      setFeedback({ tone: 'success', text: result.message })
+      setFeedback({
+        tone: result.failed > 0 ? 'info' : 'success',
+        text: result.message,
+        errors: result.errors,
+      })
       router.refresh()
     })
   }
@@ -65,7 +75,39 @@ export function MissingXmlPanel({ count }: Props) {
           variant={feedback.tone === 'error' ? 'destructive' : 'default'}
           className="mt-3"
         >
-          <AlertDescription>{feedback.text}</AlertDescription>
+          <AlertDescription>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span>{feedback.text}</span>
+              {feedback.errors && feedback.errors.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowLogs((v) => !v)}
+                  className="inline-flex items-center gap-1 text-sm font-medium underline-offset-2 hover:underline"
+                >
+                  {showLogs ? (
+                    <>
+                      Ver menos <ChevronUp className="h-3.5 w-3.5" />
+                    </>
+                  ) : (
+                    <>
+                      Ver mais <ChevronDown className="h-3.5 w-3.5" />
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+
+            {showLogs && feedback.errors && feedback.errors.length > 0 && (
+              <ul className="mt-2 space-y-1 border-t pt-2 text-xs">
+                {feedback.errors.map((e) => (
+                  <li key={e.accessKey} className="flex flex-col gap-0.5 sm:flex-row sm:gap-2">
+                    <span className="font-mono text-muted-foreground break-all">{e.accessKey}</span>
+                    <span>— {e.message}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </AlertDescription>
         </Alert>
       )}
     </div>

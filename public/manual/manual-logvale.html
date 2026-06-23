@@ -4,10 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Manual do Usuário — Sistema Logvale de Devoluções</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
+  /* Roboto (subset latin, fonte variável) hospedada localmente — manual funciona 100% offline */
+  @font-face{
+    font-family:'Roboto';
+    font-style:normal;
+    font-weight:400 700;
+    font-display:swap;
+    src:url('assets/fonts/roboto-latin.woff2') format('woff2');
+  }
   :root{
     --primary:#08366D;
     --primary-2:#2462C7;
@@ -65,7 +70,7 @@
   /* ---------- Sumário ---------- */
   .toc{background:var(--bg-soft);border:1px solid var(--line);border-radius:12px;padding:22px 26px;margin:34px 0;}
   .toc h2{margin:0 0 12px;font-size:18px;color:var(--primary);}
-  .toc ol{list-style:none;padding-left:0;counter-reset:toc;}
+  .toc ol{list-style:none;padding-left:0;}
   .toc > ol > li{margin:6px 0;font-weight:500;}
   .toc ol ol{padding-left:18px;font-weight:400;font-size:14px;}
   .toc a{text-decoration:none;}
@@ -131,6 +136,15 @@
 
   .back-top{display:block;text-align:right;font-size:12px;margin-top:24px;}
 
+  /* Botão flutuante "voltar ao topo" */
+  .to-top{
+    position:fixed;right:22px;bottom:22px;width:46px;height:46px;border-radius:999px;
+    background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;
+    font-size:22px;line-height:1;text-decoration:none;box-shadow:0 3px 10px rgba(8,54,109,.28);
+    z-index:50;transition:background .15s;
+  }
+  .to-top:hover{background:var(--primary-2);}
+
   footer.doc-footer{border-top:1px solid var(--line);margin-top:50px;padding-top:18px;font-size:13px;color:var(--muted);text-align:center;}
 
   /* ---------- Impressão ---------- */
@@ -159,8 +173,8 @@
     <img src="assets/logvale-logo.png" alt="Logvale">
   </div>
   <div class="brand-sub">Gestão de Devoluções</div>
-  <div class="brand-title">Manual do Usuário</div>
-  <div class="brand-meta">Versão 1.1 · Atualizado em 16/06/2026</div>
+  <h1 class="brand-title">Manual do Usuário</h1>
+  <div class="brand-meta">Versão 1.2 · Atualizado em 22/06/2026</div>
 </header>
 
 <div class="page">
@@ -271,13 +285,14 @@
 
   <h3 id="glossario-rapido">0.3 Glossário rápido</h3>
   <table>
-    <thead><tr><th>Termo</th><th>O que significa</th></tr></thead>
+    <thead><tr><th scope="col">Termo</th><th scope="col">O que significa</th></tr></thead>
     <tbody>
       <tr><td><strong>Devolução</strong></td><td>Uma mercadoria que voltou e foi registrada no sistema.</td></tr>
       <tr><td><strong>Depositante</strong></td><td>A empresa (CNPJ) dona da mercadoria armazenada na Logvale.</td></tr>
       <tr><td><strong>RV</strong></td><td>Etiqueta com código de barras colada na caixa, usada para identificar a devolução rapidamente.</td></tr>
       <tr><td><strong>Chave de Acesso</strong></td><td>Número de 44 dígitos que identifica a nota fiscal (NF-e).</td></tr>
       <tr><td><strong>NF / XML</strong></td><td>A nota fiscal eletrônica. O XML é o arquivo digital dessa nota.</td></tr>
+      <tr><td><strong>DANFE</strong></td><td>A versão em PDF da nota fiscal, pronta para visualizar e imprimir.</td></tr>
       <tr><td><strong>Tratativa</strong></td><td>A execução, pelo operador, da decisão tomada pelo cliente.</td></tr>
       <tr><td><strong>Auto-decisão</strong></td><td>Decisão tomada automaticamente pelo sistema quando o cliente não responde em 72 horas.</td></tr>
     </tbody>
@@ -306,7 +321,7 @@
     <figcaption>Captura 02 — Primeiro acesso.</figcaption>
   </figure>
 
-  <div class="callout note">O link de acesso tem validade. Se ele expirar ou você esquecer a senha, <strong>peça um novo link ao gerente</strong> — o sistema não envia recuperação de senha automaticamente.</div>
+  <div class="callout note">Não há a opção "esqueci minha senha" na tela de login. Se você esquecer a senha (ou o link de ativação expirar), <strong>peça ao gerente da Logvale</strong>: ele dispara para o seu e-mail um <strong>link de redefinição de senha</strong> (ou, se for o primeiro acesso, um novo link de ativação).</div>
 
   <a class="back-top no-print" href="#topo">↑ Voltar ao topo</a>
 </section>
@@ -315,7 +330,7 @@
 <section id="guia-rapido" class="part">
   <div class="part-kicker">Parte 1</div>
   <h2 class="part-title">Guia Rápido</h2>
-  <p>Esta parte mostra, em uma página por perfil, o caminho mais comum de cada usuário. Para os detalhes, consulte as Partes 2, 3 e 4.</p>
+  <p>Esta parte mostra, em uma página por perfil, o caminho mais comum de cada usuário. Para os detalhes, consulte as Partes <a href="#operador">2</a>, <a href="#cliente">3</a> e <a href="#gerente">4</a>.</p>
 
   <h3 id="rapido-operador">1.1 Operador em 1 página</h3>
   <ol class="steps">
@@ -340,8 +355,8 @@
   <h3 id="rapido-gerente">1.3 Gerente em 1 página</h3>
   <ol class="steps">
     <li>Entre no sistema: o <strong>Dashboard</strong> mostra os indicadores gerais.</li>
-    <li>Em <strong>Usuários</strong>, crie operadores, clientes e gerentes; ao criar um cliente, vincule os depositantes.</li>
-    <li>Use <strong>Reenviar link</strong> para gerar o acesso e <strong>envie ao usuário</strong>.</li>
+    <li>Em <strong>Usuários</strong>, crie operadores, clientes e gerentes; ao criar um cliente, vincule os depositantes. O <strong>e-mail de ativação é enviado automaticamente</strong>.</li>
+    <li>Se necessário, use <strong>Reenviar link</strong> para reenviar o acesso (ativação ou redefinição de senha) ou copiar o link.</li>
     <li>Em <strong>Depositantes</strong>, cadastre as empresas (CNPJ + razão social).</li>
     <li>Em <strong>Devoluções</strong>, acompanhe tudo que está no sistema.</li>
   </ol>
@@ -376,7 +391,7 @@
 
   <h4>Etapa 1 — Identificação da NF</h4>
   <ol class="steps">
-    <li><strong>Bipe a Chave de Acesso</strong> (44 dígitos) da nota fiscal. O sistema lê os dados direto da própria chave — CNPJ do emitente, número e mês da NF — <strong>sem consulta externa</strong> e já sugere o depositante.</li>
+    <li><strong>Bipe a Chave de Acesso</strong> (44 dígitos) da nota fiscal. O sistema lê os dados direto da própria chave — CNPJ do emitente, número e mês da NF — e <strong>já sugere o depositante</strong>, sem depender de consulta externa. Em paralelo, busca automaticamente o <strong>XML</strong> e o <strong>DANFE (PDF)</strong> da nota para deixá-los disponíveis para download; se a consulta não retornar, o recebimento segue normalmente.</li>
     <li>Se o leitor não funcionar, clique em <strong>"Não consigo bipar — digitar à mão"</strong> e digite os 44 dígitos.</li>
     <li>Se a NF estiver ilegível, use <strong>"NF ilegível — usar Código Postal"</strong> e bipe (ou digite) o <strong>CEP</strong> (8 dígitos).</li>
     <li>Se nem o CEP servir, use <strong>"CEP também ilegível — marcar como ilegível"</strong> e confirme em <strong>"NF Ilegível"</strong>. O sistema gera um identificador próprio para a devolução.</li>
@@ -410,7 +425,7 @@
 
   <h4>Etapa 6 — Revisão</h4>
   <p>O sistema mostra um resumo de tudo: identificador (com CNPJ e número da NF, quando lidos da chave), depositante, RV, número de itens e as fotos. Cada bloco tem um botão <strong>Editar</strong> que leva de volta à etapa correspondente. Conferindo tudo, clique em <strong>Confirmar e Registrar</strong>.</p>
-  <div class="callout note">Quando houver um XML de NF vinculado à devolução, aparece também um botão para <strong>baixá-lo</strong>. Esse download depende da integração fiscal de consulta de NF, ainda em implantação — por isso, hoje, em geral não há XML disponível neste momento.</div>
+  <div class="callout note">Quando a nota fiscal foi localizada na bipagem, aparecem aqui os botões <strong>Baixar XML da NF</strong> e <strong>Baixar DANFE (PDF)</strong>. Se a nota não foi encontrada (NF ilegível, identificação por CEP ou indisponível na consulta), os botões simplesmente não aparecem — isso não impede o registro.</div>
 
   <h4>Etapa 7 — Registrar Recebimento</h4>
   <p>O sistema <strong>envia as fotos</strong> e <strong>registra a devolução</strong>. Ao final, aparece a mensagem <strong>"Recebimento registrado!"</strong> e você volta automaticamente ao início, pronto para o próximo.</p>
@@ -429,7 +444,7 @@
 
   <h3 id="op-erros">2.5 Problemas comuns</h3>
   <table>
-    <thead><tr><th>Situação</th><th>O que fazer</th></tr></thead>
+    <thead><tr><th scope="col">Situação</th><th scope="col">O que fazer</th></tr></thead>
     <tbody>
       <tr><td>O leitor não bipa</td><td>Use a opção "digitar à mão" na etapa em questão.</td></tr>
       <tr><td>A nota não foi encontrada</td><td>Tente novamente; se persistir, use Código Postal (CEP) ou marque como Ilegível.</td></tr>
@@ -456,11 +471,11 @@
 
   <h3 id="cli-tabela">3.2 Lendo a tabela</h3>
   <table>
-    <thead><tr><th>Coluna</th><th>O que mostra</th></tr></thead>
+    <thead><tr><th scope="col">Coluna</th><th scope="col">O que mostra</th></tr></thead>
     <tbody>
       <tr><td>Data</td><td>Quando a devolução foi recebida.</td></tr>
       <tr><td>Identificador</td><td>Chave da NF, CEP ou "Ilegível" (com a etiqueta do tipo).</td></tr>
-      <tr><td>NF</td><td>Link para baixar o XML da nota, quando houver.</td></tr>
+      <tr><td>NF</td><td>Links para baixar o <strong>XML</strong> e o <strong>DANFE (PDF)</strong> da nota, quando disponíveis. No histórico, aparece também o XML da <strong>NF de devolução</strong> que você anexou.</td></tr>
       <tr><td>RV</td><td>O código da etiqueta da caixa.</td></tr>
       <tr><td>Itens</td><td>Quantidade de itens.</td></tr>
       <tr><td>Fotos da Caixa / Itens</td><td>Miniaturas — clique para abrir a galeria.</td></tr>
@@ -475,7 +490,7 @@
   <h3 id="cli-decisoes">3.4 As 3 decisões</h3>
   <p>Para cada devolução, você escolhe um destino:</p>
   <table>
-    <thead><tr><th>Decisão</th><th>O que acontece</th><th>Precisa de XML?</th></tr></thead>
+    <thead><tr><th scope="col">Decisão</th><th scope="col">O que acontece</th><th scope="col">Precisa de XML?</th></tr></thead>
     <tbody>
       <tr>
         <td><span class="pill green"><span class="dot"></span>Estoque</span></td>
@@ -523,12 +538,12 @@
 
   <h3 id="cli-duvidas">3.9 Dúvidas do cliente</h3>
   <table>
-    <thead><tr><th>Pergunta</th><th>Resposta</th></tr></thead>
+    <thead><tr><th scope="col">Pergunta</th><th scope="col">Resposta</th></tr></thead>
     <tbody>
       <tr><td>Perdi o prazo de 72h, e agora?</td><td>O sistema já encaminhou para Tratativa. Fale com o comercial da Logvale para os próximos passos.</td></tr>
       <tr><td>Qual XML devo anexar?</td><td>O XML da <strong>nota fiscal de devolução</strong> emitida por você (exigido em Estoque e Descarte).</td></tr>
       <tr><td>Posso desfazer uma decisão?</td><td>Não. A decisão é irreversível; em caso de erro, contate o suporte.</td></tr>
-      <tr><td>Esqueci minha senha</td><td>Solicite um novo link de acesso ao gerente da Logvale.</td></tr>
+      <tr><td>Esqueci minha senha</td><td>Solicite ao gerente da Logvale; ele dispara para o seu e-mail um link de redefinição de senha. Não existe "esqueci minha senha" na tela de login.</td></tr>
     </tbody>
   </table>
 
@@ -558,10 +573,10 @@
   <h3 id="ger-usuarios">4.2 Usuários</h3>
   <p>Em <strong>Usuários</strong> você gerencia operadores, clientes e gerentes. É possível filtrar por perfil. As ações disponíveis:</p>
   <ul>
-    <li><strong>Criar</strong> — informe nome, e-mail (apenas na criação), telefone e o perfil (na tela aparece como "Role"). Se o perfil for <strong>Cliente</strong>, marque os <strong>depositantes vinculados</strong>; você pode cadastrar um novo ali mesmo com <strong>"+ Novo depositante"</strong>.</li>
+    <li><strong>Criar</strong> — informe nome, e-mail (apenas na criação), telefone e o perfil (na tela aparece como "Role"). Se o perfil for <strong>Cliente</strong>, marque os <strong>depositantes vinculados</strong>; você pode cadastrar um novo ali mesmo com <strong>"+ Novo depositante"</strong>. Ao salvar, o sistema <strong>envia o e-mail de ativação automaticamente</strong> e ainda mostra o link na tela.</li>
     <li><strong>Editar</strong> — altera nome, telefone, perfil e depositantes (o e-mail não muda).</li>
     <li><strong>Ativar / Desativar</strong> — desativa o acesso sem apagar o usuário.</li>
-    <li><strong>Reenviar link</strong> — gera o link de acesso; o sistema mostra a mensagem <strong>"Copie e envie ao usuário"</strong> com um botão <strong>Copiar</strong>. O envio é feito por você (e-mail, WhatsApp etc.).</li>
+    <li><strong>Reenviar link</strong> — o sistema <strong>envia um e-mail automaticamente</strong> e confirma o envio na tela: <strong>link de ativação</strong> para quem ainda não ativou a conta, ou <strong>redefinição de senha</strong> para quem já ativou. O link também aparece com um botão <strong>Copiar</strong>, caso você prefira enviar por outro meio (WhatsApp etc.) ou o e-mail não chegue.</li>
     <li><strong>Exportar dados</strong> — baixa um arquivo ZIP com os dados do usuário (LGPD).</li>
     <li><strong>Anonimizar</strong> — remove os dados pessoais de forma irreversível (mantém os dados fiscais por exigência legal).</li>
   </ul>
@@ -570,7 +585,7 @@
     <figcaption>Captura 12 — Gestão de usuários.</figcaption>
   </figure>
   <figure class="shot">
-    <div class="shot-box"><span><strong>Captura 13</strong>Janela "Copie e envie ao usuário" com o link de acesso</span></div>
+    <div class="shot-box"><span><strong>Captura 13</strong>Janela do link de acesso — confirma o e-mail enviado e oferece o botão "Copiar"</span></div>
     <figcaption>Captura 13 — Link de acesso.</figcaption>
   </figure>
 
@@ -581,8 +596,8 @@
   <ol class="steps">
     <li>Em <strong>Usuários</strong>, clique em <strong>Novo Usuário</strong> e escolha o perfil <strong>Cliente</strong>.</li>
     <li>Preencha nome, e-mail e telefone e <strong>marque os depositantes</strong> que esse cliente poderá ver (ou crie um novo ali).</li>
-    <li>Salve. Em seguida, clique em <strong>Reenviar link</strong> na linha do usuário.</li>
-    <li><strong>Copie o link</strong> e envie ao cliente.</li>
+    <li><strong>Salve.</strong> O sistema já <strong>envia o e-mail de ativação</strong> ao cliente e mostra o link na tela.</li>
+    <li>Se precisar reenviar (o e-mail não chegou, ou você prefere outro meio), use <strong>Reenviar link</strong> e <strong>Copiar</strong> para enviar por WhatsApp etc.</li>
     <li>O cliente abre o link, faz o <strong>primeiro acesso</strong> (cria senha + aceita os termos) e já começa a usar.</li>
   </ol>
 
@@ -590,7 +605,7 @@
   <p>Em <strong>Devoluções</strong> você consulta <strong>todas</strong> as devoluções do sistema. É possível <strong>buscar por RV</strong> e <strong>filtrar por status</strong> (aguardando decisão, decidido ou processado), para acompanhar qualquer item do início ao fim.</p>
 
   <h3 id="ger-lgpd">4.6 Ferramentas LGPD</h3>
-  <p>As ações de <strong>Exportar dados</strong> e <strong>Anonimizar</strong> (na tela de Usuários) atendem aos direitos previstos na LGPD. A anonimização preserva apenas os dados fiscais exigidos por lei. Consulte também a Política de Privacidade e os Termos de Uso (Parte 5.7).</p>
+  <p>As ações de <strong>Exportar dados</strong> e <strong>Anonimizar</strong> (na tela de Usuários) atendem aos direitos previstos na LGPD. A anonimização preserva apenas os dados fiscais exigidos por lei. Consulte também a Política de Privacidade e os Termos de Uso (<a href="#ref-lgpd">Parte 5.7</a>).</p>
 
   <a class="back-top no-print" href="#topo">↑ Voltar ao topo</a>
 </section>
@@ -602,7 +617,7 @@
 
   <h3 id="ref-decisoes">5.1 Resumo das decisões</h3>
   <table>
-    <thead><tr><th>Decisão</th><th>Significado</th><th>Exige XML?</th><th>Reversível?</th></tr></thead>
+    <thead><tr><th scope="col">Decisão</th><th scope="col">Significado</th><th scope="col">Exige XML?</th><th scope="col">Reversível?</th></tr></thead>
     <tbody>
       <tr><td><span class="pill green"><span class="dot"></span>Estoque</span></td><td>Volta ao estoque para venda</td><td>Sim</td><td>Não</td></tr>
       <tr><td><span class="pill orange"><span class="dot"></span>Tratativa</span></td><td>Área segregada; tratar com o comercial</td><td>Não</td><td>Não</td></tr>
@@ -623,7 +638,7 @@
 
   <h3 id="ref-prazos">5.3 Prazos do sistema</h3>
   <table>
-    <thead><tr><th>Prazo</th><th>O que acontece</th></tr></thead>
+    <thead><tr><th scope="col">Prazo</th><th scope="col">O que acontece</th></tr></thead>
     <tbody>
       <tr><td>48 horas sem decisão</td><td>O sistema envia um e-mail de aviso ao cliente.</td></tr>
       <tr><td>72 horas sem decisão</td><td>O sistema decide automaticamente por Tratativa (etiqueta "Auto").</td></tr>
@@ -633,7 +648,7 @@
   <h3 id="ref-faq">5.4 Perguntas frequentes</h3>
   <h4>Acesso (todos)</h4>
   <ul>
-    <li><strong>Esqueci a senha / o link expirou:</strong> peça um novo link ao gerente da Logvale.</li>
+    <li><strong>Esqueci a senha / o link expirou:</strong> peça ao gerente da Logvale — ele dispara para o seu e-mail um link de redefinição de senha (ou um novo link de ativação, se ainda for o primeiro acesso).</li>
     <li><strong>Entrei e não vejo as telas de outro perfil:</strong> é normal — cada perfil vê apenas o seu.</li>
   </ul>
   <h4>Operador</h4>
@@ -649,11 +664,12 @@
 
   <h3 id="ref-glossario">5.5 Glossário completo</h3>
   <table>
-    <thead><tr><th>Termo</th><th>Significado</th></tr></thead>
+    <thead><tr><th scope="col">Termo</th><th scope="col">Significado</th></tr></thead>
     <tbody>
       <tr><td>Auto-decisão</td><td>Decisão tomada pelo sistema após 72h sem resposta do cliente (vira Tratativa).</td></tr>
       <tr><td>CEP / Código Postal</td><td>Identificador alternativo usado quando a NF está ilegível.</td></tr>
       <tr><td>Chave de Acesso</td><td>Número de 44 dígitos que identifica a NF-e.</td></tr>
+      <tr><td>DANFE</td><td>Documento Auxiliar da NF-e — a versão em PDF da nota, para visualizar e imprimir.</td></tr>
       <tr><td>Depositante</td><td>Empresa (CNPJ) dona da mercadoria armazenada na Logvale.</td></tr>
       <tr><td>Devolução</td><td>Mercadoria devolvida registrada no sistema.</td></tr>
       <tr><td>Ilegível</td><td>Estado quando NF e CEP não puderam ser lidos; o sistema gera um identificador próprio.</td></tr>
@@ -683,10 +699,13 @@
 </section>
 
 <footer class="doc-footer">
-  <p><strong>Sistema Logvale de Devoluções</strong> — Manual do Usuário · Versão 1.1 · 16/06/2026</p>
+  <p><strong>Sistema Logvale de Devoluções</strong> — Manual do Usuário · Versão 1.2 · 22/06/2026</p>
   <p>Suporte: cadu@logvale.com.br · +55 (12) 99713-8919</p>
 </footer>
 
 </div>
+
+<a href="#topo" class="to-top no-print" aria-label="Voltar ao topo do manual" title="Voltar ao topo">↑</a>
+
 </body>
 </html>

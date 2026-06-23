@@ -60,6 +60,11 @@ function IdentifierTag({ row }: { row: ReturnRow }) {
         <span className="font-mono text-xs break-all">{display}</span>
         {fullValue && <CopyButton value={fullValue} title={`Copiar ${label}`} className="shrink-0" />}
       </span>
+      {row.finalCustomerName && (
+        <span className="text-[11px] text-muted-foreground truncate max-w-[200px]" title={row.finalCustomerName}>
+          Cliente: {row.finalCustomerName}
+        </span>
+      )}
     </span>
   )
 }
@@ -76,7 +81,7 @@ export function ReturnsTable({
 }: ReturnsTableProps) {
   const router = useRouter()
   const [selectedDecision, setSelectedDecision] = useState<{ row: ReturnRow; decision: ReturnDecision } | null>(null)
-  const [gallery, setGallery] = useState<{ urls: string[]; index: number } | null>(null)
+  const [gallery, setGallery] = useState<{ urls: string[]; index: number; prefix?: string } | null>(null)
 
   const totalPages = Math.ceil(total / PAGE_SIZE)
 
@@ -230,7 +235,7 @@ export function ReturnsTable({
                   <td className="px-3 py-2.5">
                     <PhotoThumbs
                       urls={row.boxPhotoUrls}
-                      onOpen={(i) => setGallery({ urls: row.boxPhotoUrls, index: i })}
+                      onOpen={(i) => setGallery({ urls: row.boxPhotoUrls, index: i, prefix: `${row.rv}-caixa` })}
                       size="sm"
                       maxVisible={3}
                       emptyText="—"
@@ -239,7 +244,7 @@ export function ReturnsTable({
                   <td className="px-3 py-2.5">
                     <PhotoThumbs
                       urls={row.itemPhotoUrls}
-                      onOpen={(i) => setGallery({ urls: row.itemPhotoUrls, index: i })}
+                      onOpen={(i) => setGallery({ urls: row.itemPhotoUrls, index: i, prefix: `${row.rv}-item` })}
                       size="sm"
                       maxVisible={3}
                       emptyText="—"
@@ -337,6 +342,7 @@ export function ReturnsTable({
         <PhotoGallery
           urls={gallery.urls}
           currentIndex={gallery.index}
+          downloadPrefix={gallery.prefix}
           onNavigate={(i) => setGallery({ ...gallery, index: i })}
           onClose={() => setGallery(null)}
         />

@@ -46,17 +46,18 @@ export async function lookupInvoiceAction(
 }
 
 interface CreateReturnPayload {
-  identifierType:  IdentifierType
-  accessKey:       string | null
-  postalCode:      string | null
-  illegibleToken:  string | null
-  rv:              string
-  itemCount:       number
-  depositorId:     string | null
-  invoiceXmlPath:  string | null
-  invoicePdfPath:  string | null
-  boxPhotosPaths:  string[]
-  itemPhotosPaths: string[]
+  identifierType:    IdentifierType
+  accessKey:         string | null
+  postalCode:        string | null
+  illegibleToken:    string | null
+  rv:                string
+  itemCount:         number
+  depositorId:       string | null
+  invoiceXmlPath:    string | null
+  invoicePdfPath:    string | null
+  finalCustomerName: string | null
+  boxPhotosPaths:    string[]
+  itemPhotosPaths:   string[]
 }
 
 export async function createReturnAction(
@@ -66,21 +67,27 @@ export async function createReturnAction(
     const user = await getCurrentUser()
     if (user.profile.role !== 'operator' && !isSuperUser(user)) return { error: 'Acesso negado' }
 
+    // Regra de negócio: todo recebimento exige ao menos 1 foto de caixa e 1 de item.
+    if (payload.boxPhotosPaths.length < 1 || payload.itemPhotosPaths.length < 1) {
+      return { error: 'É necessária ao menos 1 foto da caixa e 1 foto do item.' }
+    }
+
     const supabase = createClient()
 
     const { data: record, error: insertError } = await supabase
       .from('returns')
       .insert({
-        identifier_type:  payload.identifierType,
-        access_key:       payload.accessKey,
-        postal_code:      payload.postalCode,
-        illegible_token:  payload.illegibleToken,
-        rv:               payload.rv,
-        item_count:       payload.itemCount,
-        depositor_id:     payload.depositorId,
-        invoice_xml_url:  payload.invoiceXmlPath,
-        invoice_pdf_url:  payload.invoicePdfPath,
-        received_by:      user.id,
+        identifier_type:     payload.identifierType,
+        access_key:          payload.accessKey,
+        postal_code:         payload.postalCode,
+        illegible_token:     payload.illegibleToken,
+        rv:                  payload.rv,
+        item_count:          payload.itemCount,
+        depositor_id:        payload.depositorId,
+        invoice_xml_url:     payload.invoiceXmlPath,
+        invoice_pdf_url:     payload.invoicePdfPath,
+        final_customer_name: payload.finalCustomerName,
+        received_by:         user.id,
       })
       .select('id')
       .single()

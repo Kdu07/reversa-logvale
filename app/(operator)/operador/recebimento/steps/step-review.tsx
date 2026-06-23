@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { DownloadXmlButton } from '@/components/shared/download-xml-button'
 import { xmlDownloadName, danfeDownloadName } from '@/lib/format'
+import { invoiceFetchReasonLabel } from '@/lib/integrations/invoice-fetch-reason'
 import type { ReceivingState } from '../receiving-flow'
 
 interface StepReviewProps {
@@ -53,6 +54,9 @@ export function StepReview({ state, onConfirm, onGoTo, onBack }: StepReviewProps
         ) : state.identifierType === 'access_key' ? (
           <p className="text-xs text-amber-600 mt-0.5">Depositante não cadastrado</p>
         ) : null}
+        {state.invoiceData?.finalCustomerName && (
+          <p className="text-xs text-muted-foreground mt-0.5">Cliente final: {state.invoiceData.finalCustomerName}</p>
+        )}
         {state.invoiceData?.xmlStoragePath && (
           <DownloadXmlButton
             path={state.invoiceData.xmlStoragePath}
@@ -71,6 +75,13 @@ export function StepReview({ state, onConfirm, onGoTo, onBack }: StepReviewProps
             loadingLabel="Gerando link…"
             className="mt-1 ml-3 text-xs text-primary hover:underline disabled:opacity-50"
           />
+        )}
+        {state.identifierType === 'access_key' && state.invoiceData && !state.invoiceData.xmlFetched && (
+          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5 mt-2">
+            NF identificada pelo CNPJ, mas a NFEio não retornou o XML/DANFE
+            ({invoiceFetchReasonLabel(state.invoiceData.invoiceFetchReason)}). Será registrada sem o
+            arquivo — recuperável depois no painel de devoluções.
+          </p>
         )}
       </ReviewSection>
 

@@ -237,6 +237,11 @@ export const ptBR = {
       revertBtn:   'Reverter',
       revertTitle: 'Reverter Status?',
       revertDesc:  'Esta ação é excepcional e pode afetar o fluxo do sistema.',
+      removeBtn:     'Remover devolução',
+      removeTitle:   'Remover devolução?',
+      removeDesc:    'Esta ação é irreversível: a devolução e suas fotos serão apagadas permanentemente.',
+      removeConfirm: 'Confirmar remoção',
+      removing:      'Removendo...',
     },
   },
 } as const

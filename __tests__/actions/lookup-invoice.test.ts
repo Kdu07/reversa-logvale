@@ -12,14 +12,18 @@ import { lookupInvoice } from '@/lib/integrations/nfeio'
 const VALID_KEY = '12345678901234567890123456789012345678901234' // 44 dígitos
 
 const MOCK_INVOICE_DATA = {
-  accessKey:      VALID_KEY,
-  emitterCnpj:    '12345678000199',
-  invoiceNumber:  '000001',
-  emittedAt:      '2024-01-15',
-  xmlStoragePath: 'ak/abc.xml',
-  pdfStoragePath: 'ak/abc.pdf',
-  depositorId:    'dep-1',
-  depositorName:  'Empresa Teste Ltda',
+  accessKey:          VALID_KEY,
+  emitterCnpj:        '12345678000199',
+  invoiceNumber:      '000001',
+  emittedAt:          '2024-01-15',
+  xmlStoragePath:     'ak/abc.xml',
+  pdfStoragePath:     'ak/abc.pdf',
+  finalCustomerName:  'Cliente Final Ltda',
+  depositorId:        'dep-1',
+  depositorName:      'Empresa Teste Ltda',
+  xmlFetched:         true,
+  pdfFetched:         true,
+  invoiceFetchReason: null,
 }
 
 beforeEach(() => {

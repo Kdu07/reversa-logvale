@@ -50,13 +50,14 @@ export function StepSubmit({ state, onBack, onReset }: StepSubmitProps) {
         accessKey:       state.accessKey,
         postalCode:      state.postalCode,
         illegibleToken:  state.illegibleToken,
-        rv:              state.rv,
-        itemCount:       state.itemCount!,
-        depositorId:     state.depositorId,
-        invoiceXmlPath:  state.invoiceData?.xmlStoragePath ?? null,
-        invoicePdfPath:  state.invoiceData?.pdfStoragePath ?? null,
-        boxPhotosPaths:  boxPaths,
-        itemPhotosPaths: itemPaths,
+        rv:                state.rv,
+        itemCount:         state.itemCount!,
+        depositorId:       state.depositorId,
+        invoiceXmlPath:    state.invoiceData?.xmlStoragePath ?? null,
+        invoicePdfPath:    state.invoiceData?.pdfStoragePath ?? null,
+        finalCustomerName: state.invoiceData?.finalCustomerName ?? null,
+        boxPhotosPaths:    boxPaths,
+        itemPhotosPaths:   itemPaths,
       })
 
       if ('error' in result) {

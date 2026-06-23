@@ -4,6 +4,7 @@ import {
   fetchInvoiceXml,
   fetchInvoicePdf,
   persistInvoiceFiles,
+  parseFinalCustomerName,
 } from '@/lib/integrations/nfeio'
 
 // env mockado e mutável — os campos nfeio* são lidos em tempo de chamada,
@@ -67,9 +68,12 @@ describe('lookupInvoice (parsing local da chave)', () => {
     expect(result.emitterCnpj).toBe('12345678000195')
     expect(result.invoiceNumber).toBe('12345')
     expect(result.emittedAt).toBe('2024-01-01')
-    // NFEio desativada => sem arquivos persistidos
-    expect(result.xmlStoragePath).toBe('')
-    expect(result.pdfStoragePath).toBe('')
+    // NFEio desativada => sem arquivos persistidos (NULL, nunca string vazia)
+    expect(result.xmlStoragePath).toBeNull()
+    expect(result.pdfStoragePath).toBeNull()
+    expect(result.xmlFetched).toBe(false)
+    expect(result.pdfFetched).toBe(false)
+    expect(result.invoiceFetchReason).toBe('disabled')
   })
 
   it('vincula depositante quando o CNPJ emitente está cadastrado', async () => {
@@ -106,17 +110,22 @@ describe('lookupInvoice (parsing local da chave)', () => {
 
     expect(result.xmlStoragePath).toBe(`ak/${ACCESS_KEY}.xml`)
     expect(result.pdfStoragePath).toBe(`ak/${ACCESS_KEY}.pdf`)
+    expect(result.xmlFetched).toBe(true)
+    expect(result.pdfFetched).toBe(true)
+    expect(result.invoiceFetchReason).toBeNull()
   })
 
-  it('não bloqueia o recebimento quando a NFEio falha (paths vazios)', async () => {
+  it('não bloqueia o recebimento quando a NFEio falha (paths NULL + motivo)', async () => {
     env.nfeioEnabled = true
     vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 404 })))
 
     const result = await lookupInvoice(ACCESS_KEY)
 
     expect(result.emitterCnpj).toBe('12345678000195')
-    expect(result.xmlStoragePath).toBe('')
-    expect(result.pdfStoragePath).toBe('')
+    expect(result.xmlStoragePath).toBeNull()
+    expect(result.pdfStoragePath).toBeNull()
+    expect(result.xmlFetched).toBe(false)
+    expect(result.invoiceFetchReason).toBe('not_found')
   })
 })
 
@@ -167,14 +176,17 @@ describe('fetchInvoicePdf', () => {
 })
 
 describe('persistInvoiceFiles', () => {
-  it('retorna nulls quando desativada (sem upload)', async () => {
+  it('retorna nulls + motivo disabled quando desativada (sem upload)', async () => {
     env.nfeioEnabled = false
     const result = await persistInvoiceFiles(ACCESS_KEY)
-    expect(result).toEqual({ xmlPath: null, pdfPath: null })
+    expect(result).toEqual({
+      xmlPath: null, pdfPath: null, finalCustomerName: null,
+      xmlReason: 'disabled', pdfReason: 'disabled',
+    })
     expect(uploadMock).not.toHaveBeenCalled()
   })
 
-  it('faz upload e devolve os paths quando XML+PDF chegam', async () => {
+  it('faz upload e devolve os paths (sem motivo) quando XML+PDF chegam', async () => {
     env.nfeioEnabled = true
     vi.stubGlobal('fetch', vi.fn(async (url: string) =>
       url.endsWith('.xml')
@@ -184,9 +196,67 @@ describe('persistInvoiceFiles', () => {
 
     const result = await persistInvoiceFiles(ACCESS_KEY)
 
-    expect(result).toEqual({ xmlPath: `ak/${ACCESS_KEY}.xml`, pdfPath: `ak/${ACCESS_KEY}.pdf` })
+    expect(result).toEqual({
+      xmlPath: `ak/${ACCESS_KEY}.xml`, pdfPath: `ak/${ACCESS_KEY}.pdf`,
+      finalCustomerName: null, xmlReason: null, pdfReason: null,
+    })
     expect(uploadMock).toHaveBeenCalledWith(
       `ak/${ACCESS_KEY}.xml`, '<nfeProc/>', expect.objectContaining({ upsert: true }),
     )
+  })
+
+  it('propaga o motivo (not_found) sem path quando a NFEio responde 404', async () => {
+    env.nfeioEnabled = true
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 404 })))
+
+    const result = await persistInvoiceFiles(ACCESS_KEY)
+
+    expect(result).toEqual({
+      xmlPath: null, pdfPath: null, finalCustomerName: null,
+      xmlReason: 'not_found', pdfReason: 'not_found',
+    })
+    expect(uploadMock).not.toHaveBeenCalled()
+  })
+
+  it('extrai o nome do cliente final do XML ao persistir', async () => {
+    env.nfeioEnabled = true
+    const xml =
+      '<nfeProc><NFe><infNFe>' +
+      '<emit><xNome>DEPOSITANTE LTDA</xNome></emit>' +
+      '<dest><xNome>CLIENTE FINAL LTDA</xNome></dest>' +
+      '</infNFe></NFe></nfeProc>'
+    vi.stubGlobal('fetch', vi.fn(async (url: string) =>
+      url.endsWith('.xml')
+        ? new Response(xml, { status: 200 })
+        : new Response(new Uint8Array([1]), { status: 200 }),
+    ))
+
+    const result = await persistInvoiceFiles(ACCESS_KEY)
+
+    expect(result.finalCustomerName).toBe('CLIENTE FINAL LTDA')
+  })
+})
+
+describe('parseFinalCustomerName', () => {
+  it('extrai o xNome do bloco <dest>, ignorando o do <emit>', () => {
+    const xml =
+      '<infNFe>' +
+      '<emit><CNPJ>12345678000195</CNPJ><xNome>DEPOSITANTE LTDA</xNome></emit>' +
+      '<dest><CNPJ>98765432000110</CNPJ><xNome>CLIENTE FINAL LTDA</xNome></dest>' +
+      '</infNFe>'
+    expect(parseFinalCustomerName(xml)).toBe('CLIENTE FINAL LTDA')
+  })
+
+  it('decodifica entidades XML no nome', () => {
+    expect(parseFinalCustomerName('<dest><xNome>JOÃO &amp; MARIA &lt;ME&gt;</xNome></dest>'))
+      .toBe('JOÃO & MARIA <ME>')
+  })
+
+  it('retorna null quando não há bloco <dest>', () => {
+    expect(parseFinalCustomerName('<emit><xNome>SÓ EMITENTE</xNome></emit>')).toBeNull()
+  })
+
+  it('retorna null quando o <dest> não tem xNome', () => {
+    expect(parseFinalCustomerName('<dest><CNPJ>1</CNPJ></dest>')).toBeNull()
   })
 })

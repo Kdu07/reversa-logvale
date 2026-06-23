@@ -140,7 +140,7 @@ export function ReceivingFlow({ operatorName }: ReceivingFlowProps) {
             photoType="box"
             stepNumber={4}
             label="Fotos da Caixa"
-            minPhotos={2}
+            minPhotos={1}
             maxPhotos={4}
             photos={state.boxPhotos}
             onAdd={(f) => dispatch({ type: 'ADD_BOX_PHOTO', file: f })}

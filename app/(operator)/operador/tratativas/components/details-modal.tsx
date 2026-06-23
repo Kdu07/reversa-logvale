@@ -21,7 +21,7 @@ export function DetailsModal({ row, onClose, onComplete }: DetailsModalProps) {
   const [showConfirm, setShowConfirm] = useState(false)
   const [isProcessing, setProcessing] = useState(false)
   const [error, setError]             = useState<string | null>(null)
-  const [gallery, setGallery]         = useState<{ urls: string[]; index: number } | null>(null)
+  const [gallery, setGallery]         = useState<{ urls: string[]; index: number; prefix?: string } | null>(null)
 
   const meta = DECISION_META[row.decision]
 
@@ -72,6 +72,10 @@ export function DetailsModal({ row, onClose, onComplete }: DetailsModalProps) {
                 <div>
                   <p className="text-xs text-muted-foreground">Cliente</p>
                   <p className="font-medium">{row.clientName ?? (row.decidedByType === 'auto' ? 'Auto' : '—')}</p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-xs text-muted-foreground">Cliente final</p>
+                  <p className="font-medium">{row.finalCustomerName ?? '—'}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Recebido em</p>
@@ -134,7 +138,7 @@ export function DetailsModal({ row, onClose, onComplete }: DetailsModalProps) {
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Fotos da Caixa</p>
               <PhotoThumbs
                 urls={row.boxPhotoUrls}
-                onOpen={(i) => setGallery({ urls: row.boxPhotoUrls, index: i })}
+                onOpen={(i) => setGallery({ urls: row.boxPhotoUrls, index: i, prefix: `${row.rv}-caixa` })}
                 emptyText="Nenhuma foto"
               />
             </div>
@@ -143,7 +147,7 @@ export function DetailsModal({ row, onClose, onComplete }: DetailsModalProps) {
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Fotos dos Itens</p>
               <PhotoThumbs
                 urls={row.itemPhotoUrls}
-                onOpen={(i) => setGallery({ urls: row.itemPhotoUrls, index: i })}
+                onOpen={(i) => setGallery({ urls: row.itemPhotoUrls, index: i, prefix: `${row.rv}-item` })}
                 emptyText="Nenhuma foto"
               />
             </div>
@@ -199,6 +203,7 @@ export function DetailsModal({ row, onClose, onComplete }: DetailsModalProps) {
         <PhotoGallery
           urls={gallery.urls}
           currentIndex={gallery.index}
+          downloadPrefix={gallery.prefix}
           onNavigate={(i) => setGallery({ ...gallery, index: i })}
           onClose={() => setGallery(null)}
         />

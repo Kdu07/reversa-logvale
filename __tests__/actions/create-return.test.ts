@@ -29,17 +29,18 @@ function mockOperator() {
 }
 
 const BASE_PAYLOAD = {
-  identifierType:  'access_key' as const,
-  accessKey:       '12345678901234567890123456789012345678901234',
-  postalCode:      null,
-  illegibleToken:  null,
-  rv:              'RV-001',
-  itemCount:       3,
-  depositorId:     'dep-1',
-  invoiceXmlPath:  null,
-  invoicePdfPath:  null,
-  boxPhotosPaths:  [],
-  itemPhotosPaths: [],
+  identifierType:    'access_key' as const,
+  accessKey:         '12345678901234567890123456789012345678901234',
+  postalCode:        null,
+  illegibleToken:    null,
+  rv:                'RV-001',
+  itemCount:         3,
+  depositorId:       'dep-1',
+  invoiceXmlPath:    null,
+  invoicePdfPath:    null,
+  finalCustomerName: null,
+  boxPhotosPaths:    ['box/1.jpg'],
+  itemPhotosPaths:   ['item/1.jpg'],
 }
 
 beforeEach(() => {
@@ -55,7 +56,7 @@ beforeEach(() => {
 })
 
 describe('createReturnAction', () => {
-  it('cria devolução sem fotos e retorna returnId', async () => {
+  it('cria devolução e retorna returnId', async () => {
     mockOperator()
 
     const result = await createReturnAction(BASE_PAYLOAD)
@@ -64,6 +65,28 @@ describe('createReturnAction', () => {
     expect(mockInsert).toHaveBeenCalledWith(
       expect.objectContaining({ rv: 'RV-001', received_by: 'op-1' }),
     )
+  })
+
+  it('persiste o nome do cliente final quando fornecido', async () => {
+    mockOperator()
+
+    await createReturnAction({ ...BASE_PAYLOAD, finalCustomerName: 'FULANO DE TAL' })
+
+    expect(mockInsert).toHaveBeenCalledWith(
+      expect.objectContaining({ final_customer_name: 'FULANO DE TAL' }),
+    )
+  })
+
+  it('rejeita recebimento sem foto de caixa ou de item', async () => {
+    mockOperator()
+
+    const semCaixa = await createReturnAction({ ...BASE_PAYLOAD, boxPhotosPaths: [] })
+    expect(semCaixa).toEqual({ error: 'É necessária ao menos 1 foto da caixa e 1 foto do item.' })
+
+    const semItem = await createReturnAction({ ...BASE_PAYLOAD, itemPhotosPaths: [] })
+    expect(semItem).toEqual({ error: 'É necessária ao menos 1 foto da caixa e 1 foto do item.' })
+
+    expect(mockInsert).not.toHaveBeenCalled()
   })
 
   it('insere fotos quando fornecidas', async () => {

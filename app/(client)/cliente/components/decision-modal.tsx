@@ -111,6 +111,9 @@ export function DecisionModal({ row, decision, onClose, onSuccess }: DecisionMod
           {row.depositorName && (
             <p><span className="text-muted-foreground">Depositante:</span> {row.depositorName}</p>
           )}
+          {row.finalCustomerName && (
+            <p><span className="text-muted-foreground">Cliente final:</span> {row.finalCustomerName}</p>
+          )}
         </div>
 
         {xmlRequired && (

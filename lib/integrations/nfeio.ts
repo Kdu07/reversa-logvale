@@ -2,14 +2,22 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { env } from '@/lib/env'
 
 export interface InvoiceData {
-  accessKey:      string
-  emitterCnpj:    string
-  invoiceNumber:  string | null
-  emittedAt:      string | null
-  xmlStoragePath: string
-  pdfStoragePath: string
-  depositorId:    string | null
-  depositorName:  string | null
+  accessKey:         string
+  emitterCnpj:       string
+  invoiceNumber:     string | null
+  emittedAt:         string | null
+  xmlStoragePath:    string | null
+  pdfStoragePath:    string | null
+  finalCustomerName: string | null
+  depositorId:       string | null
+  depositorName:     string | null
+  // Status da consulta de NF na NFEio (informativo — a falha nunca bloqueia o
+  // recebimento). Permite avisar o operador quando o CNPJ foi identificado pela
+  // chave, mas o XML/DANFE não foi retornado. `invoiceFetchReason` é null quando
+  // o XML foi obtido com sucesso.
+  xmlFetched:         boolean
+  pdfFetched:         boolean
+  invoiceFetchReason: InvoiceFetchReason | null
 }
 
 const XML_BUCKET = 'invoice-xmls'
@@ -42,6 +50,32 @@ function parseAccessKey(accessKey: string) {
   return { emitterCnpj, invoiceNumber, emittedAt }
 }
 
+/** Decodifica as entidades XML básicas (`&amp;` por último para não re-decodificar). */
+function decodeXmlEntities(s: string): string {
+  return s
+    .replace(/&lt;/g,   '<')
+    .replace(/&gt;/g,   '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g,  "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g,  '&')
+}
+
+/**
+ * Extrai o nome do cliente final (destinatário) do XML da NF-e.
+ *
+ * No layout nfeProc/NFe, o destinatário é `<dest><xNome>…</xNome></dest>` — quem
+ * comprou/recebeu o produto. A busca é restrita ao bloco `<dest>` de propósito,
+ * para não capturar o `<xNome>` do `<emit>` (que corresponde ao depositante).
+ */
+export function parseFinalCustomerName(xml: string): string | null {
+  const destBlock = xml.match(/<dest\b[^>]*>([\s\S]*?)<\/dest>/i)?.[1]
+  if (!destBlock) return null
+  const xNome = destBlock.match(/<xNome\b[^>]*>([\s\S]*?)<\/xNome>/i)?.[1]
+  if (!xNome) return null
+  return decodeXmlEntities(xNome).trim() || null
+}
+
 export async function lookupInvoice(accessKey: string): Promise<InvoiceData> {
   if (!/^\d{44}$/.test(accessKey)) {
     throw new Error('Chave de acesso inválida (44 dígitos)')
@@ -59,19 +93,27 @@ export async function lookupInvoice(accessKey: string): Promise<InvoiceData> {
     .single()
 
   // Busca e persiste XML + DANFE na própria bipagem (decisão: Etapa 1).
-  // Falha de rede da NFEio NÃO bloqueia o recebimento — os paths ficam vazios
-  // e o painel super-only de backfill os recupera depois.
-  const { xmlPath, pdfPath } = await persistInvoiceFiles(accessKey)
+  // Falha de rede da NFEio NÃO bloqueia o recebimento — os paths ficam `null`
+  // e o painel super-only de backfill os recupera depois. Importante: NUNCA
+  // gravar string vazia aqui — `''` não é `NULL` e cria devoluções "invisíveis"
+  // para o contador/backfill (que filtram por `IS NULL`).
+  const { xmlPath, pdfPath, finalCustomerName, xmlReason, pdfReason } =
+    await persistInvoiceFiles(accessKey)
 
   return {
     accessKey,
     emitterCnpj,
     invoiceNumber,
     emittedAt,
-    xmlStoragePath: xmlPath ?? '',
-    pdfStoragePath: pdfPath ?? '',
-    depositorId:    depositor?.id ?? null,
-    depositorName:  depositor?.razao_social ?? null,
+    xmlStoragePath:     xmlPath,
+    pdfStoragePath:     pdfPath,
+    finalCustomerName,
+    depositorId:        depositor?.id ?? null,
+    depositorName:      depositor?.razao_social ?? null,
+    xmlFetched:         xmlPath !== null,
+    pdfFetched:         pdfPath !== null,
+    // Prioriza o motivo do XML (é o arquivo que o painel rastreia); cai no do PDF.
+    invoiceFetchReason: xmlReason ?? pdfReason,
   }
 }
 
@@ -146,38 +188,58 @@ export async function fetchInvoicePdf(accessKey: string): Promise<InvoicePdfResu
   }
 }
 
+export interface PersistInvoiceResult {
+  xmlPath:           string | null
+  pdfPath:           string | null
+  finalCustomerName: string | null
+  // Motivo da ausência de cada arquivo (null quando o arquivo foi persistido).
+  xmlReason:         InvoiceFetchReason | null
+  pdfReason:         InvoiceFetchReason | null
+}
+
 /**
  * Busca XML + DANFE na NFEio e os persiste no storage (upsert, admin client —
  * operador não tem policy de UPDATE, e NFs repetidas exigem bypass de RLS).
  *
  * Best-effort: cada arquivo é independente; falha de um deixa só aquele path
- * `null`. Nunca lança — o chamador segue o fluxo mesmo sem os arquivos.
+ * `null` (com o respectivo `*Reason`). Nunca lança — o chamador segue o fluxo
+ * mesmo sem os arquivos.
  */
-export async function persistInvoiceFiles(
-  accessKey: string,
-): Promise<{ xmlPath: string | null; pdfPath: string | null }> {
-  if (!env.nfeioEnabled) return { xmlPath: null, pdfPath: null }
+export async function persistInvoiceFiles(accessKey: string): Promise<PersistInvoiceResult> {
+  if (!env.nfeioEnabled) {
+    return { xmlPath: null, pdfPath: null, finalCustomerName: null, xmlReason: 'disabled', pdfReason: 'disabled' }
+  }
 
   const supabase = adminClient()
   const [xmlRes, pdfRes] = await Promise.all([fetchInvoiceXml(accessKey), fetchInvoicePdf(accessKey)])
 
   let xmlPath: string | null = null
+  let xmlReason: InvoiceFetchReason | null = null
+  let finalCustomerName: string | null = null
   if (xmlRes.ok) {
+    finalCustomerName = parseFinalCustomerName(xmlRes.xml)
     const path = invoiceXmlStoragePath(accessKey)
     const { error } = await supabase.storage
       .from(XML_BUCKET)
       .upload(path, xmlRes.xml, { upsert: true, contentType: 'application/xml' })
     if (!error) xmlPath = path
+    else xmlReason = 'error' // NF baixada, mas o upload no storage falhou
+  } else {
+    xmlReason = xmlRes.reason
   }
 
   let pdfPath: string | null = null
+  let pdfReason: InvoiceFetchReason | null = null
   if (pdfRes.ok) {
     const path = invoicePdfStoragePath(accessKey)
     const { error } = await supabase.storage
       .from(PDF_BUCKET)
       .upload(path, pdfRes.pdf, { upsert: true, contentType: 'application/pdf' })
     if (!error) pdfPath = path
+    else pdfReason = 'error'
+  } else {
+    pdfReason = pdfRes.reason
   }
 
-  return { xmlPath, pdfPath }
+  return { xmlPath, pdfPath, finalCustomerName, xmlReason, pdfReason }
 }

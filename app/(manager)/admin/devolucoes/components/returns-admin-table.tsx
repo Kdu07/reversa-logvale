@@ -13,7 +13,7 @@ import { PhotoThumbs } from '@/components/shared/photo-thumbs'
 import { DownloadXmlButton } from '@/components/shared/download-xml-button'
 import { formatDate, identifierLabel, xmlDownloadName, danfeDownloadName } from '@/lib/format'
 import { ptBR } from '@/lib/i18n/pt-BR'
-import { revertReturnStatusAction } from '../actions'
+import { revertReturnStatusAction, deleteReturnAction } from '../actions'
 import { Boxes, ChevronLeft, ChevronRight, Search } from 'lucide-react'
 import type { AdminReturnRow } from '../actions'
 import type { ReturnStatus } from '@/types'
@@ -47,7 +47,9 @@ export function ReturnsAdminTable({
   const [detailsRow, setDetailsRow]     = useState<AdminReturnRow | null>(null)
   const [revertTarget, setRevertTarget] = useState<AdminReturnRow | null>(null)
   const [revertError, setRevertError]   = useState<string | null>(null)
-  const [gallery, setGallery]           = useState<{ urls: string[]; index: number } | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<AdminReturnRow | null>(null)
+  const [deleteError, setDeleteError]   = useState<string | null>(null)
+  const [gallery, setGallery]           = useState<{ urls: string[]; index: number; prefix?: string } | null>(null)
   const [isPending, startTransition]    = useTransition()
 
   const totalPages = Math.max(1, Math.ceil(total / 50))
@@ -68,6 +70,17 @@ export function ReturnsAdminTable({
       const result = await revertReturnStatusAction(revertTarget.id)
       if ('error' in result) { setRevertError(result.error); return }
       setRevertTarget(null)
+      setDetailsRow(null)
+    })
+  }
+
+  function handleDelete() {
+    if (!deleteTarget) return
+    setDeleteError(null)
+    startTransition(async () => {
+      const result = await deleteReturnAction(deleteTarget.id)
+      if ('error' in result) { setDeleteError(result.error); return }
+      setDeleteTarget(null)
       setDetailsRow(null)
     })
   }
@@ -209,6 +222,9 @@ export function ReturnsAdminTable({
               <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
                 <InfoField label="Depositante"  value={detailsRow.depositorName ?? '—'} />
                 <InfoField label="Operador"     value={detailsRow.operatorName ?? '—'} />
+                <div className="col-span-2">
+                  <InfoField label="Cliente final" value={detailsRow.finalCustomerName ?? '—'} />
+                </div>
                 <InfoField label="Recebido em"  value={formatDate(detailsRow.receivedAt)} />
                 {detailsRow.decidedAt   && <InfoField label="Decisão em"    value={formatDate(detailsRow.decidedAt)} />}
                 {detailsRow.processedAt && <InfoField label="Processado em" value={formatDate(detailsRow.processedAt)} />}
@@ -255,13 +271,13 @@ export function ReturnsAdminTable({
               {detailsRow.boxPhotoUrls.length > 0 && (
                 <div>
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Fotos da Caixa</p>
-                  <PhotoThumbs urls={detailsRow.boxPhotoUrls} onOpen={(i) => setGallery({ urls: detailsRow.boxPhotoUrls, index: i })} />
+                  <PhotoThumbs urls={detailsRow.boxPhotoUrls} onOpen={(i) => setGallery({ urls: detailsRow.boxPhotoUrls, index: i, prefix: `${detailsRow.rv}-caixa` })} />
                 </div>
               )}
               {detailsRow.itemPhotoUrls.length > 0 && (
                 <div>
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Fotos dos Itens</p>
-                  <PhotoThumbs urls={detailsRow.itemPhotoUrls} onOpen={(i) => setGallery({ urls: detailsRow.itemPhotoUrls, index: i })} />
+                  <PhotoThumbs urls={detailsRow.itemPhotoUrls} onOpen={(i) => setGallery({ urls: detailsRow.itemPhotoUrls, index: i, prefix: `${detailsRow.rv}-item` })} />
                 </div>
               )}
             </div>
@@ -279,6 +295,14 @@ export function ReturnsAdminTable({
                   {t.revertBtn}
                 </Button>
               )}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => { setDeleteError(null); setDeleteTarget(detailsRow) }}
+                className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              >
+                {t.removeBtn}
+              </Button>
             </DialogFooter>
           </DialogContent>
         )}
@@ -307,10 +331,37 @@ export function ReturnsAdminTable({
         </DialogContent>
       </Dialog>
 
+      {/* Confirmar remoção */}
+      <Dialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t.removeTitle}</DialogTitle>
+            <DialogDescription>
+              {t.removeDesc}
+              {deleteTarget && <> (RV <span className="font-mono font-medium">{deleteTarget.rv}</span>)</>}
+            </DialogDescription>
+          </DialogHeader>
+          {deleteError && (
+            <Alert variant="destructive">
+              <AlertDescription>{deleteError}</AlertDescription>
+            </Alert>
+          )}
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button type="button" variant="outline" onClick={() => setDeleteTarget(null)} disabled={isPending}>
+              {ptBR.common.cancel}
+            </Button>
+            <Button type="button" variant="destructive" onClick={handleDelete} disabled={isPending}>
+              {isPending ? t.removing : t.removeConfirm}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {gallery && (
         <PhotoGallery
           urls={gallery.urls}
           currentIndex={gallery.index}
+          downloadPrefix={gallery.prefix}
           onNavigate={(i) => setGallery({ ...gallery, index: i })}
           onClose={() => setGallery(null)}
         />

@@ -101,19 +101,19 @@ describe('retryMissingInvoiceXmlAction', () => {
 
   it('persiste XML+PDF e vincula as colunas quando a busca tem sucesso', async () => {
     pendingRows = [{ access_key: '111' }, { access_key: '222' }, { access_key: '111' }]
-    persistInvoiceFiles.mockResolvedValue({ xmlPath: 'ak/x.xml', pdfPath: 'ak/x.pdf' })
+    persistInvoiceFiles.mockResolvedValue({ xmlPath: 'ak/x.xml', pdfPath: 'ak/x.pdf', finalCustomerName: 'CLIENTE X' })
 
     const result = await retryMissingInvoiceXmlAction()
 
     // chaves deduplicadas (111, 222)
     expect(result).toMatchObject({ fetched: 2, failed: 0, disabled: false, pending: 2 })
     expect(persistInvoiceFiles).toHaveBeenCalledTimes(2)
-    expect(updateMock).toHaveBeenCalledWith({ invoice_xml_url: 'ak/x.xml', invoice_pdf_url: 'ak/x.pdf' })
+    expect(updateMock).toHaveBeenCalledWith({ invoice_xml_url: 'ak/x.xml', invoice_pdf_url: 'ak/x.pdf', final_customer_name: 'CLIENTE X' })
   })
 
   it('conta como falha quando o XML não é obtido', async () => {
     pendingRows = [{ access_key: '111' }]
-    persistInvoiceFiles.mockResolvedValue({ xmlPath: null, pdfPath: null })
+    persistInvoiceFiles.mockResolvedValue({ xmlPath: null, pdfPath: null, finalCustomerName: null })
 
     const result = await retryMissingInvoiceXmlAction()
 

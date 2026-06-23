@@ -21,6 +21,7 @@ export interface ReturnRow {
   receivedAt:     string
   depositorId:    string | null
   depositorName:  string | null
+  finalCustomerName: string | null
   invoiceXmlPath:       string | null
   invoicePdfPath:       string | null
   returnInvoiceXmlPath: string | null
@@ -86,7 +87,7 @@ export async function getClientReturnsAction(
       .from('returns')
       .select(
         `id, identifier_type, access_key, postal_code, illegible_token,
-         rv, item_count, received_at, depositor_id, invoice_xml_url, invoice_pdf_url,
+         rv, item_count, received_at, depositor_id, invoice_xml_url, invoice_pdf_url, final_customer_name,
          depositors!depositor_id(razao_social),
          return_photos(storage_path, photo_type, position)`,
         { count: 'exact' },
@@ -160,6 +161,7 @@ export async function getClientReturnsAction(
         receivedAt:     r.received_at,
         depositorId:    r.depositor_id,
         depositorName:  dep?.razao_social ?? null,
+        finalCustomerName: r.final_customer_name ?? null,
         invoiceXmlPath:       r.invoice_xml_url ?? null,
         invoicePdfPath:       r.invoice_pdf_url ?? null,
         returnInvoiceXmlPath: null, // pendentes ainda não têm decisão/XML de devolução
@@ -192,7 +194,7 @@ export async function getClientHistoryAction(
       .from('returns')
       .select(
         `id, identifier_type, access_key, postal_code, illegible_token,
-         rv, item_count, received_at, depositor_id, invoice_xml_url, invoice_pdf_url, return_invoice_xml_url,
+         rv, item_count, received_at, depositor_id, invoice_xml_url, invoice_pdf_url, return_invoice_xml_url, final_customer_name,
          decision, decided_at, decided_by_type,
          depositors!depositor_id(razao_social),
          return_photos(storage_path, photo_type, position)`,
@@ -267,6 +269,7 @@ export async function getClientHistoryAction(
         receivedAt:     r.received_at,
         depositorId:    r.depositor_id,
         depositorName:  dep?.razao_social ?? null,
+        finalCustomerName: r.final_customer_name ?? null,
         invoiceXmlPath:       r.invoice_xml_url        ?? null,
         invoicePdfPath:       r.invoice_pdf_url        ?? null,
         returnInvoiceXmlPath: r.return_invoice_xml_url ?? null,
@@ -351,7 +354,7 @@ export async function exportHistoryAction(): Promise<
         .from('returns')
         .select(
           `id, identifier_type, access_key, postal_code, illegible_token,
-           rv, item_count, received_at, depositor_id, decision, decided_at, decided_by_type, status,
+           rv, item_count, received_at, depositor_id, decision, decided_at, decided_by_type, status, final_customer_name,
            depositors!depositor_id(razao_social)`,
         )
         .neq('status', 'awaiting_decision')
@@ -382,6 +385,7 @@ export async function exportHistoryAction(): Promise<
           receivedAt:     r.received_at,
           depositorId:    null,
           depositorName:  dep?.razao_social ?? null,
+          finalCustomerName: r.final_customer_name ?? null,
           invoiceXmlPath:       null,
           invoicePdfPath:       null,
           returnInvoiceXmlPath: null,
@@ -397,6 +401,7 @@ export async function exportHistoryAction(): Promise<
           'Tipo Identificador':  IDENTIFIER_TYPE_PT[r.identifier_type as IdentifierType] ?? r.identifier_type,
           'Identificador':       identifierLabel(row),
           'Depositante':         dep?.razao_social ?? '—',
+          'Cliente Final':       r.final_customer_name ?? '—',
           'Nº Itens':            r.item_count,
           'Decisão':             r.decision ? (DECISION_LABELS[r.decision as ReturnDecision] ?? r.decision) : '—',
           'Decidido por':        r.decided_by_type ? (DECIDED_BY_PT[r.decided_by_type] ?? r.decided_by_type) : '—',
