@@ -86,8 +86,9 @@
   .callout.note{background:#eef3fb;border-color:#c4d6f2;}
   .callout.note::before{content:"ℹ️";}
 
-  /* ---------- Placeholder de captura ---------- */
+  /* ---------- Capturas de tela ---------- */
   figure.shot{margin:18px 0;}
+  figure.shot img{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:10px;box-shadow:0 2px 10px rgba(8,54,109,.10);}
   .shot-box{
     border:2px dashed #b6c2d4;border-radius:10px;background:repeating-linear-gradient(45deg,#fafbfd,#fafbfd 12px,#f1f4f9 12px,#f1f4f9 24px);
     min-height:120px;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--muted);
@@ -303,7 +304,7 @@
   <h4>Entrar (login)</h4>
   <p>Acesse o endereço do sistema. Na tela <strong>"Acesso ao Sistema"</strong>, informe seu <strong>e-mail</strong> e sua <strong>senha</strong> e clique em <strong>Entrar</strong>. O sistema leva você direto para a tela do seu perfil.</p>
   <figure class="shot">
-    <div class="shot-box"><span><strong>Captura 01</strong>Tela de login — campos de e-mail e senha e o botão "Entrar"</span></div>
+    <img src="assets/screenshots/1.png" alt="Tela de login — campos de e-mail e senha e o botão Entrar">
     <figcaption>Captura 01 — Tela de login.</figcaption>
   </figure>
 
@@ -317,7 +318,7 @@
   </ol>
   <p>A partir daí, você entra sempre com e-mail e senha.</p>
   <figure class="shot">
-    <div class="shot-box"><span><strong>Captura 02</strong>Tela "Bem-vindo ao Logvale" — criar senha, confirmar e aceitar os termos</span></div>
+    <img src="assets/screenshots/2.png" alt="Tela Bem-vindo ao Logvale — criar senha, confirmar e aceitar os termos">
     <figcaption>Captura 02 — Primeiro acesso.</figcaption>
   </figure>
 
@@ -380,7 +381,7 @@
   <h3 id="op-home">2.2 Tela inicial</h3>
   <p>Ao entrar, você vê uma saudação e três indicadores rápidos: <strong>Hoje</strong> e <strong>Esta semana</strong> (recebimentos feitos) e <strong>Tratativas</strong> (pendentes). Abaixo, dois cartões levam às operações: <strong>Novo Recebimento</strong> e <strong>Tratativas</strong>. Há ainda uma lista das <strong>tratativas pendentes</strong> mais antigas.</p>
   <figure class="shot">
-    <div class="shot-box"><span><strong>Captura 03</strong>Tela inicial do operador — indicadores, cartões de navegação e lista de tratativas pendentes</span></div>
+    <img src="assets/screenshots/3.png" alt="Tela inicial do operador — indicadores, cartões de navegação e lista de tratativas pendentes">
     <figcaption>Captura 03 — Home do operador.</figcaption>
   </figure>
 
@@ -398,11 +399,11 @@
     <li><strong>Confirme o depositante:</strong> o sistema sugere o depositante a partir da nota. Confirme o sugerido, troque pela lista, ou clique em <strong>"Avançar sem Depositante"</strong> se nenhum se aplicar.</li>
   </ol>
   <figure class="shot">
-    <div class="shot-box"><span><strong>Captura 04</strong>Etapa 1 — leitor aguardando a leitura da Chave de Acesso</span></div>
+    <img src="assets/screenshots/4.png" alt="Etapa 1 — leitor aguardando a leitura da Chave de Acesso">
     <figcaption>Captura 04 — Etapa 1 (leitura da NF).</figcaption>
   </figure>
   <figure class="shot">
-    <div class="shot-box"><span><strong>Captura 05</strong>Etapa 1 — seletor de depositante (confirmar o sugerido ou trocar)</span></div>
+    <img src="assets/screenshots/5.png" alt="Etapa 1 — seletor de depositante (confirmar o sugerido ou trocar)">
     <figcaption>Captura 05 — Seletor de depositante.</figcaption>
   </figure>
   <div class="callout note">Quando o CNPJ da nota não está cadastrado, o sistema avisa. Você ainda pode avançar e vincular o depositante depois pelo gerente.</div>
@@ -416,7 +417,7 @@
   <h4>Etapa 4 — Fotos da Caixa</h4>
   <p>Use a webcam para capturar de <strong>2 a 4 fotos</strong> da caixa. Pressionar a tecla <strong>Enter</strong> dispara a foto. Cada foto aparece em miniatura; passe o mouse e clique no <strong>✕</strong> para descartar. O botão <strong>Próximo</strong> só libera com pelo menos 2 fotos.</p>
   <figure class="shot">
-    <div class="shot-box"><span><strong>Captura 06</strong>Etapa 4 — captura de fotos da caixa pela webcam, com miniaturas</span></div>
+    <img src="assets/screenshots/6.png" alt="Etapa 4 — captura de fotos da caixa pela webcam, com miniaturas">
     <figcaption>Captura 06 — Fotos da caixa.</figcaption>
   </figure>
 
@@ -426,19 +427,19 @@
   <h4>Etapa 6 — Revisão</h4>
   <p>O sistema mostra um resumo de tudo: identificador (com CNPJ e número da NF, quando lidos da chave), depositante, RV, número de itens e as fotos. Cada bloco tem um botão <strong>Editar</strong> que leva de volta à etapa correspondente. Conferindo tudo, clique em <strong>Confirmar e Registrar</strong>.</p>
   <div class="callout note">Quando a nota fiscal foi localizada na bipagem, aparecem aqui os botões <strong>Baixar XML da NF</strong> e <strong>Baixar DANFE (PDF)</strong>. Se a nota não foi encontrada (NF ilegível, identificação por CEP ou indisponível na consulta), os botões simplesmente não aparecem — isso não impede o registro.</div>
+  <figure class="shot">
+    <img src="assets/screenshots/7.png" alt="Etapa 6 — resumo da devolução com identificador, depositante, RV, itens, fotos e os botões Baixar XML/DANFE">
+    <figcaption>Captura 07 — Revisão do recebimento (com os botões de download da NF e o "Confirmar e Registrar").</figcaption>
+  </figure>
 
   <h4>Etapa 7 — Registrar Recebimento</h4>
   <p>O sistema <strong>envia as fotos</strong> e <strong>registra a devolução</strong>. Ao final, aparece a mensagem <strong>"Recebimento registrado!"</strong> e você volta automaticamente ao início, pronto para o próximo.</p>
-  <figure class="shot">
-    <div class="shot-box"><span><strong>Captura 07</strong>Etapa 7 — confirmação "Recebimento registrado!"</span></div>
-    <figcaption>Captura 07 — Recebimento concluído.</figcaption>
-  </figure>
 
   <h3 id="op-tratativas">2.4 Tratativas</h3>
   <p>A tela de <strong>Tratativas</strong> lista as devoluções que <strong>já foram decididas pelo cliente</strong> e aguardam execução. O campo de busca já vem com o cursor ativo: <strong>basta bipar a RV</strong> da caixa que a devolução aparece. Um contador mostra <strong>quantas tratativas estão pendentes</strong>.</p>
   <p>Cada linha mostra a <strong>RV</strong>, a <strong>decisão</strong> (com a etiqueta <em>Auto</em> quando foi automática), a <strong>data da decisão</strong>, o <strong>depositante</strong> e o <strong>cliente</strong>. Clique em <strong>Ver detalhes</strong> para abrir as fotos, a NF e a RV, e então em <strong>Concluir</strong> para finalizar. A devolução sai da lista.</p>
   <figure class="shot">
-    <div class="shot-box"><span><strong>Captura 08</strong>Lista de tratativas e modal de detalhes com o botão "Concluir"</span></div>
+    <img src="assets/screenshots/8.png" alt="Tela de Tratativas — busca por RV, lista com decisão e data, e o botão Ver detalhes">
     <figcaption>Captura 08 — Tratativas.</figcaption>
   </figure>
 
@@ -465,7 +466,7 @@
   <h3 id="cli-pendentes">3.1 Devoluções Pendentes</h3>
   <p>Ao entrar, você vê a tela <strong>Devoluções Pendentes</strong>: todas as devoluções da sua mercadoria que aguardam decisão. No topo há um aviso lembrando da regra das 72 horas. Você pode filtrar por <strong>depositante</strong> (quando você tem mais de um) e por <strong>data</strong> (De / Até). Um selo mostra o total de devoluções.</p>
   <figure class="shot">
-    <div class="shot-box"><span><strong>Captura 09</strong>Tela "Devoluções Pendentes" — filtros, tabela e botões de decisão</span></div>
+    <img src="assets/screenshots/9.png" alt="Tela Devoluções Pendentes — filtros, tabela e botões de decisão">
     <figcaption>Captura 09 — Devoluções pendentes.</figcaption>
   </figure>
 
@@ -519,7 +520,7 @@
     <li>O botão <strong>Confirmar</strong> fica travado por 2 segundos. Quando liberar, clique para concluir.</li>
   </ol>
   <figure class="shot">
-    <div class="shot-box"><span><strong>Captura 10</strong>Janela "Confirmar Decisão" — com o campo de upload do XML</span></div>
+    <img src="assets/screenshots/10.png" alt="Janela Confirmar Decisão — com o campo de upload do XML">
     <figcaption>Captura 10 — Confirmação da decisão.</figcaption>
   </figure>
   <div class="callout warn">A decisão é <strong>irreversível</strong>. Após confirmar, a devolução sai da lista de pendentes e passa para o histórico. Em caso de engano, entre em contato com o suporte da Logvale.</div>
@@ -566,7 +567,7 @@
   </ul>
   <p>Abaixo, há <strong>gráficos por status e por decisão</strong>, a lista dos <strong>top clientes por volume</strong> e as <strong>pendentes urgentes</strong>, com link direto para cada devolução.</p>
   <figure class="shot">
-    <div class="shot-box"><span><strong>Captura 11</strong>Dashboard do gerente — cartões de indicadores e gráficos</span></div>
+    <img src="assets/screenshots/11.png" alt="Dashboard do gerente — cartões de indicadores e gráficos">
     <figcaption>Captura 11 — Dashboard.</figcaption>
   </figure>
 
@@ -581,11 +582,11 @@
     <li><strong>Anonimizar</strong> — remove os dados pessoais de forma irreversível (mantém os dados fiscais por exigência legal).</li>
   </ul>
   <figure class="shot">
-    <div class="shot-box"><span><strong>Captura 12</strong>Lista de usuários e formulário de novo usuário (com depositantes)</span></div>
+    <img src="assets/screenshots/12.png" alt="Formulário de novo usuário (com depositantes vinculados) sobre a lista de usuários">
     <figcaption>Captura 12 — Gestão de usuários.</figcaption>
   </figure>
   <figure class="shot">
-    <div class="shot-box"><span><strong>Captura 13</strong>Janela do link de acesso — confirma o e-mail enviado e oferece o botão "Copiar"</span></div>
+    <img src="assets/screenshots/13.png" alt="Janela do link de acesso — confirma o e-mail enviado e oferece o botão Copiar">
     <figcaption>Captura 13 — Link de acesso.</figcaption>
   </figure>
 
