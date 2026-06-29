@@ -39,9 +39,10 @@ const NAV: Record<UserRole, { label: string; items: NavItem[] }[]> = {
     {
       label: 'Operação',
       items: [
-        { title: 'Visão geral',  url: '/operador',              icon: LayoutDashboard },
-        { title: 'Recebimento', url: '/operador/recebimento',  icon: PackageCheck    },
-        { title: 'Tratativas',  url: '/operador/tratativas',   icon: ClipboardList   },
+        { title: 'Visão geral',       url: '/operador',                   icon: LayoutDashboard },
+        { title: 'Recebimento',       url: '/operador/recebimento',       icon: PackageCheck    },
+        { title: 'Tratativas',        url: '/operador/tratativas',        icon: ClipboardList   },
+        { title: 'Minhas Devoluções', url: '/operador/minhas-devolucoes', icon: Boxes           },
       ],
     },
   ],

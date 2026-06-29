@@ -34,7 +34,7 @@ npx tsc --noEmit
 The app enforces three user roles (`operator`, `client`, `manager`) injected into JWT claims via a Supabase Auth Hook (`supabase/migrations/002_auth_hook.sql`). Next.js middleware (`middleware.ts`) redirects unauthenticated users and enforces role-based routing:
 
 - `app/(public)/` — Login (email + password), account activation (`/ativar`), recovery/PKCE callback (`auth/callback`), first-access (set password + accept terms), password reset (`/redefinir-senha`)
-- `app/(operator)/operador/` — 7-step receiving workflow + item handling
+- `app/(operator)/operador/` — 7-step receiving workflow + item handling + "Minhas Devoluções" (`/operador/minhas-devolucoes`), a read-only history of returns the operator personally received (filtered by `received_by`), with RV/depositor/date filters, barcode scan-to-search, and a details modal (photos + fiscal-file downloads)
 - `app/(client)/cliente/` — Pending decisions dashboard + history
 - `app/(manager)/admin/` — User/depositor management + system-wide stats
 

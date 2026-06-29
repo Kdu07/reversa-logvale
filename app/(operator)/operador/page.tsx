@@ -5,7 +5,7 @@ import { PageHeader } from '@/components/shared/page-header'
 import { StatCard } from '@/components/shared/stat-card'
 import { DecisionPill } from '@/components/shared/decision-pill'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { PackageCheck, Package, ClipboardList, ArrowRight } from 'lucide-react'
+import { PackageCheck, Package, ClipboardList, Boxes, ArrowRight } from 'lucide-react'
 
 function formatWaiting(decidedAt: string): string {
   const ms    = Date.now() - new Date(decidedAt).getTime()
@@ -54,7 +54,7 @@ export default async function OperatorHomePage() {
       </div>
 
       {/* Navigation cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <Link href="/operador/recebimento" className="group">
           <Card className="h-full shadow-elev-sm hover:shadow-elev-md transition-all ease-quint border-border/50 hover:border-primary/30">
             <CardContent className="flex items-start gap-4 p-6">
@@ -86,6 +86,25 @@ export default async function OperatorHomePage() {
                 </p>
                 <p className="mt-1 text-sm text-muted-foreground">
                   Ver devoluções com decisão pendente de tratativa.
+                </p>
+              </div>
+              <ArrowRight className="h-4 w-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all ease-quint shrink-0 mt-0.5" />
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/operador/minhas-devolucoes" className="group">
+          <Card className="h-full shadow-elev-sm hover:shadow-elev-md transition-all ease-quint border-border/50 hover:border-primary/30">
+            <CardContent className="flex items-start gap-4 p-6">
+              <div className="shrink-0 rounded-xl bg-gradient-primary p-3 text-primary-foreground shadow-elev-sm">
+                <Boxes className="h-6 w-6" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-foreground group-hover:text-primary transition-colors ease-quint">
+                  Minhas Devoluções
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Consultar o histórico de devoluções que você recebeu.
                 </p>
               </div>
               <ArrowRight className="h-4 w-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all ease-quint shrink-0 mt-0.5" />

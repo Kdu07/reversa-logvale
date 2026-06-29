@@ -43,6 +43,7 @@ export const ptBR = {
       home:      'Início',
       receiving: 'Novo Recebimento',
       handling:  'Tratativas',
+      myReturns: 'Minhas Devoluções',
     },
     client: {
       home:    'Devoluções Pendentes',

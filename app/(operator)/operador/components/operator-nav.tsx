@@ -5,9 +5,10 @@ import { usePathname } from 'next/navigation'
 import { ptBR } from '@/lib/i18n/pt-BR'
 
 const links = [
-  { href: '/operador',             label: ptBR.nav.operator.home      },
-  { href: '/operador/recebimento', label: ptBR.nav.operator.receiving  },
-  { href: '/operador/tratativas',  label: ptBR.nav.operator.handling   },
+  { href: '/operador',                   label: ptBR.nav.operator.home      },
+  { href: '/operador/recebimento',       label: ptBR.nav.operator.receiving  },
+  { href: '/operador/tratativas',        label: ptBR.nav.operator.handling   },
+  { href: '/operador/minhas-devolucoes', label: ptBR.nav.operator.myReturns  },
 ]
 
 export default function OperatorNav() {

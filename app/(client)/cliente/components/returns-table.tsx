@@ -170,6 +170,7 @@ export function ReturnsTable({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-muted/30">
+                <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">RV</th>
                 <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">Data</th>
                 <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Identificador</th>
                 <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">NF</th>
@@ -193,6 +194,9 @@ export function ReturnsTable({
             <tbody className="divide-y divide-border">
               {rows.map((row) => (
                 <tr key={row.id} className="hover:bg-muted/30 transition-colors ease-quint">
+                  <td className="px-3 py-2.5 whitespace-nowrap font-mono font-medium text-foreground">
+                    {row.rv}
+                  </td>
                   <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground text-xs">
                     {formatDate(row.receivedAt)}
                   </td>
