@@ -38,7 +38,7 @@ Este sistema substitui processo manual por plataforma web unificada.
 - **Cores de decisão:**
   - Verde `#10B981` — "Voltar pro Estoque"
   - Laranja `#F59E0B` — "Armazenar para Tratativas"
-  - Vermelho `#F12D46` — "Descarte"
+  - Vermelho `#F12D46` — "Retirada"
   - Azul `#08366D` — "Reembalagem"
 
 ## 2. Modelo de Domínio

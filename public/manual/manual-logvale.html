@@ -348,8 +348,8 @@
   <ol class="steps">
     <li>Entre no sistema: você verá suas <strong>Devoluções Pendentes</strong>.</li>
     <li>Confira as <strong>fotos</strong>, a <strong>nota fiscal</strong> e os dados de cada devolução.</li>
-    <li>Escolha uma decisão: <span class="pill green"><span class="dot"></span>Estoque</span> <span class="pill orange"><span class="dot"></span>Tratativa</span> <span class="pill red"><span class="dot"></span>Descarte</span></li>
-    <li><strong>Confirme</strong> na janela que se abre (para Estoque e Descarte, anexe o XML da NF de devolução).</li>
+    <li>Escolha uma decisão: <span class="pill green"><span class="dot"></span>Estoque</span> <span class="pill orange"><span class="dot"></span>Tratativa</span> <span class="pill red"><span class="dot"></span>Retirada</span></li>
+    <li><strong>Confirme</strong> na janela que se abre (para Estoque e Retirada, anexe o XML da NF de devolução).</li>
     <li>Se não decidir em <strong>72 horas</strong>, o sistema envia automaticamente para Tratativa.</li>
   </ol>
 
@@ -504,8 +504,8 @@
         <td>Não</td>
       </tr>
       <tr>
-        <td><span class="pill red"><span class="dot"></span>Descarte</span></td>
-        <td>O produto será descartado. Os termos e condições do descarte são negociados diretamente com o comercial da Logvale.</td>
+        <td><span class="pill red"><span class="dot"></span>Retirada</span></td>
+        <td>O produto ficará disponível para retirada pelo cliente. Os termos, prazos e condições da retirada são negociados diretamente com o comercial da Logvale.</td>
         <td><strong>Sim</strong></td>
       </tr>
     </tbody>
@@ -516,7 +516,7 @@
   <p>Decidir tem dois cliques, de propósito, para evitar enganos:</p>
   <ol class="steps">
     <li>Clique no botão da decisão desejada. Abre-se a janela <strong>"Confirmar Decisão"</strong>, com a decisão em destaque, sua descrição, um <strong>resumo da devolução</strong> e o aviso <strong>"Esta decisão é irreversível"</strong>.</li>
-    <li>Para <span class="pill green"><span class="dot"></span>Estoque</span> e <span class="pill red"><span class="dot"></span>Descarte</span>, <strong>anexe o XML da NF de devolução</strong> (obrigatório).</li>
+    <li>Para <span class="pill green"><span class="dot"></span>Estoque</span> e <span class="pill red"><span class="dot"></span>Retirada</span>, <strong>anexe o XML da NF de devolução</strong> (obrigatório).</li>
     <li>O botão <strong>Confirmar</strong> fica travado por 2 segundos. Quando liberar, clique para concluir.</li>
   </ol>
   <figure class="shot">
@@ -542,7 +542,7 @@
     <thead><tr><th scope="col">Pergunta</th><th scope="col">Resposta</th></tr></thead>
     <tbody>
       <tr><td>Perdi o prazo de 72h, e agora?</td><td>O sistema já encaminhou para Tratativa. Fale com o comercial da Logvale para os próximos passos.</td></tr>
-      <tr><td>Qual XML devo anexar?</td><td>O XML da <strong>nota fiscal de devolução</strong> emitida por você (exigido em Estoque e Descarte).</td></tr>
+      <tr><td>Qual XML devo anexar?</td><td>O XML da <strong>nota fiscal de devolução</strong> emitida por você (exigido em Estoque e Retirada).</td></tr>
       <tr><td>Posso desfazer uma decisão?</td><td>Não. A decisão é irreversível; em caso de erro, contate o suporte.</td></tr>
       <tr><td>Esqueci minha senha</td><td>Solicite ao gerente da Logvale; ele dispara para o seu e-mail um link de redefinição de senha. Não existe "esqueci minha senha" na tela de login.</td></tr>
     </tbody>
@@ -622,7 +622,7 @@
     <tbody>
       <tr><td><span class="pill green"><span class="dot"></span>Estoque</span></td><td>Volta ao estoque para venda</td><td>Sim</td><td>Não</td></tr>
       <tr><td><span class="pill orange"><span class="dot"></span>Tratativa</span></td><td>Área segregada; tratar com o comercial</td><td>Não</td><td>Não</td></tr>
-      <tr><td><span class="pill red"><span class="dot"></span>Descarte</span></td><td>Produto descartado (termos com o comercial)</td><td>Sim</td><td>Não</td></tr>
+      <tr><td><span class="pill red"><span class="dot"></span>Retirada</span></td><td>Produto disponível para retirada (termos com o comercial)</td><td>Sim</td><td>Não</td></tr>
     </tbody>
   </table>
   <div class="callout note">A <span class="pill blue"><span class="dot"></span>Reembalagem</span> existe internamente no sistema, mas <strong>não é um botão</strong> à disposição do cliente.</div>
@@ -659,7 +659,7 @@
   </ul>
   <h4>Cliente</h4>
   <ul>
-    <li><strong>Não consigo confirmar Estoque/Descarte:</strong> verifique se anexou o XML da NF de devolução.</li>
+    <li><strong>Não consigo confirmar Estoque/Retirada:</strong> verifique se anexou o XML da NF de devolução.</li>
     <li><strong>O botão Confirmar está desabilitado:</strong> aguarde os 2 segundos de segurança.</li>
   </ul>
 

@@ -31,7 +31,7 @@ interface ReturnsTableProps {
 const DECISION_BUTTONS: { decision: ReturnDecision; label: string; className: string }[] = [
   { decision: 'return_to_stock',    label: 'Estoque',   className: 'bg-green-600 hover:bg-green-700 text-white font-semibold shadow-sm' },
   { decision: 'store_for_handling', label: 'Tratativa', className: 'bg-amber-500 hover:bg-amber-600 text-white font-semibold shadow-sm' },
-  { decision: 'discard',            label: 'Descarte',  className: 'bg-red-600   hover:bg-red-700   text-white font-semibold shadow-sm' },
+  { decision: 'discard',            label: 'Retirada',  className: 'bg-red-600   hover:bg-red-700   text-white font-semibold shadow-sm' },
 ]
 
 const PAGE_SIZE = 50

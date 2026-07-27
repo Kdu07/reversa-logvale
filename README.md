@@ -43,7 +43,7 @@ O cliente acessa um painel com todas as devoluções aguardando decisão, com fo
 
 - **Voltar ao estoque** — devolução para o armazém do cliente
 - **Armazenar para tratativas** — produto com problema a resolver
-- **Descarte** — mercadoria sem valor de recuperação
+- **Retirada** — mercadoria a ser retirada pelo cliente
 - **Reembalagem** — produto íntegro, embalagem danificada
 
 A confirmação exige upload da NF-e de devolução (quando aplicável) e uma dupla confirmação por ser irreversível. O histórico completo fica acessível em `/cliente/historico`.

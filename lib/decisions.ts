@@ -11,7 +11,7 @@ export const DECISION_LABELS: Record<ReturnDecision, string> = {
 export const DECISION_SHORT: Record<ReturnDecision, string> = {
   return_to_stock:    'Estoque',
   store_for_handling: 'Tratativa',
-  discard:            'Descarte',
+  discard:            'Retirada',
   repackage:          'Reembal.',
 }
 
@@ -50,7 +50,7 @@ export const DECISION_META: Record<ReturnDecision, {
   discard: {
     label:       DECISION_LABELS.discard,
     badge:       DECISION_BADGE.discard,
-    description: 'O produto será direcionado para descarte. Os termos e condições do descarte são negociados diretamente entre o cliente e o departamento comercial da Logvale.',
+    description: 'O produto ficará disponível para retirada pelo cliente. Os termos, prazos e condições da retirada são negociados diretamente entre o cliente e o departamento comercial da Logvale.',
     descStyle:   'bg-red-50 border-red-200 text-red-800',
   },
   repackage: {

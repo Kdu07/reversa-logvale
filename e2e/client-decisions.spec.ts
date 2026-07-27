@@ -6,7 +6,7 @@ const CLIENT_EMAIL = process.env.E2E_CLIENT_EMAIL ?? ''
 const DECISIONS = [
   { name: 'Voltar pro Estoque', text: /voltar pro estoque/i, needsXml: true },
   { name: 'Armazenar p/ Tratativas', text: /armazenar/i, needsXml: false },
-  { name: 'Descarte', text: /descarte/i, needsXml: true },
+  { name: 'Retirada', text: /retirada/i, needsXml: true },
 ]
 
 test.describe('Cliente — Decisões', () => {
