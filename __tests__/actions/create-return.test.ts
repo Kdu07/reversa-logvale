@@ -32,6 +32,7 @@ const BASE_PAYLOAD = {
   identifierType:    'access_key' as const,
   accessKey:         '12345678901234567890123456789012345678901234',
   postalCode:        null,
+  logisticsCode:     null,
   illegibleToken:    null,
   rv:                'RV-001',
   itemCount:         3,

@@ -27,6 +27,7 @@ describe('identifierLabel', () => {
       identifierType: 'access_key',
       accessKey:      'CHAVE-12345',
       postalCode:     null,
+      logisticsCode:  null,
       illegibleToken: null,
     })
     expect(result).toBe('Chave: CHAVE-12345')
@@ -37,9 +38,21 @@ describe('identifierLabel', () => {
       identifierType: 'postal_code',
       accessKey:      null,
       postalCode:     '01310-100',
+      logisticsCode:  null,
       illegibleToken: null,
     })
     expect(result).toBe('CEP: 01310-100')
+  })
+
+  it('retorna label de Código de Logística Reversa', () => {
+    const result = identifierLabel({
+      identifierType: 'logistics_code',
+      accessKey:      null,
+      postalCode:     null,
+      logisticsCode:  'CLR-987',
+      illegibleToken: null,
+    })
+    expect(result).toBe('Cód. Logística Reversa: CLR-987')
   })
 
   it('retorna label de token ilegível', () => {
@@ -47,6 +60,7 @@ describe('identifierLabel', () => {
       identifierType: 'illegible',
       accessKey:      null,
       postalCode:     null,
+      logisticsCode:  null,
       illegibleToken: 'TOK-XYZ',
     })
     expect(result).toBe('Ilegível: TOK-XYZ')

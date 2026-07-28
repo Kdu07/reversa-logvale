@@ -94,12 +94,19 @@ Cada decisão registra `decided_by_type`: `client` ou `auto`.
 
 ### RF3 — Recebimento (Operador) — Fluxo Sequencial 7 Etapas
 
-**Etapa 1: Captura da Chave de Acesso (com fallback)**
-1. Bipa EAN da NF (44 dígitos = chave de acesso) → parsing local da chave extrai CNPJ emissor, número e competência, sugerindo o depositante (sem consulta externa)
-2. Se falha leitor: digita à mão
-3. Se NF ilegível: bipa Código Postal
-4. Se falha: digita Código Postal
-5. Se nada: clica "Ilegível" → gera placeholder único
+**Etapa 1: Identificação (menu de 3 possibilidades, com fallback)**
+
+O operador escolhe, entre 3 códigos que podem estar na caixa, qual vai bipar — nessa
+ordem de prioridade (mais dado disponível → menos):
+1. **Chave de Acesso da NF** (44 dígitos) → parsing local extrai CNPJ emissor, número e
+   competência, sugerindo o depositante e disparando a busca do XML/DANFE (NFEio)
+2. **Código de Logística Reversa** (código próprio do cliente) → sem consulta automática;
+   o depositante precisa ser confirmado manualmente com o cliente
+3. **CEP** — sem sugestão automática de depositante
+
+Cada opção tem seu próprio fallback (leitor → digitação manual) e, se falhar, a mensagem
+de erro já aponta as opções seguintes da hierarquia. Se nenhum dos 3 códigos estiver
+legível, o operador marca "Ilegível" (último recurso) → gera placeholder único.
 
 **Etapa 2: RV** — operador cola RV pré-impresso e bipa
 
@@ -134,7 +141,7 @@ Cada decisão registra `decided_by_type`: `client` ou `auto`.
 | Coluna | Conteúdo |
 |---|---|
 | Data Recebimento | dd/mm/aaaa HH:mm |
-| Identificador | Chave NF ou Código Postal (com tag) |
+| Identificador | Chave NF, Código de Logística Reversa ou CEP (com tag) |
 | NF (XML) | Botão de download — salva o XML no dispositivo (Content-Disposition: attachment, nome `<RV>-nf-*.xml`) |
 | RV | Código |
 | Nº Itens | Número |

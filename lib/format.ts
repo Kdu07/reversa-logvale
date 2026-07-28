@@ -11,10 +11,12 @@ export function identifierLabel(row: {
   identifierType: IdentifierType
   accessKey:      string | null
   postalCode:     string | null
+  logisticsCode:  string | null
   illegibleToken: string | null
 }): string {
-  if (row.identifierType === 'access_key')  return `Chave: ${row.accessKey}`
-  if (row.identifierType === 'postal_code') return `CEP: ${row.postalCode}`
+  if (row.identifierType === 'access_key')      return `Chave: ${row.accessKey}`
+  if (row.identifierType === 'postal_code')     return `CEP: ${row.postalCode}`
+  if (row.identifierType === 'logistics_code')  return `Cód. Logística Reversa: ${row.logisticsCode}`
   return `Ilegível: ${row.illegibleToken}`
 }
 

@@ -19,6 +19,7 @@ export interface ReceivingState {
   identifierType: IdentifierType | null
   accessKey:      string | null
   postalCode:     string | null
+  logisticsCode:  string | null
   illegibleToken: string | null
   invoiceData:    InvoiceData | null
   depositorId:    string | null
@@ -31,7 +32,7 @@ export interface ReceivingState {
 
 type ReceivingAction =
   | { type: 'SET_STEP'; step: number }
-  | { type: 'SET_IDENTIFIER'; identifierType: IdentifierType; accessKey?: string; postalCode?: string; illegibleToken?: string }
+  | { type: 'SET_IDENTIFIER'; identifierType: IdentifierType; accessKey?: string; postalCode?: string; logisticsCode?: string; illegibleToken?: string }
   | { type: 'SET_INVOICE_DATA'; data: InvoiceData | null }
   | { type: 'SET_DEPOSITOR'; id: string | null; name: string | null }
   | { type: 'SET_RV'; rv: string }
@@ -47,6 +48,7 @@ const initialState: ReceivingState = {
   identifierType: null,
   accessKey:      null,
   postalCode:     null,
+  logisticsCode:  null,
   illegibleToken: null,
   invoiceData:    null,
   depositorId:    null,
@@ -67,6 +69,7 @@ function reducer(state: ReceivingState, action: ReceivingAction): ReceivingState
         identifierType: action.identifierType,
         accessKey:      action.accessKey      ?? null,
         postalCode:     action.postalCode     ?? null,
+        logisticsCode:  action.logisticsCode  ?? null,
         illegibleToken: action.illegibleToken ?? null,
       }
     case 'SET_INVOICE_DATA':
@@ -108,8 +111,8 @@ export function ReceivingFlow({ operatorName }: ReceivingFlowProps) {
       case 1:
         return (
           <StepIdentifier
-            onComplete={({ identifierType, accessKey, postalCode, illegibleToken, invoiceData, depositorId, depositorName }) => {
-              dispatch({ type: 'SET_IDENTIFIER', identifierType, accessKey, postalCode, illegibleToken })
+            onComplete={({ identifierType, accessKey, postalCode, logisticsCode, illegibleToken, invoiceData, depositorId, depositorName }) => {
+              dispatch({ type: 'SET_IDENTIFIER', identifierType, accessKey, postalCode, logisticsCode, illegibleToken })
               if (invoiceData) dispatch({ type: 'SET_INVOICE_DATA', data: invoiceData })
               const finalId   = depositorId   ?? invoiceData?.depositorId   ?? null
               const finalName = depositorName ?? invoiceData?.depositorName ?? null

@@ -13,6 +13,7 @@ export interface TrativaRow {
   identifierType: IdentifierType
   accessKey:      string | null
   postalCode:     string | null
+  logisticsCode:  string | null
   illegibleToken: string | null
   itemCount:      number
   receivedAt:     string
@@ -51,7 +52,7 @@ export async function getTrativasAction(
     let query = supabase
       .from('returns')
       .select(
-        `id, rv, identifier_type, access_key, postal_code, illegible_token,
+        `id, rv, identifier_type, access_key, postal_code, logistics_code, illegible_token,
          item_count, received_at, decided_at, decided_by_type, decision,
          depositor_id, invoice_xml_url, invoice_pdf_url, return_invoice_xml_url, final_customer_name,
          depositors!depositor_id(razao_social),
@@ -107,6 +108,7 @@ export async function getTrativasAction(
         identifierType: r.identifier_type,
         accessKey:      r.access_key,
         postalCode:     r.postal_code,
+        logisticsCode:  r.logistics_code,
         illegibleToken: r.illegible_token,
         itemCount:      r.item_count,
         receivedAt:     r.received_at,

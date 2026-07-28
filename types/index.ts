@@ -2,7 +2,7 @@ export type UserRole = 'operator' | 'client' | 'manager'
 export type ReturnStatus = 'awaiting_decision' | 'decided' | 'processed'
 export type ReturnDecision = 'return_to_stock' | 'store_for_handling' | 'discard' | 'repackage'
 export type DecisionSource = 'client' | 'auto'
-export type IdentifierType = 'access_key' | 'postal_code' | 'illegible'
+export type IdentifierType = 'access_key' | 'postal_code' | 'logistics_code' | 'illegible'
 export type PhotoType = 'box' | 'item'
 
 export interface Profile {
@@ -36,6 +36,7 @@ export interface Return {
   identifier_type: IdentifierType
   access_key: string | null
   postal_code: string | null
+  logistics_code: string | null
   illegible_token: string | null
   rv: string
   item_count: number

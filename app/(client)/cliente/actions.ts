@@ -15,6 +15,7 @@ export interface ReturnRow {
   identifierType: IdentifierType
   accessKey:      string | null
   postalCode:     string | null
+  logisticsCode:  string | null
   illegibleToken: string | null
   rv:             string
   itemCount:      number
@@ -86,7 +87,7 @@ export async function getClientReturnsAction(
     let query = supabase
       .from('returns')
       .select(
-        `id, identifier_type, access_key, postal_code, illegible_token,
+        `id, identifier_type, access_key, postal_code, logistics_code, illegible_token,
          rv, item_count, received_at, depositor_id, invoice_xml_url, invoice_pdf_url, final_customer_name,
          depositors!depositor_id(razao_social),
          return_photos(storage_path, photo_type, position)`,
@@ -155,6 +156,7 @@ export async function getClientReturnsAction(
         identifierType: r.identifier_type as IdentifierType,
         accessKey:      r.access_key,
         postalCode:     r.postal_code,
+        logisticsCode:  r.logistics_code,
         illegibleToken: r.illegible_token,
         rv:             r.rv,
         itemCount:      r.item_count,
@@ -193,7 +195,7 @@ export async function getClientHistoryAction(
     let query = supabase
       .from('returns')
       .select(
-        `id, identifier_type, access_key, postal_code, illegible_token,
+        `id, identifier_type, access_key, postal_code, logistics_code, illegible_token,
          rv, item_count, received_at, depositor_id, invoice_xml_url, invoice_pdf_url, return_invoice_xml_url, final_customer_name,
          decision, decided_at, decided_by_type,
          depositors!depositor_id(razao_social),
@@ -263,6 +265,7 @@ export async function getClientHistoryAction(
         identifierType: r.identifier_type as IdentifierType,
         accessKey:      r.access_key,
         postalCode:     r.postal_code,
+        logisticsCode:  r.logistics_code,
         illegibleToken: r.illegible_token,
         rv:             r.rv,
         itemCount:      r.item_count,
@@ -330,9 +333,10 @@ export async function submitDecisionAction(
 }
 
 const IDENTIFIER_TYPE_PT: Record<IdentifierType, string> = {
-  access_key:  'Chave NF',
-  postal_code: 'CEP',
-  illegible:   'Ilegível',
+  access_key:     'Chave NF',
+  postal_code:    'CEP',
+  logistics_code: 'Código de Logística Reversa',
+  illegible:      'Ilegível',
 }
 
 const DECIDED_BY_PT: Record<string, string> = {
@@ -353,7 +357,7 @@ export async function exportHistoryAction(): Promise<
       supabase
         .from('returns')
         .select(
-          `id, identifier_type, access_key, postal_code, illegible_token,
+          `id, identifier_type, access_key, postal_code, logistics_code, illegible_token,
            rv, item_count, received_at, depositor_id, decision, decided_at, decided_by_type, status, final_customer_name,
            depositors!depositor_id(razao_social)`,
         )
@@ -379,6 +383,7 @@ export async function exportHistoryAction(): Promise<
           identifierType: r.identifier_type as IdentifierType,
           accessKey:      r.access_key,
           postalCode:     r.postal_code,
+          logisticsCode:  r.logistics_code,
           illegibleToken: r.illegible_token,
           rv:             r.rv,
           itemCount:      r.item_count,

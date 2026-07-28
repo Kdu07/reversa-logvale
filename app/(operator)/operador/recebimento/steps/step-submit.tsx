@@ -49,6 +49,7 @@ export function StepSubmit({ state, onBack, onReset }: StepSubmitProps) {
         identifierType:  state.identifierType!,
         accessKey:       state.accessKey,
         postalCode:      state.postalCode,
+        logisticsCode:   state.logisticsCode,
         illegibleToken:  state.illegibleToken,
         rv:                state.rv,
         itemCount:         state.itemCount!,

@@ -49,6 +49,7 @@ interface CreateReturnPayload {
   identifierType:    IdentifierType
   accessKey:         string | null
   postalCode:        string | null
+  logisticsCode:     string | null
   illegibleToken:    string | null
   rv:                string
   itemCount:         number
@@ -80,6 +81,7 @@ export async function createReturnAction(
         identifier_type:     payload.identifierType,
         access_key:          payload.accessKey,
         postal_code:         payload.postalCode,
+        logistics_code:      payload.logisticsCode,
         illegible_token:     payload.illegibleToken,
         rv:                  payload.rv,
         item_count:          payload.itemCount,

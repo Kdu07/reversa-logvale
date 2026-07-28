@@ -12,12 +12,28 @@ import { lookupInvoiceAction, getDepositorsAction } from '../actions'
 import type { InvoiceData, DepositorOption } from '../actions'
 import { invoiceFetchReasonLabel } from '@/lib/integrations/invoice-fetch-reason'
 
-type Mode = 'scanner_key' | 'manual_key' | 'scanner_postal' | 'manual_postal' | 'illegible_confirm' | 'depositor_picker'
+type Mode =
+  | 'menu'
+  | 'scanner_key'      | 'manual_key'
+  | 'scanner_logistics' | 'manual_logistics'
+  | 'scanner_postal'   | 'manual_postal'
+  | 'illegible_confirm'
+  | 'depositor_picker'
+
+// Hierarquia de tentativa (da mais rica em dados até o último recurso).
+type IdentifierMode = 'access_key' | 'logistics_code' | 'postal_code'
+
+const IDENTIFIER_ORDER: { type: IdentifierMode; label: string; scannerMode: Mode }[] = [
+  { type: 'access_key',     label: 'Chave de Acesso da NF',       scannerMode: 'scanner_key' },
+  { type: 'logistics_code', label: 'Código de Logística Reversa', scannerMode: 'scanner_logistics' },
+  { type: 'postal_code',    label: 'CEP',                         scannerMode: 'scanner_postal' },
+]
 
 interface PendingComplete {
-  identifierType:  'access_key' | 'postal_code' | 'illegible'
+  identifierType:  'access_key' | 'postal_code' | 'logistics_code' | 'illegible'
   accessKey?:      string
   postalCode?:     string
+  logisticsCode?:  string
   illegibleToken?: string
   invoiceData?:    InvoiceData | null
 }
@@ -34,7 +50,7 @@ function formatCnpj(cnpj: string) {
 }
 
 export function StepIdentifier({ onComplete }: StepIdentifierProps) {
-  const [mode, setMode]       = useState<Mode>('scanner_key')
+  const [mode, setMode]       = useState<Mode>('menu')
   const [input, setInput]     = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState<string | null>(null)
@@ -50,7 +66,7 @@ export function StepIdentifier({ onComplete }: StepIdentifierProps) {
   const [selectedDepositorName, setSelectedDepositorName] = useState('')
 
   useEffect(() => {
-    if (mode === 'manual_key' || mode === 'manual_postal') {
+    if (mode === 'manual_key' || mode === 'manual_logistics' || mode === 'manual_postal') {
       setTimeout(() => inputRef.current?.focus(), 50)
     }
     setInput('')
@@ -61,6 +77,14 @@ export function StepIdentifier({ onComplete }: StepIdentifierProps) {
     setFlash(type)
     beep(type)
     setTimeout(() => setFlash(null), 700)
+  }
+
+  /** Rótulos das demais opções da hierarquia, para orientar em mensagens de erro. */
+  function remainingOptionsLabel(current: IdentifierMode): string {
+    const idx = IDENTIFIER_ORDER.findIndex((o) => o.type === current)
+    const rest = IDENTIFIER_ORDER.slice(idx + 1).map((o) => o.label)
+    if (rest.length === 0) return 'marcar como Ilegível'
+    return `tentar ${rest.join(' ou ')}, ou marcar como Ilegível`
   }
 
   async function enterDepositorPicker(params: PendingComplete) {
@@ -85,8 +109,9 @@ export function StepIdentifier({ onComplete }: StepIdentifierProps) {
   }
 
   function handleDepositorBack() {
-    if (!pendingComplete) { setMode('scanner_key'); return }
+    if (!pendingComplete) { setMode('menu'); return }
     if (pendingComplete.identifierType === 'postal_code') setMode('scanner_postal')
+    else if (pendingComplete.identifierType === 'logistics_code') setMode('scanner_logistics')
     else if (pendingComplete.identifierType === 'illegible') setMode('illegible_confirm')
     else setMode('scanner_key')
     setPendingComplete(null)
@@ -96,7 +121,7 @@ export function StepIdentifier({ onComplete }: StepIdentifierProps) {
 
   const handleAccessKey = useCallback(async (key: string) => {
     if (!/^\d{44}$/.test(key)) {
-      setError('Chave de acesso inválida. Deve ter exatamente 44 dígitos numéricos.')
+      setError(`Chave de acesso inválida. Deve ter exatamente 44 dígitos numéricos. Você pode ${remainingOptionsLabel('access_key')}.`)
       triggerFlash('error')
       return
     }
@@ -105,7 +130,7 @@ export function StepIdentifier({ onComplete }: StepIdentifierProps) {
     const result = await lookupInvoiceAction(key)
     setLoading(false)
     if ('error' in result) {
-      setError(`${result.error}. Você pode tentar Código Postal ou marcar como Ilegível.`)
+      setError(`${result.error}. Você pode ${remainingOptionsLabel('access_key')}.`)
       triggerFlash('error')
       return
     }
@@ -114,10 +139,21 @@ export function StepIdentifier({ onComplete }: StepIdentifierProps) {
     setTimeout(() => enterDepositorPicker({ identifierType: 'access_key', accessKey: key, invoiceData: result.data }), 300)
   }, [onComplete]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const handleLogisticsCode = useCallback((code: string) => {
+    const clean = code.trim()
+    if (!clean) {
+      setError(`Código de Logística Reversa inválido. Você pode ${remainingOptionsLabel('logistics_code')}.`)
+      triggerFlash('error')
+      return
+    }
+    triggerFlash('success')
+    setTimeout(() => enterDepositorPicker({ identifierType: 'logistics_code', logisticsCode: clean }), 300)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   const handlePostalCode = useCallback((code: string) => {
     const clean = code.replace(/\D/g, '')
     if (clean.length !== 8) {
-      setError('CEP inválido. Deve ter 8 dígitos.')
+      setError(`CEP inválido. Deve ter 8 dígitos. Você pode ${remainingOptionsLabel('postal_code')}.`)
       triggerFlash('error')
       return
     }
@@ -134,18 +170,56 @@ export function StepIdentifier({ onComplete }: StepIdentifierProps) {
   useBarcodeScanner({
     onScan: (value) => {
       if (mode === 'scanner_key') handleAccessKey(value)
+      else if (mode === 'scanner_logistics') handleLogisticsCode(value)
       else if (mode === 'scanner_postal') handlePostalCode(value)
     },
     minLength: 8,
-    enabled: mode === 'scanner_key' || mode === 'scanner_postal',
+    enabled: mode === 'scanner_key' || mode === 'scanner_logistics' || mode === 'scanner_postal',
   })
 
   function handleManualKeySubmit() {
     handleAccessKey(input.trim())
   }
 
+  function handleManualLogisticsSubmit() {
+    handleLogisticsCode(input.trim())
+  }
+
   function handleManualPostalSubmit() {
     handlePostalCode(input.trim())
+  }
+
+  /** Lista as demais formas de identificação (fora a atual) + link para Ilegível. */
+  function OtherOptions({ current }: { current: IdentifierMode }) {
+    const others = IDENTIFIER_ORDER.filter((o) => o.type !== current)
+    return (
+      <>
+        {others.map((o) => (
+          <Button
+            key={o.type}
+            type="button" variant="ghost" size="sm"
+            className="w-full justify-start text-muted-foreground"
+            onClick={() => setMode(o.scannerMode)}
+          >
+            Tentar: {o.label}
+          </Button>
+        ))}
+        <Button
+          type="button" variant="ghost" size="sm"
+          className="w-full justify-start text-muted-foreground"
+          onClick={() => setMode('illegible_confirm')}
+        >
+          Nenhum código está legível
+        </Button>
+        <Button
+          type="button" variant="ghost" size="sm"
+          className="w-full justify-start text-muted-foreground"
+          onClick={() => setMode('menu')}
+        >
+          ← Voltar às opções
+        </Button>
+      </>
+    )
   }
 
   return (
@@ -156,11 +230,20 @@ export function StepIdentifier({ onComplete }: StepIdentifierProps) {
     )}>
       <div className="space-y-1">
         <h2 className="text-lg font-semibold text-primary">Etapa 1 — Identificação da NF</h2>
+        {mode === 'menu' && (
+          <p className="text-sm text-muted-foreground">Escolha qual código da caixa você vai bipar.</p>
+        )}
         {mode === 'scanner_key' && (
           <p className="text-sm text-muted-foreground">Bipe a chave de acesso (44 dígitos) no leitor.</p>
         )}
         {mode === 'manual_key' && (
           <p className="text-sm text-muted-foreground">Digite a chave de acesso manualmente (44 dígitos).</p>
+        )}
+        {mode === 'scanner_logistics' && (
+          <p className="text-sm text-muted-foreground">Bipe o Código de Logística Reversa no leitor.</p>
+        )}
+        {mode === 'manual_logistics' && (
+          <p className="text-sm text-muted-foreground">Digite o Código de Logística Reversa manualmente.</p>
         )}
         {mode === 'scanner_postal' && (
           <p className="text-sm text-muted-foreground">Bipe o Código Postal (CEP).</p>
@@ -169,7 +252,7 @@ export function StepIdentifier({ onComplete }: StepIdentifierProps) {
           <p className="text-sm text-muted-foreground">Digite o CEP (8 dígitos).</p>
         )}
         {mode === 'illegible_confirm' && (
-          <p className="text-sm text-muted-foreground">NF ilegível — o recebimento será registrado sem vínculo de NF.</p>
+          <p className="text-sm text-muted-foreground">Nenhum código legível — o recebimento será registrado sem vínculo de NF.</p>
         )}
         {mode === 'depositor_picker' && (
           <p className="text-sm text-muted-foreground">Confirme o depositante sugerido pela NF ou selecione manualmente.</p>
@@ -178,6 +261,34 @@ export function StepIdentifier({ onComplete }: StepIdentifierProps) {
 
       {loading && (
         <div className="text-sm text-muted-foreground animate-pulse">Identificando NF...</div>
+      )}
+
+      {/* Menu de entrada — as 3 possibilidades visíveis desde o início */}
+      {mode === 'menu' && (
+        <div className="space-y-2">
+          {IDENTIFIER_ORDER.map((o, i) => (
+            <Button
+              key={o.type}
+              type="button"
+              onClick={() => setMode(o.scannerMode)}
+              className={cn(
+                'w-full justify-start text-base py-6',
+                i === 0
+                  ? 'bg-primary hover:bg-primary/90 text-primary-foreground'
+                  : 'bg-secondary hover:bg-secondary/80 text-secondary-foreground',
+              )}
+            >
+              {i + 1}. {o.label}
+            </Button>
+          ))}
+          <Button
+            type="button" variant="ghost" size="sm"
+            className="w-full justify-start text-muted-foreground"
+            onClick={() => setMode('illegible_confirm')}
+          >
+            Nenhum código está legível
+          </Button>
+        </div>
       )}
 
       {/* Depositor picker */}
@@ -191,6 +302,11 @@ export function StepIdentifier({ onComplete }: StepIdentifierProps) {
           {pendingComplete.invoiceData && !pendingComplete.invoiceData.depositorId && (
             <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
               CNPJ {formatCnpj(pendingComplete.invoiceData.emitterCnpj)} não está cadastrado no sistema.
+            </p>
+          )}
+          {pendingComplete.identifierType === 'logistics_code' && (
+            <p className="text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded-md px-3 py-2">
+              Este código não é consultado automaticamente. Confirme o depositante diretamente com o cliente antes de prosseguir.
             </p>
           )}
           {pendingComplete.identifierType === 'access_key' &&
@@ -277,6 +393,32 @@ export function StepIdentifier({ onComplete }: StepIdentifierProps) {
         </div>
       )}
 
+      {(mode === 'manual_logistics') && (
+        <div className="space-y-3">
+          <Label htmlFor="logistics-code">Código de Logística Reversa</Label>
+          <Input
+            id="logistics-code"
+            ref={inputRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Código do cliente"
+            disabled={loading}
+            onKeyDown={(e) => e.key === 'Enter' && handleManualLogisticsSubmit()}
+          />
+          <Button
+            type="button"
+            onClick={handleManualLogisticsSubmit}
+            disabled={!input.trim() || loading}
+            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+          >
+            Confirmar Código
+          </Button>
+          <Button type="button" variant="ghost" size="sm" onClick={() => setMode('scanner_logistics')} className="w-full">
+            ← Voltar ao leitor
+          </Button>
+        </div>
+      )}
+
       {(mode === 'manual_postal') && (
         <div className="space-y-3">
           <Label htmlFor="postal-code">CEP (8 dígitos)</Label>
@@ -310,7 +452,7 @@ export function StepIdentifier({ onComplete }: StepIdentifierProps) {
           onClick={handleIllegible}
           className="w-full bg-accent hover:bg-accent/90 text-accent-foreground text-base py-6"
         >
-          Confirmar: NF Ilegível
+          Confirmar: Nenhum Código Legível
         </Button>
       )}
 
@@ -320,51 +462,42 @@ export function StepIdentifier({ onComplete }: StepIdentifierProps) {
         </Alert>
       )}
 
-      {mode !== 'illegible_confirm' && mode !== 'depositor_picker' && (
+      {mode !== 'illegible_confirm' && mode !== 'depositor_picker' && mode !== 'menu' && (
         <div className="border-t pt-4 space-y-2">
           {(mode === 'scanner_key' || mode === 'manual_key') && (
-            <>
-              <Button
-                type="button" variant="ghost" size="sm"
-                className="w-full justify-start text-muted-foreground"
-                onClick={() => setMode(mode === 'scanner_key' ? 'manual_key' : 'scanner_key')}
-              >
-                {mode === 'scanner_key' ? 'Não consigo bipar — digitar à mão' : 'Usar leitor de barras'}
-              </Button>
-              <Button
-                type="button" variant="ghost" size="sm"
-                className="w-full justify-start text-muted-foreground"
-                onClick={() => setMode('scanner_postal')}
-              >
-                NF ilegível — usar Código Postal
-              </Button>
-            </>
+            <Button
+              type="button" variant="ghost" size="sm"
+              className="w-full justify-start text-muted-foreground"
+              onClick={() => setMode(mode === 'scanner_key' ? 'manual_key' : 'scanner_key')}
+            >
+              {mode === 'scanner_key' ? 'Não consigo bipar — digitar à mão' : 'Usar leitor de barras'}
+            </Button>
+          )}
+          {(mode === 'scanner_logistics' || mode === 'manual_logistics') && (
+            <Button
+              type="button" variant="ghost" size="sm"
+              className="w-full justify-start text-muted-foreground"
+              onClick={() => setMode(mode === 'scanner_logistics' ? 'manual_logistics' : 'scanner_logistics')}
+            >
+              {mode === 'scanner_logistics' ? 'Não consigo bipar — digitar à mão' : 'Usar leitor de barras'}
+            </Button>
           )}
           {(mode === 'scanner_postal' || mode === 'manual_postal') && (
-            <>
-              <Button
-                type="button" variant="ghost" size="sm"
-                className="w-full justify-start text-muted-foreground"
-                onClick={() => setMode(mode === 'scanner_postal' ? 'manual_postal' : 'scanner_postal')}
-              >
-                {mode === 'scanner_postal' ? 'Não consigo bipar — digitar CEP à mão' : 'Usar leitor de barras'}
-              </Button>
-              <Button
-                type="button" variant="ghost" size="sm"
-                className="w-full justify-start text-muted-foreground"
-                onClick={() => setMode('illegible_confirm')}
-              >
-                CEP também ilegível — marcar como ilegível
-              </Button>
-              <Button
-                type="button" variant="ghost" size="sm"
-                className="w-full justify-start text-muted-foreground"
-                onClick={() => setMode('scanner_key')}
-              >
-                ← Voltar para Chave de Acesso
-              </Button>
-            </>
+            <Button
+              type="button" variant="ghost" size="sm"
+              className="w-full justify-start text-muted-foreground"
+              onClick={() => setMode(mode === 'scanner_postal' ? 'manual_postal' : 'scanner_postal')}
+            >
+              {mode === 'scanner_postal' ? 'Não consigo bipar — digitar à mão' : 'Usar leitor de barras'}
+            </Button>
           )}
+          <OtherOptions
+            current={
+              mode === 'scanner_key' || mode === 'manual_key' ? 'access_key' :
+              mode === 'scanner_logistics' || mode === 'manual_logistics' ? 'logistics_code' :
+              'postal_code'
+            }
+          />
         </div>
       )}
 
@@ -372,15 +505,21 @@ export function StepIdentifier({ onComplete }: StepIdentifierProps) {
         <Button
           type="button" variant="ghost" size="sm"
           className="w-full"
-          onClick={() => setMode('scanner_postal')}
+          onClick={() => setMode('menu')}
         >
-          ← Voltar para Código Postal
+          ← Voltar às opções
         </Button>
       )}
 
       {mode === 'scanner_key' && !loading && (
         <div className="text-center text-4xl text-primary/20 py-4 select-none">
           ▋ aguardando leitura...
+        </div>
+      )}
+
+      {mode === 'scanner_logistics' && !loading && (
+        <div className="text-center text-4xl text-primary/20 py-4 select-none">
+          ▋ aguardando leitura do código...
         </div>
       )}
 

@@ -28,8 +28,9 @@ export function StepReview({ state, onConfirm, onGoTo, onBack }: StepReviewProps
   }, [state.boxPhotos, state.itemPhotos])
 
   const identifierLabel =
-    state.identifierType === 'access_key'  ? `Chave: ${state.accessKey}` :
-    state.identifierType === 'postal_code' ? `CEP: ${state.postalCode}`  :
+    state.identifierType === 'access_key'     ? `Chave: ${state.accessKey}` :
+    state.identifierType === 'postal_code'    ? `CEP: ${state.postalCode}`  :
+    state.identifierType === 'logistics_code' ? `Código de Logística Reversa: ${state.logisticsCode}` :
     `Ilegível: ${state.illegibleToken}`
 
   return (

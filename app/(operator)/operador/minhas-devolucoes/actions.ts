@@ -20,6 +20,7 @@ export interface MyReturnRow {
   identifierType:       IdentifierType
   accessKey:            string | null
   postalCode:           string | null
+  logisticsCode:        string | null
   illegibleToken:       string | null
   itemCount:            number
   invoiceXmlPath:       string | null
@@ -63,7 +64,7 @@ export async function getMyReturnsAction(
       .from('returns')
       .select(
         `id, rv, status, decision, decided_by_type, received_at, decided_at, processed_at,
-         identifier_type, access_key, postal_code, illegible_token, item_count,
+         identifier_type, access_key, postal_code, logistics_code, illegible_token, item_count,
          invoice_xml_url, invoice_pdf_url, return_invoice_xml_url, final_customer_name,
          depositors!depositor_id(razao_social),
          return_photos(photo_type, storage_path, position)`,
@@ -118,6 +119,7 @@ export async function getMyReturnsAction(
         identifierType:       r.identifier_type as IdentifierType,
         accessKey:            r.access_key,
         postalCode:           r.postal_code,
+        logisticsCode:        r.logistics_code,
         illegibleToken:       r.illegible_token,
         itemCount:            r.item_count,
         invoiceXmlPath:       r.invoice_xml_url        ?? null,

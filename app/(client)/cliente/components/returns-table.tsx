@@ -37,9 +37,10 @@ const DECISION_BUTTONS: { decision: ReturnDecision; label: string; className: st
 const PAGE_SIZE = 50
 
 const IDENTIFIER_TYPE_LABEL: Record<IdentifierType, string> = {
-  access_key:  'Chave NF',
-  postal_code: 'CEP',
-  illegible:   'Ilegível',
+  access_key:     'Chave NF',
+  postal_code:    'CEP',
+  logistics_code: 'Cód. Log. Reversa',
+  illegible:      'Ilegível',
 }
 
 function IdentifierTag({ row }: { row: ReturnRow }) {
@@ -48,6 +49,8 @@ function IdentifierTag({ row }: { row: ReturnRow }) {
     ? row.accessKey
     : row.identifierType === 'postal_code'
     ? row.postalCode
+    : row.identifierType === 'logistics_code'
+    ? row.logisticsCode
     : row.illegibleToken
   const display = row.identifierType === 'access_key'
     ? `${row.accessKey?.slice(0, 20)}…`
