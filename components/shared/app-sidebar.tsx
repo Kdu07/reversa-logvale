@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, PackageCheck, History, UserRound,
-  ClipboardList, Boxes, Users, Building2, Inbox, HelpCircle,
+  ClipboardList, Boxes, Users, Building2, Inbox, HelpCircle, FileWarning,
 } from 'lucide-react'
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent,
@@ -24,8 +24,9 @@ const NAV: Record<UserRole, { label: string; items: NavItem[] }[]> = {
     {
       label: 'Devoluções',
       items: [
-        { title: 'Pendentes', url: '/cliente',          icon: Inbox   },
-        { title: 'Histórico', url: '/cliente/historico', icon: History },
+        { title: 'Pendentes',    url: '/cliente',                  icon: Inbox       },
+        { title: 'NFs Pendentes', url: '/cliente/notas-pendentes', icon: FileWarning },
+        { title: 'Histórico',    url: '/cliente/historico',        icon: History     },
       ],
     },
     {
@@ -63,9 +64,11 @@ interface AppSidebarProps {
   role: UserRole
   fullName: string
   email: string
+  /** Contagens por url do item de menu. Zero ou ausente = sem badge. */
+  badges?: Record<string, number>
 }
 
-export function AppSidebar({ role, fullName, email }: AppSidebarProps) {
+export function AppSidebar({ role, fullName, email, badges }: AppSidebarProps) {
   const { state } = useSidebar()
   const collapsed = state === 'collapsed'
   const pathname = usePathname()
@@ -110,17 +113,23 @@ export function AppSidebar({ role, fullName, email }: AppSidebarProps) {
               <SidebarMenu>
                 {section.items.map((item) => {
                   const active = isActive(item.url)
+                  const badge  = badges?.[item.url] ?? 0
                   return (
                     <SidebarMenuItem key={item.url}>
                       <SidebarMenuButton
                         asChild
                         isActive={active}
-                        tooltip={item.title}
+                        tooltip={badge > 0 ? `${item.title} (${badge})` : item.title}
                         className="h-9 transition-colors ease-quint"
                       >
                         <Link href={item.url} className="flex items-center gap-2.5">
                           <item.icon className="h-4 w-4 shrink-0" />
-                          <span>{item.title}</span>
+                          <span className="flex-1 truncate">{item.title}</span>
+                          {!collapsed && badge > 0 && (
+                            <span className="ml-auto inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-amber-100 px-1.5 text-[11px] font-semibold text-amber-800">
+                              {badge}
+                            </span>
+                          )}
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>

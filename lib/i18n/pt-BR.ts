@@ -46,9 +46,10 @@ export const ptBR = {
       myReturns: 'Minhas Devoluções',
     },
     client: {
-      home:    'Devoluções Pendentes',
-      history: 'Histórico',
-      profile: 'Meu Perfil',
+      home:            'Devoluções Pendentes',
+      pendingInvoices: 'NFs Pendentes',
+      history:         'Histórico',
+      profile:         'Meu Perfil',
     },
     manager: {
       dashboard:  'Dashboard',
@@ -93,9 +94,10 @@ export const ptBR = {
   },
 
   identifierTypes: {
-    access_key:  'Chave de Acesso',
-    postal_code: 'Código Postal',
-    illegible:   'Ilegível',
+    access_key:     'Chave de Acesso',
+    postal_code:    'Código Postal',
+    logistics_code: 'Código de Logística Reversa',
+    illegible:      'Ilegível',
   },
 
   client: {

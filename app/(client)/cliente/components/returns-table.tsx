@@ -8,6 +8,7 @@ import { CountdownTimer } from '@/components/shared/countdown-timer'
 import { DecisionPill } from '@/components/shared/decision-pill'
 import { EmptyState } from '@/components/shared/empty-state'
 import { DecisionModal } from './decision-modal'
+import { InvoiceUploadDialog } from './invoice-upload-dialog'
 import { PhotoGallery } from '@/components/shared/photo-gallery'
 import { PhotoThumbs } from '@/components/shared/photo-thumbs'
 import { DownloadXmlButton } from '@/components/shared/download-xml-button'
@@ -41,6 +42,15 @@ const IDENTIFIER_TYPE_LABEL: Record<IdentifierType, string> = {
   postal_code:    'CEP',
   logistics_code: 'Cód. Log. Reversa',
   illegible:      'Ilegível',
+}
+
+/**
+ * Devolução que entrou sem NF: identificada sem chave de acesso, logo sem
+ * consulta NFEio. Nesses casos o cliente anexa o documento manualmente —
+ * devoluções por chave de acesso ficam com o backfill automático.
+ */
+function isInvoicePending(row: ReturnRow): boolean {
+  return row.identifierType !== 'access_key' && !row.invoiceXmlPath && !row.invoicePdfPath
 }
 
 function IdentifierTag({ row }: { row: ReturnRow }) {
@@ -233,7 +243,11 @@ export function ReturnsTable({
                           className="text-primary hover:underline text-xs font-medium disabled:opacity-50"
                         />
                       )}
-                      {!row.invoiceXmlPath && !row.invoicePdfPath && !(mode === 'history' && row.returnInvoiceXmlPath) && (
+                      {isInvoicePending(row) && (
+                        <InvoiceUploadDialog returnId={row.id} rv={row.rv} />
+                      )}
+                      {!row.invoiceXmlPath && !row.invoicePdfPath && !isInvoicePending(row)
+                        && !(mode === 'history' && row.returnInvoiceXmlPath) && (
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
                     </div>

@@ -35,7 +35,7 @@ The app enforces three user roles (`operator`, `client`, `manager`) injected int
 
 - `app/(public)/` — Login (email + password), account activation (`/ativar`), recovery/PKCE callback (`auth/callback`), first-access (set password + accept terms), password reset (`/redefinir-senha`)
 - `app/(operator)/operador/` — 7-step receiving workflow + item handling + "Minhas Devoluções" (`/operador/minhas-devolucoes`), a read-only history of returns the operator personally received (filtered by `received_by`), with RV/depositor/date filters, barcode scan-to-search, and a details modal (photos + fiscal-file downloads)
-- `app/(client)/cliente/` — Pending decisions dashboard + history
+- `app/(client)/cliente/` — Pending decisions dashboard + history + "NFs Pendentes" (`/cliente/notas-pendentes`), the queue of returns that came in without an invoice (see *Manual invoice upload* below)
 - `app/(manager)/admin/` — User/depositor management + system-wide stats
 
 ### Account Activation & Password Recovery
@@ -71,6 +71,8 @@ XML/PDF downloads (the original NF XML, its DANFE PDF, and the client-uploaded r
 
 **Client flow:** Clients review returns in `awaiting_decision` status and choose: return / discard / repackage / store for handling. Auto-decision fires after 72 hours (pg_cron in the database).
 
+**Manual invoice upload:** returns identified without an access key (`logistics_code`, `postal_code`, `illegible`) never hit NFEio, so they land with no invoice at all. `/cliente/notas-pendentes` (`app/(client)/cliente/notas-pendentes/`) is the queue of those — the query is `identifier_type != 'access_key'` + both `invoice_xml_url` and `invoice_pdf_url` null, deliberately spanning *all* statuses so the 72h auto-decision doesn't hide the oldest pendency. The client uploads an XML or a DANFE PDF (5 MB cap) into the same `invoice_xml_url`/`invoice_pdf_url` columns the NFEio lookup fills, which is what makes every existing download button light up with no further change; `invoice_uploaded_by`/`invoice_uploaded_at` (migration `013`) record the provenance. `uploadInvoiceFileAction` runs on the **admin client** on purpose: the `clients decide their returns` policy only allows UPDATE while `awaiting_decision`, and `invoice-pdfs` has no client insert policy — so the client ↔ depositor link is checked in code instead. An existing document is never overwritten, and when the uploaded XML carries a `<dest>` name it backfills an empty `final_customer_name`. A pending invoice never blocks the decision: it only surfaces as a sidebar count badge and an "Anexar NF" button in the NF column (`InvoiceUploadDialog`). Server Actions need `experimental.serverActions.bodySizeLimit` in `next.config.mjs` for the upload to fit.
+
 **Return status lifecycle:** `awaiting_decision` → `decided` → `processed`
 
 ### Integrations
@@ -87,7 +89,7 @@ XML/PDF downloads (the original NF XML, its DANFE PDF, and the client-uploaded r
 
 ### Key Database Tables
 
-`profiles` (users + roles), `depositors` (CNPJ companies), `returns` (shipments; `invoice_xml_url` + `invoice_pdf_url` hold the NFEio XML/DANFE storage paths, `return_invoice_xml_url` the client-uploaded return NF), `return_photos`, `invoice_cache` (legacy — present in the schema but currently unused), `client_depositors` (N:N clients ↔ depositors), `activation_tokens` (single-use account-activation tokens — only the sha256 hash is stored; service-role-only via RLS-without-policies). Schema in `supabase/migrations/000_schema.sql`; `invoice_pdf_url` + the `invoice-pdfs` bucket are added in `003_nfeio_pdf.sql`; `activation_tokens` in `004_activation_tokens.sql`.
+`profiles` (users + roles), `depositors` (CNPJ companies), `returns` (shipments; `invoice_xml_url` + `invoice_pdf_url` hold the NFEio XML/DANFE storage paths, `return_invoice_xml_url` the client-uploaded return NF), `return_photos`, `invoice_cache` (legacy — present in the schema but currently unused), `client_depositors` (N:N clients ↔ depositors), `activation_tokens` (single-use account-activation tokens — only the sha256 hash is stored; service-role-only via RLS-without-policies). Schema in `supabase/migrations/000_schema.sql`; `invoice_pdf_url` + the `invoice-pdfs` bucket are added in `003_nfeio_pdf.sql`; `activation_tokens` in `004_activation_tokens.sql`; `logistics_code` in `011`/`012`; `invoice_uploaded_by`/`invoice_uploaded_at` + the pending-invoice index in `013_manual_invoice.sql`.
 
 ### Testing Setup
 

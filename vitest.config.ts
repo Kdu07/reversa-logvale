@@ -39,6 +39,9 @@ export default defineConfig({
       // Phase 3 done:          stmts 87.3 / branch 70.3 / funcs 78.0 / lines 88.7
       // Meta de 80% atingida em statements, branches e lines. Functions (78%)
       // só não chega a 80 por causa de factories finas do Supabase (sem lógica).
+      // 2026-08-04:            stmts 91.2 / branch 78.9 / funcs 85.2 / lines 91.9
+      // (minhas-devolucoes e notas-pendentes cobertos; cliente/actions.ts a 97.7).
+      // Os thresholds abaixo seguem na régua da Phase 3 — subi-los é decisão à parte.
       thresholds: {
         statements: 85,
         branches: 68,

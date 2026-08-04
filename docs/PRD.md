@@ -176,6 +176,25 @@ legível, o operador marca "Ilegível" (último recurso) → gera placeholder ú
 - `received_at < now() - 48h` E status `awaiting_decision` E `warning_sent_at IS NULL`
 - Dispara e-mail uma vez, marca `warning_sent_at`
 
+**RF4.8 NFs Pendentes (`/cliente/notas-pendentes`):**
+
+Devoluções identificadas sem Chave de Acesso (Código de Logística Reversa, CEP ou
+Ilegível) entram sem NF — sem chave não há consulta NFEio. O cliente regulariza depois
+anexando o documento fiscal.
+
+- Fila: `identifier_type != 'access_key'` E sem `invoice_xml_url` E sem `invoice_pdf_url`
+- Inclui devoluções **já decididas**: a auto-decisão de 72h não regulariza a NF, e a
+  pendência precisa sobreviver a ela (ordenada da mais antiga para a mais recente, teto de 100)
+- Cada card traz RV, identificador (copiável), depositante e as fotos da caixa/itens —
+  é como o cliente reconhece de qual pedido se trata
+- Upload de **XML ou PDF (DANFE)**, até 5 MB, gravados em `invoice_xml_url` /
+  `invoice_pdf_url` (os mesmos campos da NFEio, para os downloads existentes funcionarem)
+- Quando o XML traz o destinatário e a devolução está sem cliente final, o campo é preenchido
+- A NF pendente **não bloqueia** a decisão nem interrompe o prazo de 72h — apenas sinaliza:
+  badge de contagem no menu e botão "Anexar NF" na coluna NF das tabelas de pendentes/histórico
+- Documento já existente nunca é sobrescrito
+- Auditoria: `invoice_uploaded_by` + `invoice_uploaded_at` distinguem o anexo manual da NFEio
+
 ### RF5 — Tratativa (Operador)
 
 **RF5.1** Tela /operador/tratativas com status `decided`
@@ -312,6 +331,7 @@ chave). Autenticação: `NFEIO_ACCESS_KEY` (API Key da empresa) no header `Autho
 
 ### Cliente (`/cliente/*`)
 - `/cliente` — pendentes de decisão
+- `/cliente/notas-pendentes` — devoluções sem NF, para anexar XML/DANFE
 - `/cliente/historico` — decididas
 - `/cliente/perfil`
 
