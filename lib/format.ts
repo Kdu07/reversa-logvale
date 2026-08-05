@@ -1,4 +1,18 @@
-import type { IdentifierType } from '@/types'
+import type { DecisionSource, IdentifierType } from '@/types'
+
+/** Rótulos do tipo de identificação, usados em exports e relatórios. */
+export const IDENTIFIER_TYPE_LABELS: Record<IdentifierType, string> = {
+  access_key:     'Chave NF',
+  postal_code:    'CEP',
+  logistics_code: 'Código de Logística Reversa',
+  illegible:      'Ilegível',
+}
+
+/** Quem tomou a decisão: o cliente ou o job de auto-decisão de 72h. */
+export const DECIDED_BY_LABELS: Record<DecisionSource, string> = {
+  client: 'Cliente',
+  auto:   'Automático',
+}
 
 export function formatDate(iso: string): string {
   return new Date(iso).toLocaleString('pt-BR', {

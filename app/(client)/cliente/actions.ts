@@ -7,7 +7,9 @@ import { getCurrentUser } from '@/lib/supabase/get-current-user'
 import { isSuperUser } from '@/lib/auth/super'
 import { buildSignedUrlMap } from '@/lib/supabase/storage'
 import { DECISION_LABELS } from '@/lib/decisions'
-import { formatDate, identifierLabel } from '@/lib/format'
+import {
+  DECIDED_BY_LABELS, IDENTIFIER_TYPE_LABELS, formatDate, identifierLabel,
+} from '@/lib/format'
 import type { ReturnDecision, DecisionSource, IdentifierType } from '@/types'
 
 export interface ReturnRow {
@@ -332,18 +334,6 @@ export async function submitDecisionAction(
   }
 }
 
-const IDENTIFIER_TYPE_PT: Record<IdentifierType, string> = {
-  access_key:     'Chave NF',
-  postal_code:    'CEP',
-  logistics_code: 'Código de Logística Reversa',
-  illegible:      'Ilegível',
-}
-
-const DECIDED_BY_PT: Record<string, string> = {
-  client: 'Cliente',
-  auto:   'Automático',
-}
-
 export async function exportHistoryAction(): Promise<
   { base64: string; filename: string } | { error: string }
 > {
@@ -403,13 +393,13 @@ export async function exportHistoryAction(): Promise<
         return {
           'Data Recebimento':    formatDate(r.received_at),
           'RV':                  r.rv,
-          'Tipo Identificador':  IDENTIFIER_TYPE_PT[r.identifier_type as IdentifierType] ?? r.identifier_type,
+          'Tipo Identificador':  IDENTIFIER_TYPE_LABELS[r.identifier_type as IdentifierType] ?? r.identifier_type,
           'Identificador':       identifierLabel(row),
           'Depositante':         dep?.razao_social ?? '—',
           'Cliente Final':       r.final_customer_name ?? '—',
           'Nº Itens':            r.item_count,
           'Decisão':             r.decision ? (DECISION_LABELS[r.decision as ReturnDecision] ?? r.decision) : '—',
-          'Decidido por':        r.decided_by_type ? (DECIDED_BY_PT[r.decided_by_type] ?? r.decided_by_type) : '—',
+          'Decidido por':        r.decided_by_type ? (DECIDED_BY_LABELS[r.decided_by_type as DecisionSource] ?? r.decided_by_type) : '—',
           'Data Decisão':        r.decided_at ? formatDate(r.decided_at) : '—',
           'Status':              r.status,
         }

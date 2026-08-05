@@ -167,6 +167,7 @@ export const ptBR = {
       users:      'Usuários',
       depositors: 'Depositantes',
       returns:    'Devoluções',
+      reports:    'Relatórios',
     },
     dashboard: {
       title:           'Dashboard',

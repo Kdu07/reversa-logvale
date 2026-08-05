@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, PackageCheck, History, UserRound,
   ClipboardList, Boxes, Users, Building2, Inbox, HelpCircle, FileWarning,
+  FileSpreadsheet,
 } from 'lucide-react'
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent,
@@ -55,6 +56,7 @@ const NAV: Record<UserRole, { label: string; items: NavItem[] }[]> = {
         { title: 'Devoluções',   url: '/admin/devolucoes',    icon: Boxes           },
         { title: 'Depositantes', url: '/admin/depositantes',  icon: Building2       },
         { title: 'Usuários',     url: '/admin/usuarios',      icon: Users           },
+        { title: 'Relatórios',   url: '/admin/relatorios',    icon: FileSpreadsheet },
       ],
     },
   ],
