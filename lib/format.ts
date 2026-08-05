@@ -14,10 +14,16 @@ export const DECIDED_BY_LABELS: Record<DecisionSource, string> = {
   auto:   'Automático',
 }
 
+/**
+ * Data/hora sempre em Brasília. Sem `timeZone` fixo o resultado seguiria o fuso
+ * do runtime — o que renderiza em UTC (3h adiantado) em tudo que roda no
+ * servidor: relatórios, exports, Server Components e e-mails.
+ */
 export function formatDate(iso: string): string {
   return new Date(iso).toLocaleString('pt-BR', {
     day: '2-digit', month: '2-digit', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
+    timeZone: 'America/Sao_Paulo',
   })
 }
 

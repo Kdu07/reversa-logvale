@@ -11,8 +11,20 @@ describe('formatDate', () => {
 
   it('inclui horas e minutos no resultado', () => {
     const result = formatDate('2024-06-20T09:05:00.000Z')
-    // horário pode variar por timezone, mas deve ter formato HH:MM
     expect(result).toMatch(/\d{2}:\d{2}/)
+  })
+
+  it('converte para o horário de Brasília, e não para o fuso do runtime', () => {
+    // 14:30 UTC = 11:30 em São Paulo (-03:00)
+    expect(formatDate('2024-01-15T14:30:00.000Z')).toContain('11:30')
+    expect(formatDate('2024-06-20T09:05:00.000Z')).toContain('06:05')
+  })
+
+  it('vira o dia pelo fuso de Brasília', () => {
+    // 01:00 UTC ainda é 22:00 do dia anterior em São Paulo
+    const result = formatDate('2024-03-10T01:00:00.000Z')
+    expect(result).toContain('09/03/2024')
+    expect(result).toContain('22:00')
   })
 
   it('retorna string não-vazia para qualquer data ISO válida', () => {
