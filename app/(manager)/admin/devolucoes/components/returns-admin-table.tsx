@@ -203,7 +203,12 @@ export function ReturnsAdminTable({
       {/* Modal de detalhes */}
       <Dialog open={!!detailsRow} onOpenChange={(o) => !o && setDetailsRow(null)}>
         {detailsRow && (
-          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogContent
+            className="max-w-lg max-h-[90vh] overflow-y-auto"
+            // Com a galeria aberta por cima, cliques/Esc nela não devem fechar o modal.
+            onInteractOutside={(e) => { if (gallery) e.preventDefault() }}
+            onEscapeKeyDown={(e) => { if (gallery) e.preventDefault() }}
+          >
             <DialogHeader>
               <DialogTitle className="font-mono text-xl">{detailsRow.rv}</DialogTitle>
               <div className="flex gap-2 flex-wrap pt-1">

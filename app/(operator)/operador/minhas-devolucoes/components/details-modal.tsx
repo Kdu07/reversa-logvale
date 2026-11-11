@@ -36,7 +36,12 @@ export function DetailsModal({ row, onClose }: Props) {
   return (
     <>
       <Dialog open onOpenChange={(o) => !o && onClose()}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent
+          className="max-w-lg max-h-[90vh] overflow-y-auto"
+          // Com a galeria aberta por cima, cliques/Esc nela não devem fechar o modal.
+          onInteractOutside={(e) => { if (gallery) e.preventDefault() }}
+          onEscapeKeyDown={(e) => { if (gallery) e.preventDefault() }}
+        >
           <DialogHeader>
             <DialogTitle className="font-mono text-xl">{row.rv}</DialogTitle>
             <div className="flex gap-2 flex-wrap pt-1">

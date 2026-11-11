@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { ChevronLeft, ChevronRight, Download, RotateCcw, X, ZoomIn, ZoomOut } from 'lucide-react'
 
 interface PhotoGalleryProps {
@@ -21,7 +22,10 @@ export function PhotoGallery({ urls, currentIndex, onNavigate, onClose, download
   const [offset, setOffset]           = useState({ x: 0, y: 0 })
   const [dragging, setDragging]       = useState(false)
   const [downloading, setDownloading] = useState(false)
+  const [mounted, setMounted]         = useState(false)
   const dragOrigin = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null)
+
+  useEffect(() => { setMounted(true) }, [])
 
   const resetZoom = useCallback(() => { setScale(1); setOffset({ x: 0, y: 0 }) }, [])
 
@@ -96,9 +100,14 @@ export function PhotoGallery({ urls, currentIndex, onNavigate, onClose, download
   const iconBtn =
     'flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white/90 hover:bg-white/20 transition disabled:opacity-40 disabled:hover:bg-white/10'
 
-  return (
+  // Portal para o <body> + z-[60]: a galeria costuma abrir de dentro de um Dialog
+  // (Radix), que também é portalizado em z-50 e ficaria por cima dela.
+  // `pointer-events-auto` porque o Dialog modal põe `pointer-events: none` no body.
+  if (!mounted) return null
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 overscroll-contain"
+      className="pointer-events-auto fixed inset-0 z-[60] flex items-center justify-center bg-black/90 overscroll-contain"
       onClick={onClose}
       onMouseMove={onDrag}
       onMouseUp={endDrag}
@@ -166,6 +175,7 @@ export function PhotoGallery({ urls, currentIndex, onNavigate, onClose, download
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 select-none text-sm text-white/60">
         {currentIndex + 1} / {urls.length}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
