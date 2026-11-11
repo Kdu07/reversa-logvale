@@ -192,8 +192,8 @@ export function ReturnsTable({
               <tr className="border-b bg-muted/30">
                 <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">RV</th>
                 <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">Data</th>
-                <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Identificador</th>
-                <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">NF</th>
+                <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">NF Origem</th>
+                <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">NF Devolução</th>
                 <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Itens</th>
                 <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">Fotos Caixa</th>
                 <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">Fotos Itens</th>
@@ -220,11 +220,12 @@ export function ReturnsTable({
                   <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground text-xs">
                     {formatDate(row.receivedAt)}
                   </td>
-                  <td className="px-3 py-2.5">
-                    <IdentifierTag row={row} />
-                  </td>
+                  {/* NF Origem: o identificador lido na caixa + os arquivos da NF
+                      original (NFEio pela chave de acesso, ou anexada pelo cliente
+                      quando a devolução entrou sem chave). */}
                   <td className="px-3 py-2.5">
                     <div className="flex flex-col items-start gap-1">
+                      <IdentifierTag row={row} />
                       {row.invoiceXmlPath && (
                         <DownloadXmlButton
                           path={row.invoiceXmlPath}
@@ -242,6 +243,15 @@ export function ReturnsTable({
                           className="text-primary hover:underline text-xs font-medium disabled:opacity-50"
                         />
                       )}
+                      {isInvoicePending(row) && (
+                        <InvoiceUploadDialog returnId={row.id} rv={row.rv} />
+                      )}
+                    </div>
+                  </td>
+                  {/* NF Devolução: só existe depois da decisão (XML enviado no
+                      DecisionModal, ou etiqueta + DANFE do Reenvio). */}
+                  <td className="px-3 py-2.5">
+                    <div className="flex flex-col items-start gap-1">
                       {mode === 'history' && row.returnInvoiceXmlPath && (
                         <DownloadXmlButton
                           path={row.returnInvoiceXmlPath}
@@ -268,11 +278,7 @@ export function ReturnsTable({
                           className="text-primary hover:underline text-xs font-medium disabled:opacity-50"
                         />
                       )}
-                      {isInvoicePending(row) && (
-                        <InvoiceUploadDialog returnId={row.id} rv={row.rv} />
-                      )}
-                      {!row.invoiceXmlPath && !row.invoicePdfPath && !isInvoicePending(row)
-                        && !(mode === 'history' && (row.returnInvoiceXmlPath || row.reshipLabelPath)) && (
+                      {!(mode === 'history' && (row.returnInvoiceXmlPath || row.reshipLabelPath || row.reshipDanfePath)) && (
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
                     </div>
