@@ -110,3 +110,20 @@ describe('submitDecisionAction', () => {
     expect(revalidatePath).toHaveBeenCalledWith('/cliente/historico')
   })
 })
+
+describe('submitDecisionAction — Reenvio desligado (RESHIP_DEPOSITOR_CNPJS vazio)', () => {
+  it('recusa reenvio sem consultar o banco', async () => {
+    mockClient('client')
+
+    const result = await submitDecisionAction({
+      returnId:             'ret-1',
+      decision:             'reship',
+      returnInvoiceXmlPath: null,
+      reshipLabelPath:      'ret-1/1700000000000-etiqueta.pdf',
+      reshipDanfePath:      'ret-1/1700000000000-danfe.pdf',
+    })
+
+    expect((result as { error: string }).error).toContain('Reenvio')
+    expect(mockUpdate).not.toHaveBeenCalled()
+  })
+})

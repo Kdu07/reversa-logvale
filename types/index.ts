@@ -1,6 +1,6 @@
 export type UserRole = 'operator' | 'client' | 'manager'
 export type ReturnStatus = 'awaiting_decision' | 'decided' | 'processed'
-export type ReturnDecision = 'return_to_stock' | 'store_for_handling' | 'discard' | 'repackage'
+export type ReturnDecision = 'return_to_stock' | 'store_for_handling' | 'discard' | 'repackage' | 'reship'
 export type DecisionSource = 'client' | 'auto'
 export type IdentifierType = 'access_key' | 'postal_code' | 'logistics_code' | 'illegible'
 export type PhotoType = 'box' | 'item'

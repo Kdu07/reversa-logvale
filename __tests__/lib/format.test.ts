@@ -96,3 +96,19 @@ describe('xmlDownloadName', () => {
     expect(xmlDownloadName('', 'original')).toBe('nf-nf-original.xml')
   })
 })
+
+describe('reshipLabelDownloadName', () => {
+  it('monta o nome a partir do RV, saneando caracteres', async () => {
+    const { reshipLabelDownloadName } = await import('@/lib/format')
+    expect(reshipLabelDownloadName('RV2024001')).toBe('RV2024001-etiqueta-reenvio.pdf')
+    expect(reshipLabelDownloadName('RV 2024/1')).toBe('RV_2024_1-etiqueta-reenvio.pdf')
+    expect(reshipLabelDownloadName('')).toBe('rv-etiqueta-reenvio.pdf')
+  })
+})
+
+describe('reshipDanfeDownloadName', () => {
+  it('monta o nome a partir do RV', async () => {
+    const { reshipDanfeDownloadName } = await import('@/lib/format')
+    expect(reshipDanfeDownloadName('RV2024001')).toBe('RV2024001-danfe-reenvio.pdf')
+  })
+})

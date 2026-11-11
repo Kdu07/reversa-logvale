@@ -26,6 +26,10 @@ export interface MyReturnRow {
   invoiceXmlPath:       string | null
   invoicePdfPath:       string | null
   returnInvoiceXmlPath: string | null
+  /** Etiqueta da decisão Reenvio (PDF em `reship-files`). */
+  reshipLabelPath:      string | null
+  /** DANFE anexada no Reenvio (PDF em `reship-files`). */
+  reshipDanfePath:      string | null
   boxPhotoUrls:         string[]
   itemPhotoUrls:        string[]
 }
@@ -65,7 +69,7 @@ export async function getMyReturnsAction(
       .select(
         `id, rv, status, decision, decided_by_type, received_at, decided_at, processed_at,
          identifier_type, access_key, postal_code, logistics_code, illegible_token, item_count,
-         invoice_xml_url, invoice_pdf_url, return_invoice_xml_url, final_customer_name,
+         invoice_xml_url, invoice_pdf_url, return_invoice_xml_url, reship_label_url, reship_danfe_url, final_customer_name,
          depositors!depositor_id(razao_social),
          return_photos(photo_type, storage_path, position)`,
         { count: 'exact' },
@@ -125,6 +129,8 @@ export async function getMyReturnsAction(
         invoiceXmlPath:       r.invoice_xml_url        ?? null,
         invoicePdfPath:       r.invoice_pdf_url        ?? null,
         returnInvoiceXmlPath: r.return_invoice_xml_url ?? null,
+        reshipLabelPath:      r.reship_label_url       ?? null,
+        reshipDanfePath:      r.reship_danfe_url       ?? null,
         boxPhotoUrls:         photos.box.map((p)  => boxMap.get(p.storage_path)  ?? '').filter(Boolean),
         itemPhotoUrls:        photos.item.map((p) => itemMap.get(p.storage_path) ?? '').filter(Boolean),
       }

@@ -80,6 +80,12 @@ export const env = {
   // (erros comuns ao colar o valor na Vercel/secrets). Ver normalizePrivateKey.
   googleSaPrivateKey: normalizePrivateKey(process.env.GOOGLE_SA_PRIVATE_KEY),
   mailFrom:    process.env.MAIL_FROM ?? process.env.RESEND_FROM_EMAIL ?? 'notificacoes@logvale.com.br',
+  // Decisão "Reenvio" — liberada só para estes depositantes (CNPJs separados por
+  // vírgula; hoje só a Blackskull). Vazio => o botão não aparece para ninguém.
+  reshipDepositorCnpjs: (process.env.RESHIP_DEPOSITOR_CNPJS ?? '')
+    .split(',')
+    .map((c) => c.replace(/\D/g, ''))
+    .filter((c) => c.length === 14),
   mailEnabled: Boolean(
     process.env.SMTP_HOST &&
     (process.env.GMAIL_OAUTH_USER ?? process.env.SMTP_USER ?? process.env.MAIL_FROM) &&

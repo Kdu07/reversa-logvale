@@ -7,7 +7,7 @@ import { PhotoGallery } from '@/components/shared/photo-gallery'
 import { PhotoThumbs } from '@/components/shared/photo-thumbs'
 import { DownloadXmlButton } from '@/components/shared/download-xml-button'
 import { DECISION_META } from '@/lib/decisions'
-import { formatDate, identifierLabel, xmlDownloadName, danfeDownloadName } from '@/lib/format'
+import { formatDate, identifierLabel, xmlDownloadName, danfeDownloadName, reshipLabelDownloadName, reshipDanfeDownloadName } from '@/lib/format'
 import { processReturnAction } from '../actions'
 import type { TrativaRow } from '../actions'
 
@@ -96,7 +96,7 @@ export function DetailsModal({ row, onClose, onComplete }: DetailsModalProps) {
               </div>
             </div>
 
-            {(row.invoiceXmlPath || row.invoicePdfPath || row.returnInvoiceXmlPath) && (
+            {(row.invoiceXmlPath || row.invoicePdfPath || row.returnInvoiceXmlPath || row.reshipLabelPath || row.reshipDanfePath) && (
               <div className="space-y-2">
                 {(row.invoiceXmlPath || row.invoicePdfPath) && (
                   <div>
@@ -129,6 +129,31 @@ export function DetailsModal({ row, onClose, onComplete }: DetailsModalProps) {
                       filename={xmlDownloadName(row.rv, 'devolucao')}
                       className="text-sm text-primary hover:underline disabled:opacity-50"
                     />
+                  </div>
+                )}
+                {(row.reshipLabelPath || row.reshipDanfePath) && (
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Reenvio</p>
+                    <div className="flex gap-4">
+                      {row.reshipLabelPath && (
+                        <DownloadXmlButton
+                          path={row.reshipLabelPath}
+                          filename={reshipLabelDownloadName(row.rv)}
+                          bucket="reship-files"
+                          label="Baixar etiqueta (PDF)"
+                          className="text-sm text-primary hover:underline disabled:opacity-50"
+                        />
+                      )}
+                      {row.reshipDanfePath && (
+                        <DownloadXmlButton
+                          path={row.reshipDanfePath}
+                          filename={reshipDanfeDownloadName(row.rv)}
+                          bucket="reship-files"
+                          label="Baixar DANFE (PDF)"
+                          className="text-sm text-primary hover:underline disabled:opacity-50"
+                        />
+                      )}
+                    </div>
                   </div>
                 )}
               </div>

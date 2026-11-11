@@ -35,6 +35,7 @@ function mockRpcResponse(overrides: Record<string, unknown> = {}) {
         cnt_sfh:            4,
         cnt_disc:           2,
         cnt_repk:           1,
+        cnt_reship:         3,
         avg_decision_hours: 3.5,
         avg_process_hours:  1.2,
         decided_total:      10,
@@ -102,6 +103,7 @@ describe('getDashboardStatsAction', () => {
       { decision: 'return_to_stock',    count: 8 },
       { decision: 'store_for_handling', count: 4 },
       { decision: 'discard',            count: 2 },
+      { decision: 'reship',             count: 3 },
     ])
   })
 

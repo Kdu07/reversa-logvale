@@ -33,6 +33,10 @@ export interface AdminReturnRow {
   invoiceXmlPath:       string | null
   invoicePdfPath:       string | null
   returnInvoiceXmlPath: string | null
+  /** Etiqueta da decisão Reenvio (PDF em `reship-files`). */
+  reshipLabelPath:      string | null
+  /** DANFE anexada no Reenvio (PDF em `reship-files`). */
+  reshipDanfePath:      string | null
   boxPhotoUrls:        string[]
   itemPhotoUrls:       string[]
 }
@@ -57,7 +61,7 @@ export async function getAdminReturnsAction(filters?: {
       .select(
         `id, rv, status, decision, decided_by_type, received_at, decided_at, processed_at,
          identifier_type, access_key, postal_code, logistics_code, illegible_token, item_count,
-         invoice_xml_url, invoice_pdf_url, return_invoice_xml_url, final_customer_name,
+         invoice_xml_url, invoice_pdf_url, return_invoice_xml_url, reship_label_url, reship_danfe_url, final_customer_name,
          depositors!depositor_id(razao_social),
          profiles!received_by(full_name),
          return_photos(photo_type, storage_path, position)`,
@@ -114,6 +118,8 @@ export async function getAdminReturnsAction(filters?: {
         invoiceXmlPath:       r.invoice_xml_url        ?? null,
         invoicePdfPath:       r.invoice_pdf_url        ?? null,
         returnInvoiceXmlPath: r.return_invoice_xml_url ?? null,
+        reshipLabelPath:      r.reship_label_url       ?? null,
+        reshipDanfePath:      r.reship_danfe_url       ?? null,
         boxPhotoUrls:        photos.box.map((p)  => boxMap.get(p.storage_path)  ?? '').filter(Boolean),
         itemPhotoUrls:       photos.item.map((p) => itemMap.get(p.storage_path) ?? '').filter(Boolean),
       }
@@ -259,6 +265,8 @@ export async function revertReturnStatusAction(
         decided_by:             null,
         decided_by_type:        null,
         return_invoice_xml_url: null,
+        reship_label_url:       null,
+        reship_danfe_url:       null,
       }
     } else if (current.status === 'processed') {
       update = {
@@ -295,7 +303,7 @@ export async function deleteReturnAction(
     // return_photos somem por FK cascade; os arquivos no storage, não.
     const { data: ret, error: fetchErr } = await supabase
       .from('returns')
-      .select('return_invoice_xml_url, return_photos(storage_path, photo_type)')
+      .select('return_invoice_xml_url, reship_label_url, reship_danfe_url, return_photos(storage_path, photo_type)')
       .eq('id', returnId)
       .single()
     if (fetchErr) throw fetchErr
@@ -314,6 +322,10 @@ export async function deleteReturnAction(
     if (itemPaths.length) removals.push(supabase.storage.from('item-photos').remove(itemPaths))
     if (returnXml?.startsWith('decisions/')) {
       removals.push(supabase.storage.from('invoice-xmls').remove([returnXml]))
+    }
+    const reshipFiles = [ret.reship_label_url, ret.reship_danfe_url].filter(Boolean) as string[]
+    if (reshipFiles.length) {
+      removals.push(supabase.storage.from('reship-files').remove(reshipFiles))
     }
     await Promise.all(removals)
 

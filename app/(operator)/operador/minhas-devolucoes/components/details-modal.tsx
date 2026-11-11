@@ -8,7 +8,7 @@ import { DecisionPill } from '@/components/shared/decision-pill'
 import { PhotoGallery } from '@/components/shared/photo-gallery'
 import { PhotoThumbs } from '@/components/shared/photo-thumbs'
 import { DownloadXmlButton } from '@/components/shared/download-xml-button'
-import { formatDate, identifierLabel, xmlDownloadName, danfeDownloadName } from '@/lib/format'
+import { formatDate, identifierLabel, xmlDownloadName, danfeDownloadName, reshipLabelDownloadName, reshipDanfeDownloadName } from '@/lib/format'
 import { ptBR } from '@/lib/i18n/pt-BR'
 import type { ReturnStatus } from '@/types'
 import type { MyReturnRow } from '../actions'
@@ -98,6 +98,31 @@ export function DetailsModal({ row, onClose }: Props) {
                   filename={xmlDownloadName(row.rv, 'devolucao')}
                   className="text-sm text-primary hover:underline font-medium disabled:opacity-50"
                 />
+              </div>
+            )}
+            {(row.reshipLabelPath || row.reshipDanfePath) && (
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Reenvio</p>
+                <div className="flex gap-4">
+                  {row.reshipLabelPath && (
+                    <DownloadXmlButton
+                      path={row.reshipLabelPath}
+                      filename={reshipLabelDownloadName(row.rv)}
+                      bucket="reship-files"
+                      label="Baixar etiqueta (PDF)"
+                      className="text-sm text-primary hover:underline font-medium disabled:opacity-50"
+                    />
+                  )}
+                  {row.reshipDanfePath && (
+                    <DownloadXmlButton
+                      path={row.reshipDanfePath}
+                      filename={reshipDanfeDownloadName(row.rv)}
+                      bucket="reship-files"
+                      label="Baixar DANFE (PDF)"
+                      className="text-sm text-primary hover:underline font-medium disabled:opacity-50"
+                    />
+                  )}
+                </div>
               </div>
             )}
 

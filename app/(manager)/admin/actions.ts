@@ -21,7 +21,7 @@ type StatsRpc = {
   counts: {
     today: number; last7d: number; last30d: number
     cnt_awaiting: number; cnt_decided: number; cnt_processed: number
-    cnt_rts: number; cnt_sfh: number; cnt_disc: number; cnt_repk: number
+    cnt_rts: number; cnt_sfh: number; cnt_disc: number; cnt_repk: number; cnt_reship?: number
     avg_decision_hours: number | null; avg_process_hours: number | null
     decided_total: number; decided_auto: number
   }
@@ -64,6 +64,8 @@ export async function getDashboardStatsAction(): Promise<DashboardStats | { erro
         { decision: 'return_to_stock',    count: counts.cnt_rts  },
         { decision: 'store_for_handling', count: counts.cnt_sfh  },
         { decision: 'discard',            count: counts.cnt_disc },
+        // Até a migration 016 rodar a RPC não devolve cnt_reship
+        { decision: 'reship',             count: counts.cnt_reship ?? 0 },
       ],
       avgDecisionHours: counts.avg_decision_hours,
       avgProcessHours:  counts.avg_process_hours,

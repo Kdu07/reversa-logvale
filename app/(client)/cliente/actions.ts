@@ -4,9 +4,10 @@ import { revalidatePath } from 'next/cache'
 import * as XLSX from 'xlsx'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/supabase/get-current-user'
+import { env } from '@/lib/env'
 import { isSuperUser } from '@/lib/auth/super'
 import { buildSignedUrlMap } from '@/lib/supabase/storage'
-import { DECISION_LABELS } from '@/lib/decisions'
+import { DECISION_LABELS, isReshipDepositor } from '@/lib/decisions'
 import {
   DECIDED_BY_LABELS, IDENTIFIER_TYPE_LABELS, formatDate, identifierLabel,
 } from '@/lib/format'
@@ -28,6 +29,14 @@ export interface ReturnRow {
   invoiceXmlPath:       string | null
   invoicePdfPath:       string | null
   returnInvoiceXmlPath: string | null
+  /** Decisão "Reenvio" liberada para o depositante desta devolução
+   *  (RESHIP_DEPOSITOR_CNPJS). Só é calculado nas pendências; o servidor
+   *  revalida em submitDecisionAction. */
+  reshipEnabled?:  boolean
+  /** Etiqueta de reenvio (PDF em `reship-files`) — só nas decididas como Reenvio. */
+  reshipLabelPath?: string | null
+  /** DANFE anexada no Reenvio (PDF em `reship-files`). */
+  reshipDanfePath?: string | null
   decision:       ReturnDecision | null
   decidedAt:      string | null
   decidedByType:  DecisionSource | null
@@ -91,7 +100,7 @@ export async function getClientReturnsAction(
       .select(
         `id, identifier_type, access_key, postal_code, logistics_code, illegible_token,
          rv, item_count, received_at, depositor_id, invoice_xml_url, invoice_pdf_url, final_customer_name,
-         depositors!depositor_id(razao_social),
+         depositors!depositor_id(razao_social, cnpj),
          return_photos(storage_path, photo_type, position)`,
         { count: 'exact' },
       )
@@ -152,7 +161,7 @@ export async function getClientReturnsAction(
     const rows: ReturnRow[] = allReturns.map((r) => {
       const photos = (r.return_photos as RawPhoto[]) ?? []
       const { boxUrls, itemUrls } = resolvePhotos(photos, boxMap, itemMap)
-      const dep = r.depositors as unknown as { razao_social: string } | null
+      const dep = r.depositors as unknown as { razao_social: string; cnpj: string } | null
       return {
         id:             r.id,
         identifierType: r.identifier_type as IdentifierType,
@@ -169,6 +178,7 @@ export async function getClientReturnsAction(
         invoiceXmlPath:       r.invoice_xml_url ?? null,
         invoicePdfPath:       r.invoice_pdf_url ?? null,
         returnInvoiceXmlPath: null, // pendentes ainda não têm decisão/XML de devolução
+        reshipEnabled:  isReshipDepositor(dep?.cnpj, env.reshipDepositorCnpjs),
         decision:       null,
         decidedAt:      null,
         decidedByType:  null,
@@ -199,7 +209,7 @@ export async function getClientHistoryAction(
       .select(
         `id, identifier_type, access_key, postal_code, logistics_code, illegible_token,
          rv, item_count, received_at, depositor_id, invoice_xml_url, invoice_pdf_url, return_invoice_xml_url, final_customer_name,
-         decision, decided_at, decided_by_type,
+         decision, decided_at, decided_by_type, reship_label_url, reship_danfe_url,
          depositors!depositor_id(razao_social),
          return_photos(storage_path, photo_type, position)`,
         { count: 'exact' },
@@ -278,6 +288,8 @@ export async function getClientHistoryAction(
         invoiceXmlPath:       r.invoice_xml_url        ?? null,
         invoicePdfPath:       r.invoice_pdf_url        ?? null,
         returnInvoiceXmlPath: r.return_invoice_xml_url ?? null,
+        reshipLabelPath:      r.reship_label_url       ?? null,
+        reshipDanfePath:      r.reship_danfe_url       ?? null,
         decision:       r.decision as ReturnDecision | null,
         decidedAt:      r.decided_at,
         decidedByType:  r.decided_by_type as DecisionSource | null,
@@ -296,6 +308,29 @@ interface SubmitPayload {
   returnId:             string
   decision:             ReturnDecision
   returnInvoiceXmlPath: string | null
+  /** Etiqueta de reenvio e DANFE (PDFs) — obrigatórias só na decisão `reship`. */
+  reshipLabelPath?:     string | null
+  reshipDanfePath?:     string | null
+}
+
+/** PDF enviado pelo modal para a pasta desta devolução em `reship-files`. */
+function isReshipPdfPath(path: string | null | undefined, returnId: string): path is string {
+  return !!path && path.startsWith(`${returnId}/`) && path.toLowerCase().endsWith('.pdf')
+}
+
+/** Reenvio só para os depositantes liberados — revalidado aqui, a flag da row é só UI. */
+async function isReshipAllowedReturn(
+  supabase: ReturnType<typeof createClient>,
+  returnId: string,
+): Promise<boolean> {
+  if (env.reshipDepositorCnpjs.length === 0) return false
+  const { data } = await supabase
+    .from('returns')
+    .select('depositors!depositor_id(cnpj)')
+    .eq('id', returnId)
+    .single()
+  const dep = data?.depositors as unknown as { cnpj: string } | null
+  return isReshipDepositor(dep?.cnpj, env.reshipDepositorCnpjs)
 }
 
 export async function submitDecisionAction(
@@ -305,22 +340,41 @@ export async function submitDecisionAction(
     const user = await getCurrentUser()
     if (user.profile.role !== 'client' && !isSuperUser(user)) return { error: 'Acesso negado' }
 
-    if (payload.decision !== 'store_for_handling' && !payload.returnInvoiceXmlPath) {
+    const supabase = createClient()
+
+    if (payload.decision === 'reship') {
+      // Reenvio vai com a mesma NF do pedido: os anexos obrigatórios são a
+      // etiqueta e a DANFE (PDFs), na pasta desta devolução no bucket.
+      if (!isReshipPdfPath(payload.reshipLabelPath, payload.returnId)) {
+        return { error: 'A etiqueta de reenvio (PDF) é obrigatória.' }
+      }
+      if (!isReshipPdfPath(payload.reshipDanfePath, payload.returnId)) {
+        return { error: 'A DANFE (PDF) é obrigatória para o reenvio.' }
+      }
+      if (!(await isReshipAllowedReturn(supabase, payload.returnId))) {
+        return { error: 'Reenvio não está disponível para este depositante.' }
+      }
+    } else if (payload.decision !== 'store_for_handling' && !payload.returnInvoiceXmlPath) {
       return { error: 'XML da NF de devolução é obrigatório para esta decisão.' }
     }
 
-    const supabase = createClient()
+    const update: Record<string, unknown> = {
+      status:          'decided',
+      decision:        payload.decision,
+      decided_at:      new Date().toISOString(),
+      decided_by:      user.id,
+      decided_by_type: 'client',
+    }
+    if (payload.decision === 'reship') {
+      update.reship_label_url = payload.reshipLabelPath
+      update.reship_danfe_url = payload.reshipDanfePath
+    } else {
+      update.return_invoice_xml_url = payload.returnInvoiceXmlPath
+    }
 
     const { error } = await supabase
       .from('returns')
-      .update({
-        status:                 'decided',
-        decision:               payload.decision,
-        decided_at:             new Date().toISOString(),
-        decided_by:             user.id,
-        decided_by_type:        'client',
-        return_invoice_xml_url: payload.returnInvoiceXmlPath,
-      })
+      .update(update)
       .eq('id', payload.returnId)
       .eq('status', 'awaiting_decision')
 

@@ -6,6 +6,7 @@ export const DECISION_LABELS: Record<ReturnDecision, string> = {
   store_for_handling: ptBR.decisions.store_for_handling,
   discard:            ptBR.decisions.discard,
   repackage:          ptBR.decisions.repackage,
+  reship:             ptBR.decisions.reship,
 }
 
 export const DECISION_SHORT: Record<ReturnDecision, string> = {
@@ -13,6 +14,7 @@ export const DECISION_SHORT: Record<ReturnDecision, string> = {
   store_for_handling: 'Tratativa',
   discard:            'Retirada',
   repackage:          'Reembal.',
+  reship:             'Reenvio',
 }
 
 export const DECISION_TONE: Record<ReturnDecision, 'success' | 'warning' | 'destructive' | 'info'> = {
@@ -20,6 +22,7 @@ export const DECISION_TONE: Record<ReturnDecision, 'success' | 'warning' | 'dest
   store_for_handling: 'warning',
   discard:            'destructive',
   repackage:          'info',
+  reship:             'info',
 }
 
 export const DECISION_BADGE: Record<ReturnDecision, string> = {
@@ -27,6 +30,7 @@ export const DECISION_BADGE: Record<ReturnDecision, string> = {
   store_for_handling: 'bg-amber-500 text-white border-amber-600',
   discard:            'bg-red-600   text-white border-red-700',
   repackage:          'bg-blue-500  text-white border-blue-600',
+  reship:             'bg-blue-600  text-white border-blue-700',
 }
 
 export const DECISION_META: Record<ReturnDecision, {
@@ -57,4 +61,23 @@ export const DECISION_META: Record<ReturnDecision, {
     label: DECISION_LABELS.repackage,
     badge: DECISION_BADGE.repackage,
   },
+  reship: {
+    label:       DECISION_LABELS.reship,
+    badge:       DECISION_BADGE.reship,
+    description: 'O mesmo pedido será reenviado ao cliente final com a mesma NF do pedido original. Anexe a etiqueta de reenvio e a DANFE (PDFs) para a Logvale despachar.',
+    descStyle:   'bg-blue-50 border-blue-200 text-blue-800',
+  },
+}
+
+/**
+ * "Reenvio" é exclusiva de alguns depositantes (RESHIP_DEPOSITOR_CNPJS — hoje
+ * a Blackskull). Puro de propósito: o app avalia com `env.reshipDepositorCnpjs`
+ * no servidor; o client component só recebe o booleano já calculado na row.
+ */
+export function isReshipDepositor(
+  cnpj: string | null | undefined,
+  allowedCnpjs: readonly string[],
+): boolean {
+  if (!cnpj) return false
+  return allowedCnpjs.includes(cnpj.replace(/\D/g, ''))
 }

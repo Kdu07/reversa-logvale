@@ -58,3 +58,18 @@ export function danfeDownloadName(rv: string): string {
   const safe = (rv || 'nf').replace(/[^\w.-]+/g, '_')
   return `${safe}-danfe.pdf`
 }
+
+/**
+ * Nome de arquivo amigável para a etiqueta da decisão "Reenvio".
+ * Ex.: "RV2024001-etiqueta-reenvio.pdf".
+ */
+export function reshipLabelDownloadName(rv: string): string {
+  const safe = (rv || 'rv').replace(/[^\w.-]+/g, '_')
+  return `${safe}-etiqueta-reenvio.pdf`
+}
+
+/** DANFE anexada na decisão "Reenvio". Ex.: "RV2024001-danfe-reenvio.pdf". */
+export function reshipDanfeDownloadName(rv: string): string {
+  const safe = (rv || 'rv').replace(/[^\w.-]+/g, '_')
+  return `${safe}-danfe-reenvio.pdf`
+}

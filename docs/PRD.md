@@ -72,6 +72,7 @@ Este sistema substitui processo manual por plataforma web unificada.
 | `store_for_handling` | Laranja | Não |
 | `discard` | Vermelho | Sim |
 | `repackage` | Azul | Sim |
+| `reship` (Reenvio) | Azul | Não — segue com a mesma NF; exige etiqueta de reenvio + DANFE (PDFs). Só para depositantes em `RESHIP_DEPOSITOR_CNPJS` (Blackskull) |
 
 Cada decisão registra `decided_by_type`: `client` ou `auto`.
 

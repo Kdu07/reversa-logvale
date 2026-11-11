@@ -27,6 +27,10 @@ export interface TrativaRow {
   invoiceXmlPath:       string | null
   invoicePdfPath:       string | null
   returnInvoiceXmlPath: string | null
+  /** Etiqueta da decisão Reenvio (PDF em `reship-files`). */
+  reshipLabelPath:      string | null
+  /** DANFE anexada no Reenvio (PDF em `reship-files`). */
+  reshipDanfePath:      string | null
   boxPhotoUrls:   string[]
   itemPhotoUrls:  string[]
 }
@@ -54,7 +58,7 @@ export async function getTrativasAction(
       .select(
         `id, rv, identifier_type, access_key, postal_code, logistics_code, illegible_token,
          item_count, received_at, decided_at, decided_by_type, decision,
-         depositor_id, invoice_xml_url, invoice_pdf_url, return_invoice_xml_url, final_customer_name,
+         depositor_id, invoice_xml_url, invoice_pdf_url, return_invoice_xml_url, reship_label_url, reship_danfe_url, final_customer_name,
          depositors!depositor_id(razao_social),
          profiles!decided_by(full_name),
          return_photos(storage_path, photo_type, position)`,
@@ -122,6 +126,8 @@ export async function getTrativasAction(
         invoiceXmlPath:       r.invoice_xml_url        ?? null,
         invoicePdfPath:       r.invoice_pdf_url        ?? null,
         returnInvoiceXmlPath: r.return_invoice_xml_url ?? null,
+        reshipLabelPath:      r.reship_label_url       ?? null,
+        reshipDanfePath:      r.reship_danfe_url       ?? null,
         boxPhotoUrls:   boxUrls,
         itemPhotoUrls:  itemUrls,
       }

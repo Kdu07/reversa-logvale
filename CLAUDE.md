@@ -75,6 +75,8 @@ XML/PDF downloads (the original NF XML, its DANFE PDF, and the client-uploaded r
 
 **Monthly reports:** `/admin/relatorios` (`app/(manager)/admin/relatorios/`) generates the returns report as XLSX — scoped to a month/period and to one depositor or all of them. `generateReturnsReportAction` fetches with **explicit pagination** (`BATCH_SIZE = 1000`, capped at `MAX_ROWS`): PostgREST caps a response at 1000 rows, so without the loop a long period would be silently truncated. The period always closes in **America/São Paulo** (`lib/reports/period.ts`, fixed `-03:00` offset, half-open `[from, to)`) — closing it in UTC would push everything received after 21:00 on the last day into the next month; `received_at` is the sole date criterion. Workbook assembly lives in `lib/reports/returns-report.ts` as a **pure function** (rows in → base64 out, no Supabase), with sheets *Resumo* (KPIs, same definitions as the dashboard RPC), *Devoluções* (row per return) and *Por depositante* — the last one only in the all-depositors report. An empty period returns `{ empty: true, message }` instead of an empty spreadsheet. Download reuses the `{ base64, filename }` + `<a download>` pattern of the client's `exportHistoryAction`.
 
+**Reship decision ("Reenvio", Blackskull only):** a 5th client decision (`reship`, migration `015`; dashboard counter `cnt_reship` in `016`) — the same order is shipped again to the final customer with the **same NF**, so there is no XML attach: the client must upload **two PDFs**, the reship label and the DANFE (5 MB each), into the private `reship-files` bucket at `<return_id>/<ts>-{etiqueta,danfe}.pdf` → `reship_label_url` / `reship_danfe_url` (migration `017`; the receiving DANFE in `invoice_pdf_url` is never touched). `submitDecisionAction` requires both paths inside that return's folder, and the downloads (`reshipLabelDownloadName` / `reshipDanfeDownloadName`) show up in the client history, operator tratativas/minhas-devoluções and the admin details. It is enabled per depositor by `RESHIP_DEPOSITOR_CNPJS` (comma-separated CNPJs): `getClientReturnsAction` sets `reshipEnabled` on the row (shows the blue button) and `submitDecisionAction` revalidates the depositor server-side.
+
 **Return status lifecycle:** `awaiting_decision` → `decided` → `processed`
 
 ### Integrations
@@ -113,6 +115,8 @@ Optional (integrations):
 # NFEIO_ACCESS_KEY is the company API key, sent in the `Authorization` header. Unset = disabled.
 NFEIO_ACCESS_KEY
 NFEIO_BASE_URL  (default: https://nfe.api.nfe.io)
+# Decisão "Reenvio" — CNPJs (vírgula) dos depositantes liberados (hoje: Blackskull). Unset = off.
+RESHIP_DEPOSITOR_CNPJS
 # Email via SMTP (Google Workspace) with OAuth2 / Service Account (Domain-Wide Delegation).
 # mailFrom falls back to legacy RESEND_FROM_EMAIL if set.
 SMTP_HOST, SMTP_PORT (default 465), MAIL_FROM, GMAIL_OAUTH_USER (impersonated mailbox),

@@ -91,6 +91,7 @@ export const ptBR = {
     store_for_handling: 'Tratativa',
     discard:            'Retirada',
     repackage:          'Reembalagem',
+    reship:             'Reenvio',
   },
 
   identifierTypes: {

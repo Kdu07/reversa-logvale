@@ -18,12 +18,23 @@ interface DecisionModalProps {
   onSuccess: () => void
 }
 
-const needsXml = (d: ReturnDecision) => d !== 'store_for_handling'
+// Reenvio não leva XML (segue com a mesma NF): os anexos são a etiqueta e a DANFE em PDF
+const needsXml = (d: ReturnDecision) => d !== 'store_for_handling' && d !== 'reship'
+
+const PDF_MAX_BYTES = 5 * 1024 * 1024 // mesmo teto do bucket reship-files
+
+type ReshipKind = 'etiqueta' | 'danfe'
+
+const RESHIP_FIELDS: { kind: ReshipKind; label: string; noun: string }[] = [
+  { kind: 'etiqueta', label: 'Etiqueta de reenvio (PDF)', noun: 'A etiqueta' },
+  { kind: 'danfe',    label: 'DANFE (PDF)',               noun: 'A DANFE' },
+]
 
 export function DecisionModal({ row, decision, onClose, onSuccess }: DecisionModalProps) {
   const router                        = useRouter()
   const [countdown, setCountdown]     = useState(2)
   const [xmlFile, setXmlFile]         = useState<File | null>(null)
+  const [reshipFiles, setReshipFiles] = useState<Record<ReshipKind, File | null>>({ etiqueta: null, danfe: null })
   const [isSubmitting, setSubmitting] = useState(false)
   const [error, setError]             = useState<string | null>(null)
   const inputRef                      = useRef<HTMLInputElement>(null)
@@ -36,14 +47,50 @@ export function DecisionModal({ row, decision, onClose, onSuccess }: DecisionMod
     return () => clearTimeout(id)
   }, [countdown])
 
-  const xmlRequired = needsXml(decision)
-  const canConfirm  = countdown === 0 && !isSubmitting && (!xmlRequired || xmlFile !== null)
+  const xmlRequired    = needsXml(decision)
+  const isReship       = decision === 'reship'
+  const canConfirm     = countdown === 0 && !isSubmitting
+    && (!xmlRequired || xmlFile !== null)
+    && (!isReship || (reshipFiles.etiqueta !== null && reshipFiles.danfe !== null))
+
+  function handleReshipFile(kind: ReshipKind, noun: string, file: File | null) {
+    setError(null)
+    let accepted = file
+    if (file && file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      setError(`${noun} precisa ser um arquivo PDF.`)
+      accepted = null
+    } else if (file && file.size > PDF_MAX_BYTES) {
+      setError(`${noun} excede o limite de 5 MB.`)
+      accepted = null
+    }
+    setReshipFiles((prev) => ({ ...prev, [kind]: accepted }))
+  }
 
   async function handleConfirm() {
     setError(null)
     setSubmitting(true)
 
     let xmlPath: string | null = null
+    const reshipPaths: Record<ReshipKind, string | null> = { etiqueta: null, danfe: null }
+
+    if (isReship) {
+      const supabase = createClient()
+      const ts       = Date.now()
+      for (const { kind, noun } of RESHIP_FIELDS) {
+        const file = reshipFiles[kind]
+        if (!file) continue
+        const path = `${row.id}/${ts}-${kind}.pdf`
+        const { error: uploadError } = await supabase.storage
+          .from('reship-files')
+          .upload(path, file, { contentType: 'application/pdf' })
+        if (uploadError) {
+          setError(`Erro ao enviar ${noun.toLowerCase()}: ${uploadError.message}`)
+          setSubmitting(false)
+          return
+        }
+        reshipPaths[kind] = path
+      }
+    }
 
     if (xmlRequired && xmlFile) {
       const supabase = createClient()
@@ -63,6 +110,8 @@ export function DecisionModal({ row, decision, onClose, onSuccess }: DecisionMod
       returnId:             row.id,
       decision,
       returnInvoiceXmlPath: xmlPath,
+      reshipLabelPath:      reshipPaths.etiqueta,
+      reshipDanfePath:      reshipPaths.danfe,
     })
 
     if ('error' in result) {
@@ -133,6 +182,23 @@ export function DecisionModal({ row, decision, onClose, onSuccess }: DecisionMod
             )}
           </div>
         )}
+
+        {isReship && RESHIP_FIELDS.map(({ kind, label, noun }) => (
+          <div key={kind} className="space-y-1">
+            <label className="text-sm font-medium text-foreground">
+              {label} <span className="text-destructive">*</span>
+            </label>
+            <input
+              type="file"
+              accept=".pdf,application/pdf"
+              onChange={(e) => handleReshipFile(kind, noun, e.target.files?.[0] ?? null)}
+              className="block w-full text-sm text-muted-foreground file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-sm file:bg-primary file:text-white cursor-pointer"
+            />
+            {reshipFiles[kind] && (
+              <p className="text-xs text-muted-foreground">{reshipFiles[kind]?.name}</p>
+            )}
+          </div>
+        ))}
 
         {error && (
           <Alert variant="destructive">

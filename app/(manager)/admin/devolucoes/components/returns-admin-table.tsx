@@ -11,7 +11,7 @@ import { EmptyState } from '@/components/shared/empty-state'
 import { PhotoGallery } from '@/components/shared/photo-gallery'
 import { PhotoThumbs } from '@/components/shared/photo-thumbs'
 import { DownloadXmlButton } from '@/components/shared/download-xml-button'
-import { formatDate, identifierLabel, xmlDownloadName, danfeDownloadName } from '@/lib/format'
+import { formatDate, identifierLabel, xmlDownloadName, danfeDownloadName, reshipLabelDownloadName, reshipDanfeDownloadName } from '@/lib/format'
 import { ptBR } from '@/lib/i18n/pt-BR'
 import { revertReturnStatusAction, deleteReturnAction } from '../actions'
 import { Boxes, ChevronLeft, ChevronRight, Search } from 'lucide-react'
@@ -266,6 +266,31 @@ export function ReturnsAdminTable({
                     filename={xmlDownloadName(detailsRow.rv, 'devolucao')}
                     className="text-sm text-primary hover:underline font-medium disabled:opacity-50"
                   />
+                </div>
+              )}
+              {(detailsRow.reshipLabelPath || detailsRow.reshipDanfePath) && (
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Reenvio</p>
+                  <div className="flex gap-4">
+                    {detailsRow.reshipLabelPath && (
+                      <DownloadXmlButton
+                        path={detailsRow.reshipLabelPath}
+                        filename={reshipLabelDownloadName(detailsRow.rv)}
+                        bucket="reship-files"
+                        label="Baixar etiqueta (PDF)"
+                        className="text-sm text-primary hover:underline font-medium disabled:opacity-50"
+                      />
+                    )}
+                    {detailsRow.reshipDanfePath && (
+                      <DownloadXmlButton
+                        path={detailsRow.reshipDanfePath}
+                        filename={reshipDanfeDownloadName(detailsRow.rv)}
+                        bucket="reship-files"
+                        label="Baixar DANFE (PDF)"
+                        className="text-sm text-primary hover:underline font-medium disabled:opacity-50"
+                      />
+                    )}
+                  </div>
                 </div>
               )}
               {detailsRow.boxPhotoUrls.length > 0 && (

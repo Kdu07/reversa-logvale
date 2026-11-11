@@ -13,7 +13,7 @@ import { ptBR } from '@/lib/i18n/pt-BR'
 import type { ReportPeriod } from '@/lib/reports/period'
 import type { DecisionSource, IdentifierType, ReturnDecision, ReturnStatus } from '@/types'
 
-const DECISIONS: ReturnDecision[] = ['return_to_stock', 'store_for_handling', 'discard', 'repackage']
+const DECISIONS: ReturnDecision[] = ['return_to_stock', 'store_for_handling', 'discard', 'repackage', 'reship']
 const STATUSES:  ReturnStatus[]   = ['awaiting_decision', 'decided', 'processed']
 
 export interface ReportReturnRow {
@@ -213,13 +213,15 @@ function byDepositorSheet(rows: ReportReturnRow[]): XLSX.WorkSheet {
     'Tratativa':     d.byDecision.store_for_handling,
     'Retirada':      d.byDecision.discard,
     'Reembalagem':   d.byDecision.repackage,
+    'Reenvio':       d.byDecision.reship,
     '% Automáticas': d.autoRate === null ? '—' : `${d.autoRate.toString().replace('.', ',')}%`,
   }))
 
   const ws = XLSX.utils.json_to_sheet(json)
   ws['!cols'] = [
     { wch: 34 }, { wch: 20 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 12 },
-    { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 13 }, { wch: 14 },
+    { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 13 }, { wch: 10 },
+    { wch: 14 },
   ]
   return ws
 }

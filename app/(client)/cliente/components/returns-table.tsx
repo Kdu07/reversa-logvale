@@ -13,7 +13,7 @@ import { PhotoGallery } from '@/components/shared/photo-gallery'
 import { PhotoThumbs } from '@/components/shared/photo-thumbs'
 import { DownloadXmlButton } from '@/components/shared/download-xml-button'
 import { CopyButton } from '@/components/shared/copy-button'
-import { formatDate, xmlDownloadName, danfeDownloadName } from '@/lib/format'
+import { formatDate, xmlDownloadName, danfeDownloadName, reshipLabelDownloadName, reshipDanfeDownloadName } from '@/lib/format'
 import { Inbox, ChevronLeft, ChevronRight } from 'lucide-react'
 import type { ReturnRow, DepositorOption } from '../actions'
 import type { ReturnDecision, IdentifierType } from '@/types'
@@ -34,6 +34,13 @@ const DECISION_BUTTONS: { decision: ReturnDecision; label: string; className: st
   { decision: 'store_for_handling', label: 'Tratativa', className: 'bg-amber-500 hover:bg-amber-600 text-white font-semibold shadow-sm' },
   { decision: 'discard',            label: 'Retirada',  className: 'bg-red-600   hover:bg-red-700   text-white font-semibold shadow-sm' },
 ]
+
+// Exclusivo dos depositantes liberados (row.reshipEnabled — hoje a Blackskull)
+const RESHIP_BUTTON = { decision: 'reship' as const, label: 'Reenvio', className: 'bg-blue-600  hover:bg-blue-700  text-white font-semibold shadow-sm' }
+
+function decisionButtonsFor(row: ReturnRow) {
+  return row.reshipEnabled ? [...DECISION_BUTTONS, RESHIP_BUTTON] : DECISION_BUTTONS
+}
 
 const PAGE_SIZE = 50
 
@@ -243,11 +250,29 @@ export function ReturnsTable({
                           className="text-primary hover:underline text-xs font-medium disabled:opacity-50"
                         />
                       )}
+                      {mode === 'history' && row.reshipLabelPath && (
+                        <DownloadXmlButton
+                          path={row.reshipLabelPath}
+                          filename={reshipLabelDownloadName(row.rv)}
+                          bucket="reship-files"
+                          label="Etiqueta"
+                          className="text-primary hover:underline text-xs font-medium disabled:opacity-50"
+                        />
+                      )}
+                      {mode === 'history' && row.reshipDanfePath && (
+                        <DownloadXmlButton
+                          path={row.reshipDanfePath}
+                          filename={reshipDanfeDownloadName(row.rv)}
+                          bucket="reship-files"
+                          label="DANFE reenvio"
+                          className="text-primary hover:underline text-xs font-medium disabled:opacity-50"
+                        />
+                      )}
                       {isInvoicePending(row) && (
                         <InvoiceUploadDialog returnId={row.id} rv={row.rv} />
                       )}
                       {!row.invoiceXmlPath && !row.invoicePdfPath && !isInvoicePending(row)
-                        && !(mode === 'history' && row.returnInvoiceXmlPath) && (
+                        && !(mode === 'history' && (row.returnInvoiceXmlPath || row.reshipLabelPath)) && (
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
                     </div>
@@ -275,7 +300,7 @@ export function ReturnsTable({
                     <>
                       <td className="px-3 py-2.5">
                         <div className="flex flex-wrap gap-1">
-                          {DECISION_BUTTONS.map((btn) => (
+                          {decisionButtonsFor(row).map((btn) => (
                             <button
                               key={btn.decision}
                               type="button"
