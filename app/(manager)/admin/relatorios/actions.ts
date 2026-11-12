@@ -6,6 +6,7 @@ import { getCurrentUser } from '@/lib/supabase/get-current-user'
 import { resolvePeriod, type PeriodInput } from '@/lib/reports/period'
 import { buildReturnsReport, type ReportReturnRow } from '@/lib/reports/returns-report'
 import { ptBR } from '@/lib/i18n/pt-BR'
+import { resolveReturnInvoiceKeys } from '@/lib/return-invoice-key'
 import type { DecisionSource, IdentifierType, ReturnDecision, ReturnStatus } from '@/types'
 
 /** Lote do fetch. O PostgREST corta em 1000 por resposta — paginamos até acabar. */
@@ -52,6 +53,7 @@ export async function getReportDepositorsAction(): Promise<
 
 type RawReturn = {
   rv:                  string
+  id:                  string
   identifier_type:     string
   access_key:          string | null
   postal_code:         string | null
@@ -65,16 +67,16 @@ type RawReturn = {
   decided_at:          string | null
   processed_at:        string | null
   final_customer_name: string | null
-  invoice_xml_url:     string | null
-  invoice_pdf_url:     string | null
+  return_invoice_xml_url: string | null
+  return_invoice_key:     string | null
   depositor_id:        string | null
   depositors:          { razao_social: string; cnpj: string } | null
   profiles:            { full_name: string } | null
 }
 
-const SELECT_COLUMNS = `rv, identifier_type, access_key, postal_code, logistics_code, illegible_token,
+const SELECT_COLUMNS = `id, rv, identifier_type, access_key, postal_code, logistics_code, illegible_token,
    item_count, status, decision, decided_by_type, received_at, decided_at, processed_at,
-   final_customer_name, invoice_xml_url, invoice_pdf_url, depositor_id,
+   final_customer_name, return_invoice_xml_url, return_invoice_key, depositor_id,
    depositors!depositor_id(razao_social, cnpj),
    profiles!received_by(full_name)`
 
@@ -101,6 +103,7 @@ export async function generateReturnsReportAction(
     }
 
     const rows: ReportReturnRow[] = []
+    const raws: RawReturn[]       = []
 
     // Paginação explícita: sem ela o relatório seria truncado em 1000 linhas
     // silenciosamente, sem erro nenhum.
@@ -121,6 +124,7 @@ export async function generateReturnsReportAction(
       if (error) throw new Error(error.message)
 
       const batch = (data ?? []) as unknown as RawReturn[]
+      raws.push(...batch)
       rows.push(...batch.map(toReportRow))
 
       if (batch.length < BATCH_SIZE) break
@@ -139,6 +143,15 @@ export async function generateReturnsReportAction(
         }.`,
       }
     }
+
+    // Chave da NF de devolução: já gravada na decisão, ou lida do XML (e
+    // gravada) para as decididas antes da migration 018
+    const returnKeys = await resolveReturnInvoiceKeys(raws.map((r) => ({
+      id:                   r.id,
+      returnInvoiceXmlPath: r.return_invoice_xml_url,
+      returnInvoiceKey:     r.return_invoice_key,
+    })))
+    raws.forEach((r, i) => { rows[i].returnInvoiceKey = returnKeys.get(r.id) ?? null })
 
     const { base64, filename } = buildReturnsReport(rows, {
       period,
@@ -174,6 +187,7 @@ function toReportRow(r: RawReturn): ReportReturnRow {
     receivedAt:        r.received_at,
     decidedAt:         r.decided_at,
     processedAt:       r.processed_at,
-    hasInvoice:        Boolean(r.invoice_xml_url || r.invoice_pdf_url),
+    returnInvoiceKey:  r.return_invoice_key,
+    hasReturnInvoice:  !!r.return_invoice_xml_url,
   }
 }

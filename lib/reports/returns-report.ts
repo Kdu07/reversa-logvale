@@ -8,7 +8,9 @@
 
 import * as XLSX from 'xlsx'
 import { DECISION_LABELS } from '@/lib/decisions'
-import { DECIDED_BY_LABELS, IDENTIFIER_TYPE_LABELS, formatDate, identifierLabel } from '@/lib/format'
+import {
+  DECIDED_BY_LABELS, IDENTIFIER_TYPE_LABELS, formatDate, originNfLabel, returnNfLabel,
+} from '@/lib/format'
 import { ptBR } from '@/lib/i18n/pt-BR'
 import type { ReportPeriod } from '@/lib/reports/period'
 import type { DecisionSource, IdentifierType, ReturnDecision, ReturnStatus } from '@/types'
@@ -35,7 +37,10 @@ export interface ReportReturnRow {
   receivedAt:        string
   decidedAt:         string | null
   processedAt:       string | null
-  hasInvoice:        boolean
+  /** Chave da NF de devolução (lida do XML) — `null` sem XML ou ilegível. */
+  returnInvoiceKey:  string | null
+  /** Há XML da NF de devolução anexado (distingue "sem NF" de "chave ilegível"). */
+  hasReturnInvoice:  boolean
 }
 
 export interface ReportMeta {
@@ -57,7 +62,6 @@ export interface ReportSummary {
   autoRate:         number | null
   avgDecisionHours: number | null
   avgProcessHours:  number | null
-  missingInvoice:   number
 }
 
 export interface DepositorSummaryRow extends ReportSummary {
@@ -86,7 +90,6 @@ export function summarize(rows: ReportReturnRow[]): ReportSummary {
   let itemTotal      = 0
   let decidedTotal   = 0
   let autoCount      = 0
-  let missingInvoice = 0
   const decisionHours: number[] = []
   const processHours:  number[] = []
 
@@ -94,7 +97,6 @@ export function summarize(rows: ReportReturnRow[]): ReportSummary {
     byStatus[row.status]++
     if (row.decision) byDecision[row.decision]++
     itemTotal += row.itemCount
-    if (!row.hasInvoice) missingInvoice++
 
     if (row.decidedAt) {
       decidedTotal++
@@ -113,7 +115,6 @@ export function summarize(rows: ReportReturnRow[]): ReportSummary {
     autoRate:         decidedTotal > 0 ? round1((autoCount / decidedTotal) * 100) : null,
     avgDecisionHours: average(decisionHours),
     avgProcessHours:  average(processHours),
-    missingInvoice,
   }
 }
 
@@ -165,7 +166,6 @@ function summarySheet(rows: ReportReturnRow[], meta: ReportMeta): XLSX.WorkSheet
     ['Taxa de auto-decisão',       s.autoRate === null ? '—' : `${s.autoRate.toString().replace('.', ',')}%`],
     ['Tempo médio até decisão',    hours(s.avgDecisionHours)],
     ['Tempo médio até tratativa',  hours(s.avgProcessHours)],
-    ['Sem NF anexada',             s.missingInvoice],
   ]
 
   const ws = XLSX.utils.aoa_to_sheet(aoa)
@@ -178,7 +178,8 @@ function detailSheet(rows: ReportReturnRow[]): XLSX.WorkSheet {
     'Data Recebimento':   formatDate(row.receivedAt),
     'RV':                 row.rv,
     'Tipo Identificador': IDENTIFIER_TYPE_LABELS[row.identifierType] ?? row.identifierType,
-    'Identificador':      identifierLabel(row),
+    'NF Origem':          originNfLabel(row),
+    'NF Devolução':       returnNfLabel(row),
     'Depositante':        dash(row.depositorName),
     'Cliente Final':      dash(row.finalCustomerName),
     'Nº Itens':           row.itemCount,
@@ -188,12 +189,11 @@ function detailSheet(rows: ReportReturnRow[]): XLSX.WorkSheet {
     'Decidido por':       row.decidedByType ? DECIDED_BY_LABELS[row.decidedByType] : '—',
     'Data Decisão':       row.decidedAt   ? formatDate(row.decidedAt)   : '—',
     'Data Tratativa':     row.processedAt ? formatDate(row.processedAt) : '—',
-    'NF Original':        row.hasInvoice ? 'Sim' : 'Não',
   }))
 
   const ws = XLSX.utils.json_to_sheet(json)
   ws['!cols'] = [
-    { wch: 18 }, { wch: 14 }, { wch: 24 }, { wch: 52 }, { wch: 30 }, { wch: 30 },
+    { wch: 18 }, { wch: 14 }, { wch: 24 }, { wch: 52 }, { wch: 48 }, { wch: 30 }, { wch: 30 },
     { wch: 9 },  { wch: 24 }, { wch: 18 }, { wch: 24 }, { wch: 14 }, { wch: 18 },
     { wch: 18 }, { wch: 12 },
   ]

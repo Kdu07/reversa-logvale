@@ -11,7 +11,7 @@ import { EmptyState } from '@/components/shared/empty-state'
 import { PhotoGallery } from '@/components/shared/photo-gallery'
 import { PhotoThumbs } from '@/components/shared/photo-thumbs'
 import { DownloadXmlButton } from '@/components/shared/download-xml-button'
-import { formatDate, identifierLabel, xmlDownloadName, danfeDownloadName, reshipLabelDownloadName, reshipDanfeDownloadName } from '@/lib/format'
+import { formatDate, identifierLabel, xmlDownloadName, reshipLabelDownloadName, reshipDanfeDownloadName } from '@/lib/format'
 import { ptBR } from '@/lib/i18n/pt-BR'
 import { revertReturnStatusAction, deleteReturnAction } from '../actions'
 import { Boxes, ChevronLeft, ChevronRight, Search } from 'lucide-react'
@@ -240,29 +240,6 @@ export function ReturnsAdminTable({
                 </div>
               </div>
 
-              {(detailsRow.invoiceXmlPath || detailsRow.invoicePdfPath) && (
-                <div>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">NF Original</p>
-                  <div className="flex gap-4">
-                    {detailsRow.invoiceXmlPath && (
-                      <DownloadXmlButton
-                        path={detailsRow.invoiceXmlPath}
-                        filename={xmlDownloadName(detailsRow.rv, 'original')}
-                        className="text-sm text-primary hover:underline font-medium disabled:opacity-50"
-                      />
-                    )}
-                    {detailsRow.invoicePdfPath && (
-                      <DownloadXmlButton
-                        path={detailsRow.invoicePdfPath}
-                        filename={danfeDownloadName(detailsRow.rv)}
-                        bucket="invoice-pdfs"
-                        label="Baixar DANFE (PDF)"
-                        className="text-sm text-primary hover:underline font-medium disabled:opacity-50"
-                      />
-                    )}
-                  </div>
-                </div>
-              )}
               {detailsRow.returnInvoiceXmlPath && (
                 <div>
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">NF de Devolução</p>

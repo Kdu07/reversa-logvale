@@ -61,7 +61,6 @@ const RETURN_ROW = {
   decided_at: '2026-07-21T10:00:00Z', processed_at: null,
   identifier_type: 'access_key', access_key: '3'.repeat(44),
   postal_code: null, logistics_code: null, illegible_token: null, item_count: 2,
-  invoice_xml_url: 'ak/x.xml', invoice_pdf_url: 'ak/x.pdf',
   return_invoice_xml_url: 'returns/r-1.xml', final_customer_name: 'CLIENTE FINAL',
   depositors: { razao_social: 'ACME LTDA' },
   return_photos: [
@@ -111,7 +110,6 @@ describe('getMyReturnsAction', () => {
     expect(result.total).toBe(1)
     expect(result.rows[0]).toMatchObject({
       rv: 'RV2024001', depositorName: 'ACME LTDA', finalCustomerName: 'CLIENTE FINAL',
-      invoiceXmlPath: 'ak/x.xml', invoicePdfPath: 'ak/x.pdf',
       returnInvoiceXmlPath: 'returns/r-1.xml', itemCount: 2,
     })
     // b1 (position 1) antes de b2 (position 2)

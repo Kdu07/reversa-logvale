@@ -34,10 +34,31 @@ export function identifierLabel(row: {
   logisticsCode:  string | null
   illegibleToken: string | null
 }): string {
-  if (row.identifierType === 'access_key')      return `Chave: ${row.accessKey}`
-  if (row.identifierType === 'postal_code')     return `CEP: ${row.postalCode}`
-  if (row.identifierType === 'logistics_code')  return `Cód. Logística Reversa: ${row.logisticsCode}`
-  return `Ilegível: ${row.illegibleToken}`
+  if (row.identifierType === 'access_key') return `Chave: ${row.accessKey}`
+  const base =
+    row.identifierType === 'postal_code'    ? `CEP: ${row.postalCode}` :
+    row.identifierType === 'logistics_code' ? `Cód. Logística Reversa: ${row.logisticsCode}` :
+    `Ilegível: ${row.illegibleToken}`
+  // Recebida sem chave, mas o cliente a informou depois (/cliente/notas-pendentes)
+  return row.accessKey ? `${base} · Chave: ${row.accessKey}` : base
+}
+
+/**
+ * Coluna "NF Origem" dos relatórios: só a chave de acesso, sem rótulo. Sem
+ * chave (recebida por CEP/código/ilegível e ainda não informada), cai no
+ * identificador usado no recebimento, com o rótulo — ex.: "CEP: 01310-100".
+ */
+export function originNfLabel(row: Parameters<typeof identifierLabel>[0]): string {
+  return row.accessKey ?? identifierLabel(row)
+}
+
+/**
+ * Coluna "NF Devolução" dos relatórios: a chave lida do XML da NF de devolução.
+ * Sem XML (Tratativa, Reenvio, ainda não decidida) → "—".
+ */
+export function returnNfLabel(row: { returnInvoiceKey: string | null; hasReturnInvoice: boolean }): string {
+  if (row.returnInvoiceKey) return row.returnInvoiceKey
+  return row.hasReturnInvoice ? 'XML anexado (chave não identificada)' : '—'
 }
 
 /**
@@ -48,15 +69,6 @@ export function identifierLabel(row: {
 export function xmlDownloadName(rv: string, kind: 'original' | 'devolucao'): string {
   const safe = (rv || 'nf').replace(/[^\w.-]+/g, '_')
   return `${safe}-nf-${kind}.xml`
-}
-
-/**
- * Nome de arquivo amigável para o download do DANFE (PDF) da NF original.
- * Ex.: "RV2024001-danfe.pdf".
- */
-export function danfeDownloadName(rv: string): string {
-  const safe = (rv || 'nf').replace(/[^\w.-]+/g, '_')
-  return `${safe}-danfe.pdf`
 }
 
 /**

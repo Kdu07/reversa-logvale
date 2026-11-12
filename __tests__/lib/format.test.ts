@@ -56,6 +56,17 @@ describe('identifierLabel', () => {
     expect(result).toBe('CEP: 01310-100')
   })
 
+  it('acrescenta a chave informada depois pelo cliente', () => {
+    const result = identifierLabel({
+      identifierType: 'postal_code',
+      accessKey:      'CHAVE-12345',
+      postalCode:     '01310-100',
+      logisticsCode:  null,
+      illegibleToken: null,
+    })
+    expect(result).toBe('CEP: 01310-100 · Chave: CHAVE-12345')
+  })
+
   it('retorna label de Código de Logística Reversa', () => {
     const result = identifierLabel({
       identifierType: 'logistics_code',

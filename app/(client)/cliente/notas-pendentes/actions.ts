@@ -6,12 +6,12 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getCurrentUser } from '@/lib/supabase/get-current-user'
 import { isSuperUser } from '@/lib/auth/super'
 import { buildSignedUrlMap } from '@/lib/supabase/storage'
-import { parseFinalCustomerName } from '@/lib/integrations/nfeio'
+import { normalizeAccessKey, isValidAccessKey, accessKeyEmitterCnpj } from '@/lib/access-key'
 import type {
   IdentifierType, ReturnStatus, ReturnDecision, DecisionSource,
 } from '@/types'
 
-export interface PendingInvoiceRow {
+export interface PendingKeyRow {
   id:                string
   rv:                string
   identifierType:    IdentifierType
@@ -30,29 +30,27 @@ export interface PendingInvoiceRow {
   itemPhotoUrls:     string[]
 }
 
-type PendingResult = { rows: PendingInvoiceRow[]; truncated: boolean } | { error: string }
+export interface PendingKeysData {
+  /** Ainda em `awaiting_decision` — o cliente vai decidir e precisa da chave. */
+  awaiting:          PendingKeyRow[]
+  /** Já decididas (pelo cliente ou pela auto-decisão de 72h) e ainda sem chave. */
+  decided:           PendingKeyRow[]
+  awaitingTruncated: boolean
+  decidedTruncated:  boolean
+}
 
-/** Teto da listagem — a fila é naturalmente curta, mas nada no schema garante isso. */
+type PendingResult = PendingKeysData | { error: string }
+
+/** Teto por grupo — a fila é naturalmente curta, mas nada no schema garante isso. */
 const MAX_ROWS = 100
 
-export type UploadKind = 'xml' | 'pdf'
+export type InformAccessKeyResult = { ok: true; accessKey: string } | { error: string }
 
-export type UploadInvoiceResult =
-  | { ok: true; kind: UploadKind; finalCustomerName: string | null }
-  | { error: string }
-
-/** 5 MB — DANFEs ficam na casa das centenas de KB; XMLs, dezenas. */
-const MAX_FILE_BYTES = 5 * 1024 * 1024
-
-const BUCKET: Record<UploadKind, string> = {
-  xml: 'invoice-xmls',
-  pdf: 'invoice-pdfs',
-}
-
-const CONTENT_TYPE: Record<UploadKind, string> = {
-  xml: 'application/xml',
-  pdf: 'application/pdf',
-}
+const SELECT_COLUMNS = `id, rv, identifier_type, postal_code, logistics_code, illegible_token,
+   item_count, received_at, final_customer_name,
+   status, decision, decided_at, decided_by_type,
+   depositors!depositor_id(razao_social),
+   return_photos(storage_path, photo_type, position)`
 
 type RawPhoto = { storage_path: string; photo_type: string; position: number }
 
@@ -64,53 +62,49 @@ function photoUrls(photos: RawPhoto[], type: 'box' | 'item', map: Map<string, st
     .filter(Boolean)
 }
 
-/** Detecta o tipo pelo nome do arquivo — o MIME enviado pelo browser é inconsistente entre SOs. */
-function detectKind(fileName: string): UploadKind | null {
-  const lower = fileName.toLowerCase()
-  if (lower.endsWith('.xml')) return 'xml'
-  if (lower.endsWith('.pdf')) return 'pdf'
-  return null
-}
-
 /**
- * Devoluções do cliente que entraram sem NF.
+ * Devoluções do cliente ainda sem a chave de acesso da NF de origem.
  *
- * São as identificadas sem chave de acesso (Código de Logística Reversa, CEP
- * ou Ilegível): sem chave não há consulta NFEio, então nenhum documento fiscal
- * foi anexado no recebimento. A fila inclui devoluções já decididas de
- * propósito — a auto-decisão de 72h não regulariza a NF, e sem isso o item mais
- * atrasado seria justamente o que sumiria da lista.
+ * São as identificadas no recebimento por CEP, Código de Logística Reversa ou
+ * Ilegível. Separadas em "aguardando decisão" e "decididas": a auto-decisão de
+ * 72h não informa a chave, e sem o grupo das decididas a pendência mais antiga
+ * seria justamente a que sumiria da tela.
  *
- * Ordenado do mais antigo para o mais recente: pendência velha é a mais urgente.
+ * Cada grupo vem do mais antigo para o mais recente: pendência velha é a mais urgente.
  */
-export async function getPendingInvoicesAction(): Promise<PendingResult> {
+export async function getPendingKeysAction(): Promise<PendingResult> {
   try {
     const user = await getCurrentUser()
     if (user.profile.role !== 'client' && !isSuperUser(user)) return { error: 'Acesso negado' }
 
     const supabase = createClient()
 
-    const { data: returns, error } = await supabase
-      .from('returns')
-      .select(
-        `id, rv, identifier_type, postal_code, logistics_code, illegible_token,
-         item_count, received_at, final_customer_name,
-         status, decision, decided_at, decided_by_type,
-         depositors!depositor_id(razao_social),
-         return_photos(storage_path, photo_type, position)`,
-      )
-      .neq('identifier_type', 'access_key')
-      .is('invoice_xml_url', null)
-      .is('invoice_pdf_url', null)
-      .order('received_at', { ascending: true })
-      .limit(MAX_ROWS)
+    const [awaitingRes, decidedRes] = await Promise.all([
+      supabase
+        .from('returns')
+        .select(SELECT_COLUMNS)
+        .is('access_key', null)
+        .eq('status', 'awaiting_decision')
+        .order('received_at', { ascending: true })
+        .limit(MAX_ROWS),
+      supabase
+        .from('returns')
+        .select(SELECT_COLUMNS)
+        .is('access_key', null)
+        .neq('status', 'awaiting_decision')
+        .order('received_at', { ascending: true })
+        .limit(MAX_ROWS),
+    ])
 
-    if (error) return { error: error.message }
+    if (awaitingRes.error) return { error: awaitingRes.error.message }
+    if (decidedRes.error)  return { error: decidedRes.error.message }
 
-    const allReturns = returns ?? []
+    const awaitingRaw = awaitingRes.data ?? []
+    const decidedRaw  = decidedRes.data ?? []
+
     const boxPaths:  string[] = []
     const itemPaths: string[] = []
-    for (const r of allReturns) {
+    for (const r of [...awaitingRaw, ...decidedRaw]) {
       for (const p of ((r.return_photos as RawPhoto[]) ?? [])) {
         if (p.photo_type === 'box')  boxPaths.push(p.storage_path)
         if (p.photo_type === 'item') itemPaths.push(p.storage_path)
@@ -122,7 +116,7 @@ export async function getPendingInvoicesAction(): Promise<PendingResult> {
       buildSignedUrlMap(supabase, 'item-photos', itemPaths),
     ])
 
-    const rows: PendingInvoiceRow[] = allReturns.map((r) => {
+    const toRow = (r: (typeof awaitingRaw)[number]): PendingKeyRow => {
       const photos = (r.return_photos as RawPhoto[]) ?? []
       const dep    = r.depositors as unknown as { razao_social: string } | null
       return {
@@ -143,66 +137,53 @@ export async function getPendingInvoicesAction(): Promise<PendingResult> {
         boxPhotoUrls:      photoUrls(photos, 'box',  boxMap),
         itemPhotoUrls:     photoUrls(photos, 'item', itemMap),
       }
-    })
+    }
 
-    return { rows, truncated: rows.length === MAX_ROWS }
+    return {
+      awaiting:          awaitingRaw.map(toRow),
+      decided:           decidedRaw.map(toRow),
+      awaitingTruncated: awaitingRaw.length === MAX_ROWS,
+      decidedTruncated:  decidedRaw.length === MAX_ROWS,
+    }
   } catch (err) {
     return { error: err instanceof Error ? err.message : 'Erro interno' }
   }
 }
 
-/** Contagem da fila, para o badge do menu lateral. Erro nunca quebra o layout: devolve 0. */
-export async function countPendingInvoicesAction(): Promise<number> {
-  try {
-    const user = await getCurrentUser()
-    if (user.profile.role !== 'client' && !isSuperUser(user)) return 0
-
-    const supabase = createClient()
-    const { count } = await supabase
-      .from('returns')
-      .select('id', { count: 'exact', head: true })
-      .neq('identifier_type', 'access_key')
-      .is('invoice_xml_url', null)
-      .is('invoice_pdf_url', null)
-
-    return count ?? 0
-  } catch {
-    return 0
-  }
-}
-
 /**
- * Anexa a NF (XML ou DANFE) enviada pelo cliente a uma devolução.
+ * Grava a chave de acesso da NF de origem informada pelo cliente.
  *
- * Roda com o admin client de propósito, por três limites de RLS que se somam:
- * a policy `clients decide their returns` só autoriza UPDATE em
- * `awaiting_decision` (o item auto-decidido em 72h travaria), o bucket
- * `invoice-pdfs` não tem policy de insert para cliente, e a validação de tipo
- * e tamanho precisa acontecer no servidor. O vínculo cliente ↔ depositante é
- * verificado explicitamente abaixo, no lugar da RLS.
+ * Roda com o admin client de propósito: a policy `clients decide their returns`
+ * só autoriza UPDATE em `awaiting_decision`, e a chave também precisa poder ser
+ * informada nas já decididas (inclusive pela auto-decisão de 72h). O vínculo
+ * cliente ↔ depositante é verificado explicitamente abaixo, no lugar da RLS.
+ *
+ * A NF de origem é sempre a NF de venda do depositante, então o CNPJ do
+ * emitente codificado na chave precisa ser o do depositante da devolução.
  */
-export async function uploadInvoiceFileAction(formData: FormData): Promise<UploadInvoiceResult> {
+export async function informAccessKeyAction(
+  returnId: string,
+  rawKey:   string,
+): Promise<InformAccessKeyResult> {
   try {
     const user = await getCurrentUser()
     if (user.profile.role !== 'client' && !isSuperUser(user)) return { error: 'Acesso negado' }
 
-    const returnId = formData.get('returnId')
-    const file     = formData.get('file')
+    if (!returnId) return { error: 'Devolução não informada.' }
 
-    if (typeof returnId !== 'string' || !returnId) return { error: 'Devolução não informada.' }
-    if (!(file instanceof File) || file.size === 0) return { error: 'Selecione um arquivo.' }
-
-    const kind = detectKind(file.name)
-    if (!kind) return { error: 'Formato não aceito. Envie o XML ou o PDF (DANFE) da NF.' }
-    if (file.size > MAX_FILE_BYTES) {
-      return { error: `Arquivo muito grande (máximo ${MAX_FILE_BYTES / 1024 / 1024} MB).` }
+    const accessKey = normalizeAccessKey(rawKey ?? '')
+    if (accessKey.length !== 44) {
+      return { error: `A chave de acesso tem 44 dígitos (você informou ${accessKey.length}).` }
+    }
+    if (!isValidAccessKey(accessKey)) {
+      return { error: 'Chave de acesso inválida — confira os dígitos (o dígito verificador não confere).' }
     }
 
     const admin = createAdminClient()
 
     const { data: ret, error: retError } = await admin
       .from('returns')
-      .select('id, depositor_id, invoice_xml_url, invoice_pdf_url, final_customer_name')
+      .select('id, depositor_id, access_key, depositors!depositor_id(cnpj)')
       .eq('id', returnId)
       .maybeSingle()
 
@@ -221,47 +202,33 @@ export async function uploadInvoiceFileAction(formData: FormData): Promise<Uploa
       if (!link) return { error: 'Acesso negado' }
     }
 
-    // Nunca sobrescrever um documento já existente (inclusive o que veio da NFEio).
-    if (kind === 'xml' && ret.invoice_xml_url) return { error: 'Esta devolução já tem o XML da NF anexado.' }
-    if (kind === 'pdf' && ret.invoice_pdf_url) return { error: 'Esta devolução já tem o DANFE anexado.' }
+    // Nunca sobrescrever a chave — nem a bipada no recebimento, nem uma já informada.
+    if (ret.access_key) return { error: 'Esta devolução já tem a chave de acesso.' }
 
-    const bytes = new Uint8Array(await file.arrayBuffer())
-
-    // O nome enviado pelo usuário não entra no path — só o id da devolução.
-    const path = `manual/${returnId}/${Date.now()}.${kind}`
-    const { error: uploadError } = await admin.storage
-      .from(BUCKET[kind])
-      .upload(path, bytes, { contentType: CONTENT_TYPE[kind], upsert: false })
-
-    if (uploadError) return { error: `Erro ao enviar o arquivo: ${uploadError.message}` }
-
-    // O XML traz o destinatário; aproveita para preencher o cliente final quando
-    // o recebimento ficou sem ele (sem chave de acesso, não havia de onde tirar).
-    let finalCustomerName: string | null = null
-    if (kind === 'xml' && !ret.final_customer_name) {
-      finalCustomerName = parseFinalCustomerName(new TextDecoder().decode(bytes))
+    const depositorCnpj = (ret.depositors as unknown as { cnpj: string } | null)?.cnpj ?? null
+    if (depositorCnpj && accessKeyEmitterCnpj(accessKey) !== depositorCnpj) {
+      return { error: 'Esta chave é de uma NF emitida por outro CNPJ, não pelo depositante desta devolução.' }
     }
 
-    const patch: Record<string, unknown> = {
-      invoice_uploaded_by: user.id,
-      invoice_uploaded_at: new Date().toISOString(),
-      ...(kind === 'xml' ? { invoice_xml_url: path } : { invoice_pdf_url: path }),
-      ...(finalCustomerName ? { final_customer_name: finalCustomerName } : {}),
-    }
+    const { data: updated, error: updateError } = await admin
+      .from('returns')
+      .update({
+        access_key:             accessKey,
+        access_key_informed_by: user.id,
+        access_key_informed_at: new Date().toISOString(),
+      })
+      .eq('id', returnId)
+      .is('access_key', null) // corrida: outro usuário pode ter informado no meio-tempo
+      .select('id')
 
-    const { error: updateError } = await admin.from('returns').update(patch).eq('id', returnId)
-
-    if (updateError) {
-      // O arquivo já subiu mas a devolução não aponta para ele — remove o órfão.
-      await admin.storage.from(BUCKET[kind]).remove([path])
-      return { error: updateError.message }
-    }
+    if (updateError) return { error: updateError.message }
+    if (!updated || updated.length === 0) return { error: 'Esta devolução já tem a chave de acesso.' }
 
     revalidatePath('/cliente')
     revalidatePath('/cliente/historico')
     revalidatePath('/cliente/notas-pendentes')
 
-    return { ok: true, kind, finalCustomerName }
+    return { ok: true, accessKey }
   } catch (err) {
     return { error: err instanceof Error ? err.message : 'Erro interno' }
   }

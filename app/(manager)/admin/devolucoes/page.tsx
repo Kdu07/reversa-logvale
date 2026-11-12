@@ -1,9 +1,6 @@
-import { getAdminReturnsAction, getMissingInvoiceXmlCountAction } from './actions'
+import { getAdminReturnsAction } from './actions'
 import { ReturnsAdminTable } from './components/returns-admin-table'
-import { MissingXmlPanel } from './components/missing-xml-panel'
 import { PageHeader } from '@/components/shared/page-header'
-import { getCurrentUser } from '@/lib/supabase/get-current-user'
-import { isSuperUser } from '@/lib/auth/super'
 import type { ReturnStatus } from '@/types'
 
 interface SearchParams {
@@ -31,11 +28,6 @@ export default async function AdminReturnsPage({
     page,
   })
 
-  const isSuper = isSuperUser(await getCurrentUser())
-  const missingXmlCount = isSuper
-    ? await getMissingInvoiceXmlCountAction().then((r) => ('count' in r ? r.count : 0))
-    : 0
-
   if ('error' in result) {
     return (
       <div className="space-y-6">
@@ -50,7 +42,6 @@ export default async function AdminReturnsPage({
   return (
     <div className="space-y-6">
       <PageHeader title="Devoluções" description="Histórico e gestão de todas as devoluções." />
-      {isSuper && <MissingXmlPanel count={missingXmlCount} />}
       <ReturnsAdminTable
         rows={result.rows}
         total={result.total}

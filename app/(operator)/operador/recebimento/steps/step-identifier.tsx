@@ -10,7 +10,6 @@ import { useBarcodeScanner } from '@/hooks/use-barcode-scanner'
 import { useAudioFeedback } from '@/hooks/use-audio-feedback'
 import { lookupInvoiceAction, getDepositorsAction } from '../actions'
 import type { InvoiceData, DepositorOption } from '../actions'
-import { invoiceFetchReasonLabel } from '@/lib/integrations/invoice-fetch-reason'
 
 type Mode =
   | 'menu'
@@ -309,18 +308,6 @@ export function StepIdentifier({ onComplete }: StepIdentifierProps) {
               Este código não é consultado automaticamente. Confirme o depositante diretamente com o cliente antes de prosseguir.
             </p>
           )}
-          {pendingComplete.identifierType === 'access_key' &&
-            pendingComplete.invoiceData &&
-            !pendingComplete.invoiceData.xmlFetched && (
-              <Alert variant="destructive" className="border-amber-300 bg-amber-50 text-amber-800 [&>svg]:text-amber-600">
-                <AlertDescription>
-                  NF identificada pelo CNPJ, mas a NFEio não retornou o XML/DANFE
-                  ({invoiceFetchReasonLabel(pendingComplete.invoiceData.invoiceFetchReason)}). A
-                  devolução será registrada sem o arquivo — é possível recuperá-lo depois no painel
-                  de devoluções.
-                </AlertDescription>
-              </Alert>
-            )}
 
           {depositorsLoading ? (
             <p className="text-sm text-muted-foreground animate-pulse">Carregando depositantes...</p>

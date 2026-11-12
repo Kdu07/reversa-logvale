@@ -8,8 +8,9 @@ import { env } from '@/lib/env'
 import { isSuperUser } from '@/lib/auth/super'
 import { buildSignedUrlMap } from '@/lib/supabase/storage'
 import { DECISION_LABELS, isReshipDepositor } from '@/lib/decisions'
+import { readReturnInvoiceKey, resolveReturnInvoiceKeys } from '@/lib/return-invoice-key'
 import {
-  DECIDED_BY_LABELS, IDENTIFIER_TYPE_LABELS, formatDate, identifierLabel,
+  DECIDED_BY_LABELS, IDENTIFIER_TYPE_LABELS, formatDate, originNfLabel, returnNfLabel,
 } from '@/lib/format'
 import type { ReturnDecision, DecisionSource, IdentifierType } from '@/types'
 
@@ -26,8 +27,6 @@ export interface ReturnRow {
   depositorId:    string | null
   depositorName:  string | null
   finalCustomerName: string | null
-  invoiceXmlPath:       string | null
-  invoicePdfPath:       string | null
   returnInvoiceXmlPath: string | null
   /** Decisão "Reenvio" liberada para o depositante desta devolução
    *  (RESHIP_DEPOSITOR_CNPJS). Só é calculado nas pendências; o servidor
@@ -99,7 +98,7 @@ export async function getClientReturnsAction(
       .from('returns')
       .select(
         `id, identifier_type, access_key, postal_code, logistics_code, illegible_token,
-         rv, item_count, received_at, depositor_id, invoice_xml_url, invoice_pdf_url, final_customer_name,
+         rv, item_count, received_at, depositor_id, final_customer_name,
          depositors!depositor_id(razao_social, cnpj),
          return_photos(storage_path, photo_type, position)`,
         { count: 'exact' },
@@ -175,8 +174,6 @@ export async function getClientReturnsAction(
         depositorId:    r.depositor_id,
         depositorName:  dep?.razao_social ?? null,
         finalCustomerName: r.final_customer_name ?? null,
-        invoiceXmlPath:       r.invoice_xml_url ?? null,
-        invoicePdfPath:       r.invoice_pdf_url ?? null,
         returnInvoiceXmlPath: null, // pendentes ainda não têm decisão/XML de devolução
         reshipEnabled:  isReshipDepositor(dep?.cnpj, env.reshipDepositorCnpjs),
         decision:       null,
@@ -208,7 +205,7 @@ export async function getClientHistoryAction(
       .from('returns')
       .select(
         `id, identifier_type, access_key, postal_code, logistics_code, illegible_token,
-         rv, item_count, received_at, depositor_id, invoice_xml_url, invoice_pdf_url, return_invoice_xml_url, final_customer_name,
+         rv, item_count, received_at, depositor_id, return_invoice_xml_url, final_customer_name,
          decision, decided_at, decided_by_type, reship_label_url, reship_danfe_url,
          depositors!depositor_id(razao_social),
          return_photos(storage_path, photo_type, position)`,
@@ -285,8 +282,6 @@ export async function getClientHistoryAction(
         depositorId:    r.depositor_id,
         depositorName:  dep?.razao_social ?? null,
         finalCustomerName: r.final_customer_name ?? null,
-        invoiceXmlPath:       r.invoice_xml_url        ?? null,
-        invoicePdfPath:       r.invoice_pdf_url        ?? null,
         returnInvoiceXmlPath: r.return_invoice_xml_url ?? null,
         reshipLabelPath:      r.reship_label_url       ?? null,
         reshipDanfePath:      r.reship_danfe_url       ?? null,
@@ -370,6 +365,12 @@ export async function submitDecisionAction(
       update.reship_danfe_url = payload.reshipDanfePath
     } else {
       update.return_invoice_xml_url = payload.returnInvoiceXmlPath
+      // Chave da NF de devolução para os relatórios (best-effort: XML ilegível
+      // não bloqueia a decisão — fica só sem a chave)
+      if (payload.returnInvoiceXmlPath) {
+        const key = await readReturnInvoiceKey(supabase, payload.returnInvoiceXmlPath)
+        if (key) update.return_invoice_key = key
+      }
     }
 
     const { error } = await supabase
@@ -403,6 +404,7 @@ export async function exportHistoryAction(): Promise<
         .select(
           `id, identifier_type, access_key, postal_code, logistics_code, illegible_token,
            rv, item_count, received_at, depositor_id, decision, decided_at, decided_by_type, status, final_customer_name,
+           return_invoice_xml_url, return_invoice_key,
            depositors!depositor_id(razao_social)`,
         )
         .neq('status', 'awaiting_decision')
@@ -418,8 +420,16 @@ export async function exportHistoryAction(): Promise<
     const superUser = isSuperUser(user)
     const allowedDepositorIds = new Set((cdRows ?? []).map((r) => r.depositor_id))
 
-    const rows = (returns ?? [])
+    const visible = (returns ?? [])
       .filter((r) => superUser || allowedDepositorIds.has((r as unknown as { depositor_id: string | null }).depositor_id ?? ''))
+
+    const returnKeys = await resolveReturnInvoiceKeys(visible.map((r) => ({
+      id:                   r.id,
+      returnInvoiceXmlPath: r.return_invoice_xml_url ?? null,
+      returnInvoiceKey:     r.return_invoice_key ?? null,
+    })))
+
+    const rows = visible
       .map((r) => {
         const dep = r.depositors as unknown as { razao_social: string } | null
         const row: ReturnRow = {
@@ -435,8 +445,6 @@ export async function exportHistoryAction(): Promise<
           depositorId:    null,
           depositorName:  dep?.razao_social ?? null,
           finalCustomerName: r.final_customer_name ?? null,
-          invoiceXmlPath:       null,
-          invoicePdfPath:       null,
           returnInvoiceXmlPath: null,
           decision:       r.decision as ReturnDecision | null,
           decidedAt:      r.decided_at,
@@ -448,7 +456,11 @@ export async function exportHistoryAction(): Promise<
           'Data Recebimento':    formatDate(r.received_at),
           'RV':                  r.rv,
           'Tipo Identificador':  IDENTIFIER_TYPE_LABELS[r.identifier_type as IdentifierType] ?? r.identifier_type,
-          'Identificador':       identifierLabel(row),
+          'NF Origem':           originNfLabel(row),
+          'NF Devolução':        returnNfLabel({
+            returnInvoiceKey: returnKeys.get(r.id) ?? null,
+            hasReturnInvoice: !!r.return_invoice_xml_url,
+          }),
           'Depositante':         dep?.razao_social ?? '—',
           'Cliente Final':       r.final_customer_name ?? '—',
           'Nº Itens':            r.item_count,

@@ -68,7 +68,7 @@ describe('getTrativasAction', () => {
         id: 'r-1', rv: 'RV-1', identifier_type: 'access_key', access_key: '4'.repeat(44),
         postal_code: null, illegible_token: null, item_count: 2,
         received_at: '2025-01-01', decided_at: '2025-01-02', decided_by_type: 'client',
-        decision: 'discard', depositor_id: 'dep-1', invoice_xml_url: null, return_invoice_xml_url: 'xml/ret.xml',
+        decision: 'discard', depositor_id: 'dep-1', return_invoice_xml_url: 'xml/ret.xml',
         depositors: { razao_social: 'Acme Ltda' },
         profiles:   { full_name: 'Cliente Fulano' },
         return_photos: [
@@ -87,7 +87,6 @@ describe('getTrativasAction', () => {
     expect(ok.total).toBe(1)
     expect(ok.rows[0]).toMatchObject({
       id: 'r-1', depositorName: 'Acme Ltda', clientName: 'Cliente Fulano',
-      invoiceXmlPath:       null,
       returnInvoiceXmlPath: 'xml/ret.xml',
       boxPhotoUrls:  ['signed:box/a.jpg', 'signed:box/b.jpg'], // ordenado por position
       itemPhotoUrls: ['signed:item/i.jpg'],
@@ -100,7 +99,7 @@ describe('getTrativasAction', () => {
         id: 'r-2', rv: 'RV-2', identifier_type: 'access_key', access_key: null,
         postal_code: null, illegible_token: null, item_count: 1,
         received_at: '2025-01-01', decided_at: '2025-01-02', decided_by_type: 'auto',
-        decision: 'discard', depositor_id: 'dep-1', invoice_xml_url: null,
+        decision: 'discard', depositor_id: 'dep-1',
         depositors: { razao_social: 'Acme' }, profiles: { full_name: 'Ignorado' },
         return_photos: [],
       }],

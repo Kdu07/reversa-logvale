@@ -53,12 +53,13 @@ function asManager() {
 
 function rawReturn(overrides: Record<string, unknown> = {}) {
   return {
-    rv: 'RV-1', identifier_type: 'access_key', access_key: '4'.repeat(44),
+    id: 'r-1', rv: 'RV-1', identifier_type: 'access_key', access_key: '4'.repeat(44),
     postal_code: null, logistics_code: null, illegible_token: null,
     item_count: 2, status: 'decided', decision: 'discard', decided_by_type: 'auto',
     received_at: '2026-07-10T12:00:00-03:00', decided_at: '2026-07-13T12:00:00-03:00',
     processed_at: null, final_customer_name: 'Cliente Final',
-    invoice_xml_url: 'ak/123.xml', invoice_pdf_url: null, depositor_id: 'dep-1',
+    return_invoice_xml_url: null, return_invoice_key: null,
+    depositor_id: 'dep-1',
     depositors: { razao_social: 'Acme Ltda', cnpj: '12345678000199' },
     profiles: { full_name: 'Operador Um' },
     ...overrides,
@@ -166,7 +167,21 @@ describe('generateReturnsReportAction', () => {
     const [detail] = XLSX.utils.sheet_to_json<Record<string, unknown>>(wb.Sheets['Devoluções'])
     expect(detail['RV']).toBe('RV-1')
     expect(detail['Depositante']).toBe('Acme Ltda')
-    expect(detail['NF Original']).toBe('Sim')
+    expect(detail).not.toHaveProperty('NF Original')
+    expect(detail['NF Origem']).toBe('4'.repeat(44))
+    expect(detail['NF Devolução']).toBe('—')
+  })
+
+  it('usa a chave da NF de devolução já gravada, sem baixar o XML', async () => {
+    returnsBatches = [{
+      data: [rawReturn({ return_invoice_xml_url: 'decisions/r-1/1.xml', return_invoice_key: '5'.repeat(44) })],
+      error: null,
+    }]
+
+    const ok = await generateReturnsReportAction(JULY) as { base64: string }
+    const wb = XLSX.read(Buffer.from(ok.base64, 'base64'), { type: 'buffer' })
+    const [detail] = XLSX.utils.sheet_to_json<Record<string, unknown>>(wb.Sheets['Devoluções'])
+    expect(detail['NF Devolução']).toBe('5'.repeat(44))
   })
 
   it('período inválido volta como erro tratado', async () => {

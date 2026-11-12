@@ -352,7 +352,8 @@ describe('exportHistoryAction (isolamento de dados)', () => {
     expect(sheet[0]).toMatchObject({
       'RV':                 'RV-LOG',
       'Tipo Identificador': 'Código de Logística Reversa',
-      'Identificador':      'Cód. Logística Reversa: LR-42',
+      'NF Origem':          'Cód. Logística Reversa: LR-42',
+      'NF Devolução':       '—',
       'Decisão':            'Tratativa',
       'Decidido por':       'Automático',
       'Cliente Final':      'CLIENTE FINAL',

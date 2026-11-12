@@ -6,7 +6,7 @@ import { getXmlDownloadUrlAction } from '@/lib/actions/xml-download'
 interface DownloadXmlButtonProps {
   /** Caminho do arquivo no bucket (relativo ao bucket). */
   path:          string
-  /** Nome com que o arquivo será salvo (ver `xmlDownloadName`/`danfeDownloadName`). */
+  /** Nome com que o arquivo será salvo (ver `xmlDownloadName`/`reshipLabelDownloadName`). */
   filename:      string
   /** Bucket de origem: `invoice-xmls` (default) ou `invoice-pdfs`. */
   bucket?:       string

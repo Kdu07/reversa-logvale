@@ -31,7 +31,8 @@ function row(overrides: Partial<ReportReturnRow> = {}): ReportReturnRow {
     receivedAt:        '2026-07-01T12:00:00-03:00',
     decidedAt:         '2026-07-02T12:00:00-03:00',  // +24h
     processedAt:       '2026-07-03T00:00:00-03:00',  // +12h da decisão
-    hasInvoice:        true,
+    returnInvoiceKey:  null,
+    hasReturnInvoice:  false,
     ...overrides,
   }
 }
@@ -101,10 +102,6 @@ describe('summarize', () => {
     expect(s.avgProcessHours).toBeNull()
     expect(s.autoRate).toBeNull()
   })
-
-  it('conta devoluções sem NF anexada', () => {
-    expect(summarize([row(), row({ hasInvoice: false })]).missingInvoice).toBe(1)
-  })
 })
 
 describe('summarizeByDepositor', () => {
@@ -156,18 +153,37 @@ describe('buildReturnsReport', () => {
 
   it('a aba detalhada traduz status, decisão e identificador', () => {
     const { base64 } = buildReturnsReport(
-      [row({ identifierType: 'logistics_code', accessKey: null, logisticsCode: 'LR-42', hasInvoice: false })],
+      [row({ identifierType: 'logistics_code', accessKey: null, logisticsCode: 'LR-42' })],
       META,
     )
     const [detail] = sheetsOf(base64).rowsOf('Devoluções')
 
     expect(detail['Tipo Identificador']).toBe('Código de Logística Reversa')
-    expect(detail['Identificador']).toBe('Cód. Logística Reversa: LR-42')
+    expect(detail['NF Origem']).toBe('Cód. Logística Reversa: LR-42')
+    expect(detail).not.toHaveProperty('Identificador')
     expect(detail['Status']).toBe('Processado')
     expect(detail['Decisão']).toBe('Estoque')
     expect(detail['Decidido por']).toBe('Cliente')
     expect(detail['Operador']).toBe('Operador Um')
-    expect(detail['NF Original']).toBe('Não')
+    expect(detail).not.toHaveProperty('NF Original')
+  })
+
+  it('NF Origem traz só a chave, sem o rótulo "Chave:"', () => {
+    const { base64 } = buildReturnsReport([row()], META)
+    const [detail] = sheetsOf(base64).rowsOf('Devoluções')
+    expect(detail['NF Origem']).toBe('4'.repeat(44))
+  })
+
+  it('NF Devolução traz a chave lida do XML, ou travessão sem XML', () => {
+    const { base64 } = buildReturnsReport([
+      row({ rv: 'RV-1', returnInvoiceKey: '5'.repeat(44), hasReturnInvoice: true }),
+      row({ rv: 'RV-2', returnInvoiceKey: null,           hasReturnInvoice: true }),
+      row({ rv: 'RV-3', returnInvoiceKey: null,           hasReturnInvoice: false }),
+    ], META)
+    const detail = sheetsOf(base64).rowsOf('Devoluções')
+    expect(detail.map((d) => d['NF Devolução'])).toEqual([
+      '5'.repeat(44), 'XML anexado (chave não identificada)', '—',
+    ])
   })
 
   it('campos ausentes viram travessão em vez de célula vazia', () => {

@@ -177,24 +177,26 @@ legível, o operador marca "Ilegível" (último recurso) → gera placeholder ú
 - `received_at < now() - 48h` E status `awaiting_decision` E `warning_sent_at IS NULL`
 - Dispara e-mail uma vez, marca `warning_sent_at`
 
-**RF4.8 NFs Pendentes (`/cliente/notas-pendentes`):**
+**RF4.8 NF de origem — só a chave de acesso / NFs Pendentes (`/cliente/notas-pendentes`):**
 
-Devoluções identificadas sem Chave de Acesso (Código de Logística Reversa, CEP ou
-Ilegível) entram sem NF — sem chave não há consulta NFEio. O cliente regulariza depois
-anexando o documento fiscal.
+Por decisão de negócio, o sistema guarda apenas a **chave de acesso** (44 dígitos) da NF de
+origem — sempre a NF de venda emitida pelo depositante —, sem o arquivo (XML/DANFE). Não há
+download da NF original. Nas tabelas do cliente, a coluna **NF Origem** mostra a chave; a coluna
+**NF Devolução** aparece só no histórico, com a NF de devolução (exigida em Estoque e Retirada) e
+os arquivos do Reenvio.
 
-- Fila: `identifier_type != 'access_key'` E sem `invoice_xml_url` E sem `invoice_pdf_url`
-- Inclui devoluções **já decididas**: a auto-decisão de 72h não regulariza a NF, e a
-  pendência precisa sobreviver a ela (ordenada da mais antiga para a mais recente, teto de 100)
+Devoluções recebidas sem chave (CEP, Código de Logística Reversa ou Ilegível) vão para a tela
+**NFs Pendentes**, onde o cliente **digita a chave**:
+
+- Fila: `access_key IS NULL`, separada em **Aguardando decisão** e **Decididas** (a auto-decisão
+  de 72h não informa a chave); cada grupo do mais antigo para o mais recente, teto de 100
 - Cada card traz RV, identificador (copiável), depositante e as fotos da caixa/itens —
   é como o cliente reconhece de qual pedido se trata
-- Upload de **XML ou PDF (DANFE)**, até 5 MB, gravados em `invoice_xml_url` /
-  `invoice_pdf_url` (os mesmos campos da NFEio, para os downloads existentes funcionarem)
-- Quando o XML traz o destinatário e a devolução está sem cliente final, o campo é preenchido
-- A NF pendente **não bloqueia** a decisão nem interrompe o prazo de 72h — apenas sinaliza:
-  badge de contagem no menu e botão "Anexar NF" na coluna NF das tabelas de pendentes/histórico
-- Documento já existente nunca é sobrescrito
-- Auditoria: `invoice_uploaded_by` + `invoice_uploaded_at` distinguem o anexo manual da NFEio
+- Validação: 44 dígitos, dígito verificador (módulo 11) e CNPJ do emitente da chave igual ao
+  CNPJ do depositante da devolução; chave já existente nunca é sobrescrita
+- A chave pendente **não bloqueia** a decisão nem interrompe o prazo de 72h — apenas sinaliza:
+  botão "Informar chave" na coluna NF Origem (sem contador no menu)
+- Auditoria: `access_key_informed_by` + `access_key_informed_at` (migration 018)
 
 ### RF5 — Tratativa (Operador)
 
@@ -292,19 +294,12 @@ Templates com identidade Logvale.
 
 ## 5. Integrações
 
-### 5.1 NFEio (consulta de NF-e — XML + DANFE)
-**Estado atual:** integração ativa em `lib/integrations/nfeio.ts`. `lookupInvoice` faz o
-**parsing local da chave de acesso** (CNPJ emissor → depositante) e, na mesma chamada (Etapa 1),
-consulta a NFEio para baixar o **XML** (`/v2/productinvoices/{chave}.xml`) e o **DANFE PDF**
-(`.pdf`), persistindo-os em `invoice-xmls`/`invoice-pdfs` (path `ak/<chave>.{xml,pdf}`, dedup por
-chave). Autenticação: `NFEIO_ACCESS_KEY` (API Key da empresa) no header `Authorization`.
-
-- **Degradação graciosa:** falha da NFEio (404/401/timeout) ou ausência de `NFEIO_ACCESS_KEY` não
-  bloqueia o recebimento — a devolução é criada e o XML/PDF ficam pendentes.
-- **Backfill super-only:** `retryMissingInvoiceXmlAction` (via `persistInvoiceFiles`), acionada pelo
-  botão **"Tentar consultas novamente"** no painel super de `/admin/devoluções` — busca em lote o
-  XML+DANFE das devoluções por chave de acesso ainda sem XML; reporta `disabled` quando a
-  integração está desligada.
+### 5.1 NFEio (consulta de NF-e — XML + DANFE) — pausada
+**Estado atual:** pausada (sem `NFEIO_ACCESS_KEY`) — o arquivo da NF de origem não é mais
+necessário (RF4.8). `lookupInvoice` (`lib/integrations/nfeio.ts`) continua fazendo o **parsing
+local da chave de acesso** (CNPJ emissor → depositante), que é o que o recebimento usa. A busca de
+XML/DANFE na mesma chamada retorna `disabled` e não bloqueia o recebimento; o painel super-only de
+reprocessamento foi removido. Sem chave na bipagem, o cliente a informa depois (RF4.8).
 
 ### 5.2 E-mail (SMTP via OAuth2 / Service Account)
 - Envio via Nodemailer sobre SMTP (Google Workspace) com OAuth2 / Service Account (Domain-Wide Delegation); job de aviso usa a Gmail API REST na Edge Function
@@ -332,7 +327,7 @@ chave). Autenticação: `NFEIO_ACCESS_KEY` (API Key da empresa) no header `Autho
 
 ### Cliente (`/cliente/*`)
 - `/cliente` — pendentes de decisão
-- `/cliente/notas-pendentes` — devoluções sem NF, para anexar XML/DANFE
+- `/cliente/notas-pendentes` — devoluções sem chave de acesso, para o cliente informá-la
 - `/cliente/historico` — decididas
 - `/cliente/perfil`
 

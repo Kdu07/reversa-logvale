@@ -7,8 +7,10 @@ const mockEq1   = vi.fn().mockReturnValue({ eq: mockEq2 })
 const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq1 })
 const mockFrom   = vi.fn().mockReturnValue({ update: mockUpdate })
 
+const mockDownload = vi.fn()
+
 vi.mock('@/lib/supabase/server', () => ({
-  createClient: vi.fn(() => ({ from: mockFrom })),
+  createClient: vi.fn(() => ({ from: mockFrom, storage: { from: () => ({ download: mockDownload }) } })),
 }))
 
 vi.mock('@/lib/supabase/get-current-user', () => ({
@@ -28,6 +30,7 @@ function mockClient(role: string) {
 beforeEach(() => {
   vi.clearAllMocks()
   mockEq2.mockResolvedValue({ error: null })
+  mockDownload.mockResolvedValue({ data: null, error: { message: 'not found' } })
 })
 
 describe('submitDecisionAction', () => {
@@ -42,6 +45,34 @@ describe('submitDecisionAction', () => {
 
     expect(result).toEqual({ ok: true })
     expect(mockUpdate).toHaveBeenCalled()
+  })
+
+  it('grava a chave da NF de devolução lida do XML', async () => {
+    mockClient('client')
+    const key = '52060433009911002506550120000007800267301615'
+    mockDownload.mockResolvedValue({ data: new Blob([`<NFe><infNFe Id="NFe${key}"/></NFe>`]), error: null })
+
+    const result = await submitDecisionAction({
+      returnId:             'ret-1',
+      decision:             'discard',
+      returnInvoiceXmlPath: 'decisions/ret-1/file.xml',
+    })
+
+    expect(result).toEqual({ ok: true })
+    expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({ return_invoice_key: key }))
+  })
+
+  it('XML ilegível não bloqueia a decisão — só fica sem a chave', async () => {
+    mockClient('client')
+
+    const result = await submitDecisionAction({
+      returnId:             'ret-1',
+      decision:             'discard',
+      returnInvoiceXmlPath: 'decisions/ret-1/file.xml',
+    })
+
+    expect(result).toEqual({ ok: true })
+    expect(mockUpdate).toHaveBeenCalledWith(expect.not.objectContaining({ return_invoice_key: expect.anything() }))
   })
 
   it('retorna {ok:true} para store_for_handling sem XML', async () => {

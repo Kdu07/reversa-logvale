@@ -8,12 +8,12 @@ import { CountdownTimer } from '@/components/shared/countdown-timer'
 import { DecisionPill } from '@/components/shared/decision-pill'
 import { EmptyState } from '@/components/shared/empty-state'
 import { DecisionModal } from './decision-modal'
-import { InvoiceUploadDialog } from './invoice-upload-dialog'
+import { AccessKeyDialog } from './access-key-dialog'
 import { PhotoGallery } from '@/components/shared/photo-gallery'
 import { PhotoThumbs } from '@/components/shared/photo-thumbs'
 import { DownloadXmlButton } from '@/components/shared/download-xml-button'
 import { CopyButton } from '@/components/shared/copy-button'
-import { formatDate, xmlDownloadName, danfeDownloadName, reshipLabelDownloadName, reshipDanfeDownloadName } from '@/lib/format'
+import { formatDate, xmlDownloadName, reshipLabelDownloadName, reshipDanfeDownloadName } from '@/lib/format'
 import { Inbox, ChevronLeft, ChevronRight } from 'lucide-react'
 import type { ReturnRow, DepositorOption } from '../actions'
 import type { ReturnDecision, IdentifierType } from '@/types'
@@ -51,35 +51,44 @@ const IDENTIFIER_TYPE_LABEL: Record<IdentifierType, string> = {
   illegible:      'Ilegível',
 }
 
-/**
- * Devolução que entrou sem NF: identificada sem chave de acesso, logo sem
- * consulta NFEio. Nesses casos o cliente anexa o documento manualmente —
- * devoluções por chave de acesso ficam com o backfill automático.
- */
-function isInvoicePending(row: ReturnRow): boolean {
-  return row.identifierType !== 'access_key' && !row.invoiceXmlPath && !row.invoicePdfPath
+function IdentifierValue({ label, value, display }: { label: string; value: string | null; display?: string }) {
+  return (
+    <>
+      <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">{label}</span>
+      <span className="inline-flex items-center gap-1.5">
+        <span className="font-mono text-xs break-all">{display ?? value}</span>
+        {value && <CopyButton value={value} title={`Copiar ${label}`} className="shrink-0" />}
+      </span>
+    </>
+  )
 }
 
+/**
+ * NF Origem: a chave de acesso — bipada no recebimento ou informada depois pelo
+ * cliente. Recebida sem chave, mostra o identificador usado (CEP, código…) e,
+ * enquanto a chave não vem, o atalho "Informar chave".
+ */
 function IdentifierTag({ row }: { row: ReturnRow }) {
-  const label = IDENTIFIER_TYPE_LABEL[row.identifierType]
-  const fullValue = row.identifierType === 'access_key'
-    ? row.accessKey
-    : row.identifierType === 'postal_code'
+  const keyDisplay = row.accessKey ? `${row.accessKey.slice(0, 20)}…` : undefined
+  const fallbackValue = row.identifierType === 'postal_code'
     ? row.postalCode
     : row.identifierType === 'logistics_code'
     ? row.logisticsCode
     : row.illegibleToken
-  const display = row.identifierType === 'access_key'
-    ? `${row.accessKey?.slice(0, 20)}…`
-    : fullValue
 
   return (
-    <span className="inline-flex flex-col gap-0.5">
-      <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">{label}</span>
-      <span className="inline-flex items-center gap-1.5">
-        <span className="font-mono text-xs break-all">{display}</span>
-        {fullValue && <CopyButton value={fullValue} title={`Copiar ${label}`} className="shrink-0" />}
-      </span>
+    <span className="inline-flex flex-col items-start gap-0.5">
+      {row.accessKey && (
+        <IdentifierValue label={IDENTIFIER_TYPE_LABEL.access_key} value={row.accessKey} display={keyDisplay} />
+      )}
+      {row.identifierType !== 'access_key' && (
+        <IdentifierValue label={IDENTIFIER_TYPE_LABEL[row.identifierType]} value={fallbackValue} />
+      )}
+      {!row.accessKey && (
+        <span className="mt-0.5">
+          <AccessKeyDialog returnId={row.id} rv={row.rv} />
+        </span>
+      )}
       {row.finalCustomerName && (
         <span className="text-[11px] text-muted-foreground truncate max-w-[200px]" title={row.finalCustomerName}>
           Cliente: {row.finalCustomerName}
@@ -193,7 +202,9 @@ export function ReturnsTable({
                 <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">RV</th>
                 <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">Data</th>
                 <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">NF Origem</th>
-                <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">NF Devolução</th>
+                {mode === 'history' && (
+                  <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">NF Devolução</th>
+                )}
                 <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Itens</th>
                 <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">Fotos Caixa</th>
                 <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">Fotos Itens</th>
@@ -220,69 +231,49 @@ export function ReturnsTable({
                   <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground text-xs">
                     {formatDate(row.receivedAt)}
                   </td>
-                  {/* NF Origem: o identificador lido na caixa + os arquivos da NF
-                      original (NFEio pela chave de acesso, ou anexada pelo cliente
-                      quando a devolução entrou sem chave). */}
+                  {/* NF Origem: só a chave de acesso — o arquivo da NF original
+                      não é mais necessário. */}
                   <td className="px-3 py-2.5">
-                    <div className="flex flex-col items-start gap-1">
-                      <IdentifierTag row={row} />
-                      {row.invoiceXmlPath && (
-                        <DownloadXmlButton
-                          path={row.invoiceXmlPath}
-                          filename={xmlDownloadName(row.rv, 'original')}
-                          label="NF (XML)"
-                          className="text-primary hover:underline text-xs font-medium disabled:opacity-50"
-                        />
-                      )}
-                      {row.invoicePdfPath && (
-                        <DownloadXmlButton
-                          path={row.invoicePdfPath}
-                          filename={danfeDownloadName(row.rv)}
-                          bucket="invoice-pdfs"
-                          label="NF (DANFE)"
-                          className="text-primary hover:underline text-xs font-medium disabled:opacity-50"
-                        />
-                      )}
-                      {isInvoicePending(row) && (
-                        <InvoiceUploadDialog returnId={row.id} rv={row.rv} />
-                      )}
-                    </div>
+                    <IdentifierTag row={row} />
                   </td>
                   {/* NF Devolução: só existe depois da decisão (XML enviado no
-                      DecisionModal, ou etiqueta + DANFE do Reenvio). */}
-                  <td className="px-3 py-2.5">
-                    <div className="flex flex-col items-start gap-1">
-                      {mode === 'history' && row.returnInvoiceXmlPath && (
-                        <DownloadXmlButton
-                          path={row.returnInvoiceXmlPath}
-                          filename={xmlDownloadName(row.rv, 'devolucao')}
-                          label="Devolução"
-                          className="text-primary hover:underline text-xs font-medium disabled:opacity-50"
-                        />
-                      )}
-                      {mode === 'history' && row.reshipLabelPath && (
-                        <DownloadXmlButton
-                          path={row.reshipLabelPath}
-                          filename={reshipLabelDownloadName(row.rv)}
-                          bucket="reship-files"
-                          label="Etiqueta"
-                          className="text-primary hover:underline text-xs font-medium disabled:opacity-50"
-                        />
-                      )}
-                      {mode === 'history' && row.reshipDanfePath && (
-                        <DownloadXmlButton
-                          path={row.reshipDanfePath}
-                          filename={reshipDanfeDownloadName(row.rv)}
-                          bucket="reship-files"
-                          label="DANFE reenvio"
-                          className="text-primary hover:underline text-xs font-medium disabled:opacity-50"
-                        />
-                      )}
-                      {!(mode === 'history' && (row.returnInvoiceXmlPath || row.reshipLabelPath || row.reshipDanfePath)) && (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
-                    </div>
-                  </td>
+                      DecisionModal, ou etiqueta + DANFE do Reenvio) — por isso
+                      a coluna aparece só no histórico. */}
+                  {mode === 'history' && (
+                    <td className="px-3 py-2.5">
+                      <div className="flex flex-col items-start gap-1">
+                        {row.returnInvoiceXmlPath && (
+                          <DownloadXmlButton
+                            path={row.returnInvoiceXmlPath}
+                            filename={xmlDownloadName(row.rv, 'devolucao')}
+                            label="Devolução"
+                            className="text-primary hover:underline text-xs font-medium disabled:opacity-50"
+                          />
+                        )}
+                        {row.reshipLabelPath && (
+                          <DownloadXmlButton
+                            path={row.reshipLabelPath}
+                            filename={reshipLabelDownloadName(row.rv)}
+                            bucket="reship-files"
+                            label="Etiqueta"
+                            className="text-primary hover:underline text-xs font-medium disabled:opacity-50"
+                          />
+                        )}
+                        {row.reshipDanfePath && (
+                          <DownloadXmlButton
+                            path={row.reshipDanfePath}
+                            filename={reshipDanfeDownloadName(row.rv)}
+                            bucket="reship-files"
+                            label="DANFE reenvio"
+                            className="text-primary hover:underline text-xs font-medium disabled:opacity-50"
+                          />
+                        )}
+                        {!row.returnInvoiceXmlPath && !row.reshipLabelPath && !row.reshipDanfePath && (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </div>
+                    </td>
+                  )}
                   <td className="px-3 py-2.5 text-center text-muted-foreground">{row.itemCount}</td>
                   <td className="px-3 py-2.5">
                     <PhotoThumbs
