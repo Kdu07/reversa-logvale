@@ -175,7 +175,7 @@
   </div>
   <div class="brand-sub">Gestão de Devoluções</div>
   <h1 class="brand-title">Manual do Usuário</h1>
-  <div class="brand-meta">Versão 1.2 · Atualizado em 22/06/2026</div>
+  <div class="brand-meta">Versão 1.3 · Atualizado em 12/11/2026</div>
 </header>
 
 <div class="page">
@@ -205,7 +205,8 @@
         <li><a href="#op-home">2.2 Tela inicial</a></li>
         <li><a href="#op-recebimento">2.3 Novo Recebimento (7 etapas)</a></li>
         <li><a href="#op-tratativas">2.4 Tratativas</a></li>
-        <li><a href="#op-erros">2.5 Problemas comuns</a></li>
+        <li><a href="#op-minhas">2.5 Minhas Devoluções</a></li>
+        <li><a href="#op-erros">2.6 Problemas comuns</a></li>
       </ol>
     </li>
     <li><a href="#cliente">Parte 3 — Manual do Cliente</a>
@@ -213,12 +214,13 @@
         <li><a href="#cli-pendentes">3.1 Devoluções pendentes</a></li>
         <li><a href="#cli-tabela">3.2 Lendo a tabela</a></li>
         <li><a href="#cli-fotos">3.3 Galeria de fotos</a></li>
-        <li><a href="#cli-decisoes">3.4 As 3 decisões</a></li>
+        <li><a href="#cli-decisoes">3.4 As decisões</a></li>
         <li><a href="#cli-confirmar">3.5 Confirmação em duas etapas</a></li>
         <li><a href="#cli-prazos">3.6 Prazos (48h e 72h)</a></li>
         <li><a href="#cli-historico">3.7 Histórico</a></li>
-        <li><a href="#cli-perfil">3.8 Meu Perfil</a></li>
-        <li><a href="#cli-duvidas">3.9 Dúvidas do cliente</a></li>
+        <li><a href="#cli-nfs-pendentes">3.8 NFs Pendentes (chave da NF de origem)</a></li>
+        <li><a href="#cli-perfil">3.9 Meu Perfil</a></li>
+        <li><a href="#cli-duvidas">3.10 Dúvidas do cliente</a></li>
       </ol>
     </li>
     <li><a href="#gerente">Parte 4 — Manual do Gerente</a>
@@ -228,7 +230,8 @@
         <li><a href="#ger-depositantes">4.3 Depositantes</a></li>
         <li><a href="#ger-onboarding">4.4 Onboarding de cliente</a></li>
         <li><a href="#ger-devolucoes">4.5 Visão geral de devoluções</a></li>
-        <li><a href="#ger-lgpd">4.6 Ferramentas LGPD</a></li>
+        <li><a href="#ger-relatorios">4.6 Relatórios</a></li>
+        <li><a href="#ger-lgpd">4.7 Ferramentas LGPD</a></li>
       </ol>
     </li>
     <li><a href="#referencia">Parte 5 — Referência e Solução de Problemas</a>
@@ -270,17 +273,17 @@
     <div class="role-card">
       <h4>Operador</h4>
       <div class="who">Funcionário da Logvale</div>
-      <p>Registra devoluções recebidas e executa as decisões dos clientes (tratativas).</p>
+      <p>Registra devoluções recebidas, executa as decisões dos clientes (tratativas) e consulta o histórico do que recebeu.</p>
     </div>
     <div class="role-card">
       <h4>Cliente</h4>
       <div class="who">Empresa depositante</div>
-      <p>Revisa as devoluções da sua mercadoria e decide o destino de cada uma.</p>
+      <p>Revisa as devoluções da sua mercadoria, decide o destino de cada uma e informa a chave da NF quando ela faltar.</p>
     </div>
     <div class="role-card">
       <h4>Gerente</h4>
       <div class="who">Administrador Logvale</div>
-      <p>Cadastra usuários e depositantes e acompanha os indicadores do sistema.</p>
+      <p>Cadastra usuários e depositantes, acompanha os indicadores do sistema e gera relatórios.</p>
     </div>
   </div>
 
@@ -292,10 +295,12 @@
       <tr><td><strong>Depositante</strong></td><td>A empresa (CNPJ) dona da mercadoria armazenada na Logvale.</td></tr>
       <tr><td><strong>RV</strong></td><td>Etiqueta com código de barras colada na caixa, usada para identificar a devolução rapidamente.</td></tr>
       <tr><td><strong>Chave de Acesso</strong></td><td>Número de 44 dígitos que identifica a nota fiscal (NF-e).</td></tr>
-      <tr><td><strong>NF / XML</strong></td><td>A nota fiscal eletrônica. O XML é o arquivo digital dessa nota.</td></tr>
+      <tr><td><strong>NF de origem</strong></td><td>A nota fiscal de venda do depositante, que acompanha a mercadoria. O sistema guarda <strong>apenas a chave de acesso</strong> dela, não o arquivo.</td></tr>
+      <tr><td><strong>NF de devolução</strong></td><td>A nota fiscal que o cliente emite para a devolução. O XML dela é anexado na decisão (Estoque e Retirada).</td></tr>
+      <tr><td><strong>XML</strong></td><td>O arquivo digital de uma nota fiscal.</td></tr>
       <tr><td><strong>DANFE</strong></td><td>A versão em PDF da nota fiscal, pronta para visualizar e imprimir.</td></tr>
       <tr><td><strong>Tratativa</strong></td><td>A execução, pelo operador, da decisão tomada pelo cliente.</td></tr>
-      <tr><td><strong>Auto-decisão</strong></td><td>Decisão tomada automaticamente pelo sistema quando o cliente não responde em 72 horas.</td></tr>
+      <tr><td><strong>Auto-decisão</strong></td><td>Decisão tomada automaticamente pelo sistema quando o cliente não responde em 72 horas (não vale para depositantes sem prazo de decisão).</td></tr>
     </tbody>
   </table>
 
@@ -336,21 +341,23 @@
   <h3 id="rapido-operador">1.1 Operador em 1 página</h3>
   <ol class="steps">
     <li>Entre no sistema e clique em <strong>Novo Recebimento</strong>.</li>
-    <li><strong>Bipe a nota fiscal</strong> (Chave de Acesso) e <strong>confirme o depositante</strong> sugerido.</li>
+    <li><strong>Bipe a nota fiscal</strong> (Chave de Acesso) — ou, na falta dela, o <strong>Código de Logística Reversa</strong> ou o <strong>CEP</strong> — e <strong>confirme o depositante</strong> sugerido.</li>
     <li><strong>Bipe a RV</strong> colada na caixa.</li>
-    <li>Informe o <strong>número de itens</strong>.</li>
-    <li>Tire as <strong>fotos da caixa</strong> (2 a 4) e dos <strong>itens</strong> (1 a 5).</li>
+    <li>Informe o <strong>número de itens</strong> e o <strong>estado dos produtos</strong> (<strong>Bom</strong> ou <strong>Avaria</strong>) — ou marque <strong>Caixa vazia</strong>.</li>
+    <li>Tire as <strong>fotos da caixa</strong> (1 a 4) e dos <strong>itens</strong> (1 a 5). Com caixa vazia, só as da caixa.</li>
     <li><strong>Revise</strong> e clique em <strong>Confirmar e Registrar</strong>.</li>
     <li>Mais tarde, abra <strong>Tratativas</strong>, bipe a RV e <strong>conclua</strong> as devoluções já decididas pelos clientes.</li>
+    <li>Para consultar o que você já recebeu, use <strong>Minhas Devoluções</strong>.</li>
   </ol>
 
   <h3 id="rapido-cliente">1.2 Cliente em 1 página</h3>
   <ol class="steps">
     <li>Entre no sistema: você verá suas <strong>Devoluções Pendentes</strong>.</li>
-    <li>Confira as <strong>fotos</strong>, a <strong>nota fiscal</strong> e os dados de cada devolução.</li>
-    <li>Escolha uma decisão: <span class="pill green"><span class="dot"></span>Estoque</span> <span class="pill orange"><span class="dot"></span>Tratativa</span> <span class="pill red"><span class="dot"></span>Retirada</span></li>
-    <li><strong>Confirme</strong> na janela que se abre (para Estoque e Retirada, anexe o XML da NF de devolução).</li>
-    <li>Se não decidir em <strong>72 horas</strong>, o sistema envia automaticamente para Tratativa.</li>
+    <li>Confira as <strong>fotos</strong>, o <strong>estado dos produtos</strong>, a <strong>NF de origem</strong> e os dados de cada devolução.</li>
+    <li>Escolha uma decisão: <span class="pill green"><span class="dot"></span>Estoque</span> <span class="pill orange"><span class="dot"></span>Tratativa</span> <span class="pill red"><span class="dot"></span>Retirada</span> — e, para depositantes habilitados, <span class="pill blue"><span class="dot"></span>Reenvio</span>.</li>
+    <li><strong>Confirme</strong> na janela que se abre (para Estoque e Retirada, anexe o XML da NF de devolução; para Reenvio, a etiqueta e o DANFE em PDF).</li>
+    <li>Se não decidir em <strong>72 horas</strong>, o sistema envia automaticamente para Tratativa (exceto para depositantes sem prazo de decisão).</li>
+    <li>Se a devolução chegou <strong>sem a chave da NF de origem</strong>, informe-a em <strong>NFs Pendentes</strong> ou pelo botão <strong>Informar chave</strong> na tabela.</li>
   </ol>
 
   <h3 id="rapido-gerente">1.3 Gerente em 1 página</h3>
@@ -360,6 +367,7 @@
     <li>Se necessário, use <strong>Reenviar link</strong> para reenviar o acesso (ativação ou redefinição de senha) ou copiar o link.</li>
     <li>Em <strong>Depositantes</strong>, cadastre as empresas (CNPJ + razão social).</li>
     <li>Em <strong>Devoluções</strong>, acompanhe tudo que está no sistema.</li>
+    <li>Em <strong>Relatórios</strong>, gere a planilha (XLSX) de devoluções do mês ou de um período.</li>
   </ol>
 
   <a class="back-top no-print" href="#topo">↑ Voltar ao topo</a>
@@ -379,9 +387,9 @@
   </ul>
 
   <h3 id="op-home">2.2 Tela inicial</h3>
-  <p>Ao entrar, você vê uma saudação e três indicadores rápidos: <strong>Hoje</strong> e <strong>Esta semana</strong> (recebimentos feitos) e <strong>Tratativas</strong> (pendentes). Abaixo, dois cartões levam às operações: <strong>Novo Recebimento</strong> e <strong>Tratativas</strong>. Há ainda uma lista das <strong>tratativas pendentes</strong> mais antigas.</p>
+  <p>Ao entrar, você vê uma saudação e três indicadores rápidos: <strong>Hoje</strong> e <strong>Esta semana</strong> (recebimentos feitos) e <strong>Tratativas</strong> (pendentes). Abaixo, três cartões levam às operações: <strong>Novo Recebimento</strong>, <strong>Tratativas</strong> e <strong>Minhas Devoluções</strong>. Há ainda uma lista das <strong>tratativas pendentes</strong> mais antigas.</p>
   <figure class="shot">
-    <img src="assets/screenshots/3.webp" alt="Tela inicial do operador — indicadores, cartões de navegação e lista de tratativas pendentes">
+    <img src="assets/screenshots/3.webp" alt="Tela inicial do operador — indicadores, cartões Novo Recebimento, Tratativas e Minhas Devoluções e lista de tratativas pendentes">
     <figcaption>Captura 03 — Home do operador.</figcaption>
   </figure>
 
@@ -391,13 +399,22 @@
   <div class="callout tip">A cada leitura bem-sucedida o sistema emite um <strong>bipe e um flash verde</strong>; em caso de erro, um <strong>bipe duplo e flash vermelho</strong>. O cursor já fica posicionado no campo certo — basta bipar.</div>
 
   <h4>Etapa 1 — Identificação da NF</h4>
+  <p>A etapa começa com a pergunta <strong>"Escolha qual código da caixa você vai bipar"</strong> e três opções, da mais completa para a mais simples:</p>
   <ol class="steps">
-    <li><strong>Bipe a Chave de Acesso</strong> (44 dígitos) da nota fiscal. O sistema lê os dados direto da própria chave — CNPJ do emitente, número e mês da NF — e <strong>já sugere o depositante</strong>, sem depender de consulta externa. Em paralelo, busca automaticamente o <strong>XML</strong> e o <strong>DANFE (PDF)</strong> da nota para deixá-los disponíveis para download; se a consulta não retornar, o recebimento segue normalmente.</li>
-    <li>Se o leitor não funcionar, clique em <strong>"Não consigo bipar — digitar à mão"</strong> e digite os 44 dígitos.</li>
-    <li>Se a NF estiver ilegível, use <strong>"NF ilegível — usar Código Postal"</strong> e bipe (ou digite) o <strong>CEP</strong> (8 dígitos).</li>
-    <li>Se nem o CEP servir, use <strong>"CEP também ilegível — marcar como ilegível"</strong> e confirme em <strong>"NF Ilegível"</strong>. O sistema gera um identificador próprio para a devolução.</li>
-    <li><strong>Confirme o depositante:</strong> o sistema sugere o depositante a partir da nota. Confirme o sugerido, troque pela lista, ou clique em <strong>"Avançar sem Depositante"</strong> se nenhum se aplicar.</li>
+    <li><strong>Chave de Acesso da NF</strong> — bipe os 44 dígitos da nota fiscal. O sistema lê os dados direto da própria chave — CNPJ do emitente, número e mês da NF — e <strong>já sugere o depositante</strong>. Só a chave é guardada; o arquivo da nota não é baixado.</li>
+    <li><strong>Código de Logística Reversa</strong> — use quando a caixa não traz a NF, mas traz o código de logística reversa do cliente.</li>
+    <li><strong>CEP</strong> — bipe (ou digite) o Código Postal de 8 dígitos.</li>
   </ol>
+  <ul>
+    <li>Se o leitor não funcionar, clique em <strong>"Não consigo bipar — digitar à mão"</strong> e digite o código. Para voltar ao leitor, use <strong>"Usar leitor de barras"</strong>.</li>
+    <li>Se nenhum código estiver legível, clique em <strong>"Nenhum código está legível"</strong> e confirme em <strong>"Confirmar: Nenhum Código Legível"</strong>. O sistema gera um identificador próprio para a devolução.</li>
+    <li><strong>Confirme o depositante:</strong> o sistema sugere o depositante a partir da nota. Confirme o sugerido, troque pela lista, ou clique em <strong>"Avançar sem Depositante"</strong> se nenhum se aplicar.</li>
+  </ul>
+  <div class="callout note">Quando a devolução é registrada sem a chave (por Código de Logística Reversa, CEP ou ilegível), o <strong>cliente informa a chave depois</strong>, pela tela NFs Pendentes. Isso não impede o recebimento.</div>
+  <figure class="shot">
+    <img src="assets/screenshots/14.webp" alt="Etapa 1 — as três opções de código (Chave de Acesso da NF, Código de Logística Reversa, CEP) e o link Nenhum código está legível">
+    <figcaption>Captura 14 — Etapa 1 (escolha do código).</figcaption>
+  </figure>
   <figure class="shot">
     <img src="assets/screenshots/4.webp" alt="Etapa 1 — leitor aguardando a leitura da Chave de Acesso">
     <figcaption>Captura 04 — Etapa 1 (leitura da NF).</figcaption>
@@ -411,25 +428,36 @@
   <h4>Etapa 2 — RV</h4>
   <p><strong>Bipe o código de barras da RV</strong> colada na caixa. Se preferir, clique em "Não consigo bipar — digitar à mão" e informe o código.</p>
 
-  <h4>Etapa 3 — Número de itens</h4>
-  <p>Informe quantos itens há na devolução (um número inteiro). Clique em <strong>Próximo</strong>.</p>
+  <h4>Etapa 3 — Itens</h4>
+  <p>Informe a <strong>quantidade de itens</strong> da caixa e escolha o <strong>estado dos produtos</strong> (obrigatório — nada vem marcado):</p>
+  <ul>
+    <li><strong>Bom</strong> — todos os itens chegaram em bom estado.</li>
+    <li><strong>Avaria</strong> — algum item chegou avariado. Aparece o campo <strong>"Quantos avariados?"</strong>: informe quantos (de 1 até o total de itens).</li>
+    <li><strong>Caixa vazia</strong> — a caixa chegou sem nenhum item. A quantidade fica travada em 0 e a <strong>Etapa 5 (fotos dos itens) é pulada</strong>; as fotos da caixa continuam obrigatórias.</li>
+  </ul>
+  <p>Clique em <strong>Próximo</strong> (ou tecle <strong>Enter</strong>).</p>
+  <div class="callout tip">Atalhos de teclado: <strong>B</strong> = Bom, <strong>A</strong> = Avaria, <strong>V</strong> = Caixa vazia, <strong>Enter</strong> = Próximo.</div>
+  <div class="callout note">O estado dos produtos é <strong>apenas informativo</strong>: o cliente vê na tabela e na janela de decisão, mas ele não muda as decisões nem a auto-decisão.</div>
+  <figure class="shot">
+    <img src="assets/screenshots/15.webp" alt="Etapa 3 — 3 itens, estado Avaria marcado e o campo Quantos avariados com 1 de 3">
+    <figcaption>Captura 15 — Etapa 3 (itens e estado dos produtos).</figcaption>
+  </figure>
 
   <h4>Etapa 4 — Fotos da Caixa</h4>
-  <p>Use a webcam para capturar de <strong>2 a 4 fotos</strong> da caixa. Pressionar a tecla <strong>Enter</strong> dispara a foto. Cada foto aparece em miniatura; passe o mouse e clique no <strong>✕</strong> para descartar. O botão <strong>Próximo</strong> só libera com pelo menos 2 fotos.</p>
+  <p>Use a webcam para capturar de <strong>1 a 4 fotos</strong> da caixa. Pressionar a tecla <strong>Enter</strong> dispara a foto. Cada foto aparece em miniatura; passe o mouse e clique no <strong>✕</strong> para descartar. O botão <strong>Próximo</strong> só libera com pelo menos 1 foto.</p>
   <figure class="shot">
     <img src="assets/screenshots/6.webp" alt="Etapa 4 — captura de fotos da caixa pela webcam, com miniaturas">
     <figcaption>Captura 06 — Fotos da caixa.</figcaption>
   </figure>
 
   <h4>Etapa 5 — Fotos dos Itens</h4>
-  <p>Mesma mecânica da etapa anterior, agora com <strong>1 a 5 fotos</strong> dos itens.</p>
+  <p>Mesma mecânica da etapa anterior, agora com <strong>1 a 5 fotos</strong> dos itens. Se você marcou <strong>Caixa vazia</strong>, esta etapa não aparece.</p>
 
   <h4>Etapa 6 — Revisão</h4>
-  <p>O sistema mostra um resumo de tudo: identificador (com CNPJ e número da NF, quando lidos da chave), depositante, RV, número de itens e as fotos. Cada bloco tem um botão <strong>Editar</strong> que leva de volta à etapa correspondente. Conferindo tudo, clique em <strong>Confirmar e Registrar</strong>.</p>
-  <div class="callout note">Quando a nota fiscal foi localizada na bipagem, aparecem aqui os botões <strong>Baixar XML da NF</strong> e <strong>Baixar DANFE (PDF)</strong>. Se a nota não foi encontrada (NF ilegível, identificação por CEP ou indisponível na consulta), os botões simplesmente não aparecem — isso não impede o registro.</div>
+  <p>O sistema mostra um resumo de tudo: identificador (com CNPJ e número da NF, quando lidos da chave), depositante, RV, itens (quantidade e estado — por exemplo, "3 itens · Avaria (1 de 3)" ou "Caixa vazia") e as fotos. Cada bloco tem um botão <strong>Editar</strong> que leva de volta à etapa correspondente. Conferindo tudo, clique em <strong>Confirmar e Registrar</strong>.</p>
   <figure class="shot">
-    <img src="assets/screenshots/7.webp" alt="Etapa 6 — resumo da devolução com identificador, depositante, RV, itens, fotos e os botões Baixar XML/DANFE">
-    <figcaption>Captura 07 — Revisão do recebimento (com os botões de download da NF e o "Confirmar e Registrar").</figcaption>
+    <img src="assets/screenshots/7.webp" alt="Etapa 6 — resumo da devolução com identificador, depositante, RV, itens com o estado dos produtos e fotos">
+    <figcaption>Captura 07 — Revisão do recebimento.</figcaption>
   </figure>
 
   <h4>Etapa 7 — Registrar Recebimento</h4>
@@ -437,18 +465,32 @@
 
   <h3 id="op-tratativas">2.4 Tratativas</h3>
   <p>A tela de <strong>Tratativas</strong> lista as devoluções que <strong>já foram decididas pelo cliente</strong> e aguardam execução. O campo de busca já vem com o cursor ativo: <strong>basta bipar a RV</strong> da caixa que a devolução aparece. Um contador mostra <strong>quantas tratativas estão pendentes</strong>.</p>
-  <p>Cada linha mostra a <strong>RV</strong>, a <strong>decisão</strong> (com a etiqueta <em>Auto</em> quando foi automática), a <strong>data da decisão</strong>, o <strong>depositante</strong> e o <strong>cliente</strong>. Clique em <strong>Ver detalhes</strong> para abrir as fotos, a NF e a RV, e então em <strong>Concluir</strong> para finalizar. A devolução sai da lista.</p>
+  <p>Cada linha mostra a <strong>RV</strong>, a <strong>decisão</strong> (com a etiqueta <em>Auto</em> quando foi automática), a <strong>data da decisão</strong>, o <strong>depositante</strong> e o <strong>cliente</strong>. Clique em <strong>Ver detalhes</strong> para abrir as informações (depositante, nº de itens, <strong>estado dos produtos</strong>, datas), o identificador e as fotos, e então em <strong>Concluir</strong> para finalizar. A devolução sai da lista.</p>
+  <p>Nos detalhes também ficam os arquivos que o cliente anexou na decisão, prontos para baixar: o <strong>XML da NF de devolução</strong> (Estoque e Retirada) ou, no <strong>Reenvio</strong>, a <strong>etiqueta</strong> e o <strong>DANFE</strong> em PDF — necessários para despachar o pedido de novo. Os arquivos são salvos no computador já com o nome da RV.</p>
   <figure class="shot">
     <img src="assets/screenshots/8.webp" alt="Tela de Tratativas — busca por RV, lista com decisão e data, e o botão Ver detalhes">
     <figcaption>Captura 08 — Tratativas.</figcaption>
   </figure>
 
-  <h3 id="op-erros">2.5 Problemas comuns</h3>
+  <h3 id="op-minhas">2.5 Minhas Devoluções</h3>
+  <p>Em <strong>Minhas Devoluções</strong> você consulta <strong>todas as devoluções que você recebeu</strong>, em qualquer status — é só leitura, nada é alterado aqui. A lista mostra RV, data, status, decisão, depositante e itens.</p>
+  <ul>
+    <li><strong>Buscar RV</strong> — o campo aceita a bipagem da etiqueta: bipe a RV e a devolução aparece.</li>
+    <li><strong>Filtros</strong> — por depositante e por data (De / Até).</li>
+    <li><strong>Ver detalhes</strong> — abre as informações, as fotos e os arquivos anexados pelo cliente (NF de devolução ou etiqueta e DANFE do Reenvio).</li>
+  </ul>
+  <figure class="shot">
+    <div class="shot-box"><div><strong>Captura 16 — pendente</strong>Minhas Devoluções — busca por RV, filtros e a lista de devoluções recebidas.</div></div>
+    <figcaption>Captura 16 — Minhas Devoluções.</figcaption>
+  </figure>
+
+  <h3 id="op-erros">2.6 Problemas comuns</h3>
   <table>
     <thead><tr><th scope="col">Situação</th><th scope="col">O que fazer</th></tr></thead>
     <tbody>
       <tr><td>O leitor não bipa</td><td>Use a opção "digitar à mão" na etapa em questão.</td></tr>
-      <tr><td>A nota não foi encontrada</td><td>Tente novamente; se persistir, use Código Postal (CEP) ou marque como Ilegível.</td></tr>
+      <tr><td>A caixa não tem NF</td><td>Na Etapa 1, use o Código de Logística Reversa ou o CEP; sem nenhum código legível, use "Nenhum código está legível".</td></tr>
+      <tr><td>A caixa chegou sem itens</td><td>Na Etapa 3, marque <strong>Caixa vazia</strong> (atalho V). Só as fotos da caixa são pedidas.</td></tr>
       <tr><td>Foto ficou ruim</td><td>Clique no ✕ da miniatura e capture outra.</td></tr>
       <tr><td>Bipei a NF errada</td><td>Use Cancelar (descarta tudo) ou volte e edite na Revisão.</td></tr>
     </tbody>
@@ -464,9 +506,9 @@
   <p>Esta parte é para a <strong>empresa depositante</strong> que decide o destino das suas devoluções. Você pode usar pelo computador ou pelo celular.</p>
 
   <h3 id="cli-pendentes">3.1 Devoluções Pendentes</h3>
-  <p>Ao entrar, você vê a tela <strong>Devoluções Pendentes</strong>: todas as devoluções da sua mercadoria que aguardam decisão. No topo há um aviso lembrando da regra das 72 horas. Você pode filtrar por <strong>depositante</strong> (quando você tem mais de um) e por <strong>data</strong> (De / Até). Um selo mostra o total de devoluções.</p>
+  <p>Ao entrar, você vê a tela <strong>Devoluções Pendentes</strong>: todas as devoluções da sua mercadoria que aguardam decisão. No topo há um aviso lembrando da regra das 72 horas (ele não aparece para depositantes sem prazo de decisão — veja a <a href="#cli-prazos">seção 3.6</a>). Você pode filtrar por <strong>depositante</strong> (quando você tem mais de um) e por <strong>data</strong> (De / Até). Um selo mostra o total de devoluções.</p>
   <figure class="shot">
-    <img src="assets/screenshots/9.webp" alt="Tela Devoluções Pendentes — filtros, tabela e botões de decisão">
+    <img src="assets/screenshots/9.webp" alt="Tela Devoluções Pendentes — filtros, tabela com NF Origem, Nº NF Origem, estado dos produtos e botões de decisão">
     <figcaption>Captura 09 — Devoluções pendentes.</figcaption>
   </figure>
 
@@ -474,39 +516,45 @@
   <table>
     <thead><tr><th scope="col">Coluna</th><th scope="col">O que mostra</th></tr></thead>
     <tbody>
-      <tr><td>Data</td><td>Quando a devolução foi recebida.</td></tr>
-      <tr><td>Identificador</td><td>Chave da NF, CEP ou "Ilegível" (com a etiqueta do tipo).</td></tr>
-      <tr><td>NF</td><td>Links para baixar o <strong>XML</strong> e o <strong>DANFE (PDF)</strong> da nota, quando disponíveis. No histórico, aparece também o XML da <strong>NF de devolução</strong> que você anexou.</td></tr>
       <tr><td>RV</td><td>O código da etiqueta da caixa.</td></tr>
-      <tr><td>Itens</td><td>Quantidade de itens.</td></tr>
-      <tr><td>Fotos da Caixa / Itens</td><td>Miniaturas — clique para abrir a galeria.</td></tr>
+      <tr><td>Data</td><td>Quando a devolução foi recebida.</td></tr>
+      <tr><td>NF Origem</td><td>A <strong>chave de acesso</strong> da NF de venda (com botão para copiar). Se a devolução chegou sem a chave, mostra o código usado no recebimento (CEP, Cód. Log. Reversa ou Ilegível) e o botão <strong>Informar chave</strong> — veja a <a href="#cli-nfs-pendentes">seção 3.8</a>. Quando houver, aparece também o nome do cliente final.</td></tr>
+      <tr><td>Nº NF Origem</td><td>O número da NF de venda, tirado da própria chave (com botão para copiar). Mostra "—" enquanto não houver chave.</td></tr>
+      <tr><td>NF Devolução</td><td>Só no <strong>Histórico</strong>: o XML da NF de devolução que você anexou ou, no Reenvio, a etiqueta e o DANFE. Clique para baixar.</td></tr>
+      <tr><td>Itens</td><td>Quantidade de itens e o <strong>estado dos produtos</strong> informado no recebimento: <strong>Bom</strong>, <strong>Avaria</strong> (ex.: "Avaria 1/3" = 1 avariado de 3) ou <strong>Caixa vazia</strong>.</td></tr>
+      <tr><td>Fotos Caixa / Fotos Itens</td><td>Miniaturas — clique para abrir a galeria.</td></tr>
       <tr><td>Decisão</td><td>Os botões coloridos para você escolher o destino.</td></tr>
-      <tr><td>Tempo Restante</td><td>Contagem regressiva até a auto-decisão (72h).</td></tr>
+      <tr><td>Tempo Restante</td><td>Contagem regressiva até a auto-decisão (72h), ou <strong>"Sem prazo"</strong> para depositantes sem prazo de decisão.</td></tr>
     </tbody>
   </table>
 
   <h3 id="cli-fotos">3.3 Galeria de fotos</h3>
   <p>Clique em qualquer miniatura para abrir a <strong>galeria em tela cheia</strong>. Use as setas para navegar entre as fotos e o ✕ para fechar. As fotos ajudam você a avaliar o estado da mercadoria antes de decidir.</p>
 
-  <h3 id="cli-decisoes">3.4 As 3 decisões</h3>
+  <h3 id="cli-decisoes">3.4 As decisões</h3>
   <p>Para cada devolução, você escolhe um destino:</p>
   <table>
-    <thead><tr><th scope="col">Decisão</th><th scope="col">O que acontece</th><th scope="col">Precisa de XML?</th></tr></thead>
+    <thead><tr><th scope="col">Decisão</th><th scope="col">O que acontece</th><th scope="col">O que anexar</th></tr></thead>
     <tbody>
       <tr>
         <td><span class="pill green"><span class="dot"></span>Estoque</span></td>
         <td>Produto avaliado como saudável e em condições de revenda. Será reintegrado ao estoque disponível para venda imediata.</td>
-        <td><strong>Sim</strong></td>
+        <td><strong>XML da NF de devolução</strong></td>
       </tr>
       <tr>
         <td><span class="pill orange"><span class="dot"></span>Tratativa</span></td>
         <td>O produto vai para uma área segregada no galpão, para tratativas futuras. Procure o departamento comercial da Logvale para definir os próximos passos.</td>
-        <td>Não</td>
+        <td>Nada</td>
       </tr>
       <tr>
         <td><span class="pill red"><span class="dot"></span>Retirada</span></td>
         <td>O produto ficará disponível para retirada pelo cliente. Os termos, prazos e condições da retirada são negociados diretamente com o comercial da Logvale.</td>
-        <td><strong>Sim</strong></td>
+        <td><strong>XML da NF de devolução</strong></td>
+      </tr>
+      <tr>
+        <td><span class="pill blue"><span class="dot"></span>Reenvio</span></td>
+        <td>O mesmo pedido é reenviado ao cliente final com a <strong>mesma NF</strong> do pedido original. A Logvale despacha com a etiqueta que você anexar. <strong>Só aparece para depositantes habilitados.</strong></td>
+        <td><strong>Etiqueta de reenvio</strong> e <strong>DANFE</strong>, em PDF (até 5 MB cada)</td>
       </tr>
     </tbody>
   </table>
@@ -515,13 +563,18 @@
   <h3 id="cli-confirmar">3.5 Confirmação em duas etapas</h3>
   <p>Decidir tem dois cliques, de propósito, para evitar enganos:</p>
   <ol class="steps">
-    <li>Clique no botão da decisão desejada. Abre-se a janela <strong>"Confirmar Decisão"</strong>, com a decisão em destaque, sua descrição, um <strong>resumo da devolução</strong> e o aviso <strong>"Esta decisão é irreversível"</strong>.</li>
+    <li>Clique no botão da decisão desejada. Abre-se a janela <strong>"Confirmar Decisão"</strong>, com a decisão em destaque, sua descrição, um <strong>resumo da devolução</strong> (data, itens e estado dos produtos, identificador, depositante) e o aviso <strong>"Esta decisão é irreversível"</strong>.</li>
     <li>Para <span class="pill green"><span class="dot"></span>Estoque</span> e <span class="pill red"><span class="dot"></span>Retirada</span>, <strong>anexe o XML da NF de devolução</strong> (obrigatório).</li>
+    <li>Para <span class="pill blue"><span class="dot"></span>Reenvio</span>, <strong>anexe a etiqueta de reenvio e o DANFE</strong>, os dois em PDF (obrigatórios, até 5 MB cada).</li>
     <li>O botão <strong>Confirmar</strong> fica travado por 2 segundos. Quando liberar, clique para concluir.</li>
   </ol>
   <figure class="shot">
     <img src="assets/screenshots/10.webp" alt="Janela Confirmar Decisão — com o campo de upload do XML">
     <figcaption>Captura 10 — Confirmação da decisão.</figcaption>
+  </figure>
+  <figure class="shot">
+    <img src="assets/screenshots/17.webp" alt="Janela Confirmar Decisão do Reenvio — descrição, resumo da devolução e os campos Etiqueta de reenvio (PDF) e DANFE (PDF)">
+    <figcaption>Captura 17 — Confirmação do Reenvio.</figcaption>
   </figure>
   <div class="callout warn">A decisão é <strong>irreversível</strong>. Após confirmar, a devolução sai da lista de pendentes e passa para o histórico. Em caso de engano, entre em contato com o suporte da Logvale.</div>
 
@@ -530,19 +583,39 @@
     <li><strong>48 horas:</strong> se a devolução continuar sem decisão, o sistema envia <strong>um e-mail de aviso</strong>.</li>
     <li><strong>72 horas:</strong> sem decisão, o sistema decide automaticamente por <span class="pill orange"><span class="dot"></span>Tratativa</span>. No histórico, essas aparecem com a etiqueta <strong>Auto</strong>.</li>
   </ul>
+  <div class="callout note"><strong>Depositantes sem prazo de decisão:</strong> alguns depositantes, por acordo com a Logvale, não têm prazo. Para eles não há e-mail de 48h nem auto-decisão de 72h — a devolução espera a sua decisão, e a coluna Tempo Restante mostra <strong>"Sem prazo"</strong>.</div>
 
   <h3 id="cli-historico">3.7 Histórico</h3>
-  <p>Em <strong>Ver histórico</strong> você encontra todas as devoluções já decididas, com a decisão tomada e a data. Decisões automáticas trazem a etiqueta <strong>Auto</strong>. Os mesmos filtros de depositante e data estão disponíveis.</p>
+  <p>Em <strong>Histórico</strong> você encontra todas as devoluções já decididas, com a decisão tomada e a data. Decisões automáticas trazem a etiqueta <strong>Auto</strong>. Os mesmos filtros de depositante e data estão disponíveis. A coluna <strong>NF Devolução</strong> permite baixar o que você anexou na decisão (XML da NF de devolução, ou etiqueta e DANFE do Reenvio).</p>
+  <p>O botão <strong>Exportar XLSX</strong> baixa uma planilha com todo o seu histórico (data, RV, NF Origem, NF Devolução, depositante, cliente final, itens, decisão, quem decidiu, data da decisão e status). As colunas NF Origem e NF Devolução trazem a chave de acesso de cada nota.</p>
 
-  <h3 id="cli-perfil">3.8 Meu Perfil</h3>
+  <h3 id="cli-nfs-pendentes">3.8 NFs Pendentes (chave da NF de origem)</h3>
+  <p>Quando a caixa chega sem a nota fiscal legível, o operador registra a devolução pelo <strong>Código de Logística Reversa</strong>, pelo <strong>CEP</strong> ou como <strong>Ilegível</strong>. Nesses casos falta a <strong>chave de acesso da NF de origem</strong> (a sua NF de venda), e cabe a você informá-la.</p>
+  <p>A tela <strong>NFs Pendentes</strong> (no menu, entre Pendentes e Histórico) lista essas devoluções, das mais antigas para as mais novas, em dois grupos:</p>
+  <ul>
+    <li><strong>Aguardando decisão</strong> — devoluções que ainda esperam a sua decisão.</li>
+    <li><strong>Decididas</strong> — já decididas por você ou automaticamente após 72h, mas ainda sem a chave.</li>
+  </ul>
+  <p>Cada cartão mostra a RV, a data de recebimento, os itens, o depositante e as fotos. Digite os <strong>44 dígitos</strong> da chave no campo e clique em <strong>Salvar chave</strong>. O mesmo pode ser feito direto na tabela de pendentes ou do histórico, pelo botão <strong>Informar chave</strong> na coluna NF Origem.</p>
+  <div class="callout tip">A chave pendente <strong>não bloqueia a decisão</strong> nem interrompe o prazo de 72h: você pode decidir normalmente e informar a chave depois.</div>
+  <div class="callout note">O sistema confere a chave antes de salvar: ela precisa ter 44 dígitos válidos (dígito verificador) e ter sido <strong>emitida pelo CNPJ do depositante</strong> daquela devolução. Uma vez salva, a chave não pode ser trocada — em caso de erro, fale com o suporte da Logvale.</div>
+  <figure class="shot">
+    <img src="assets/screenshots/18.webp" alt="NFs Pendentes — cartões do grupo Aguardando decisão, cada um com o campo da chave e o botão Salvar chave">
+    <figcaption>Captura 18 — NFs Pendentes.</figcaption>
+  </figure>
+
+  <h3 id="cli-perfil">3.9 Meu Perfil</h3>
   <p>Em <strong>Meu Perfil</strong> você vê seus <strong>dados pessoais</strong> (nome, e-mail, telefone) e os <strong>depositantes vinculados</strong> à sua conta — tudo em modo leitura. Para alterar qualquer dado, fale com o gerente. Há também o botão <strong>Sair</strong>.</p>
 
-  <h3 id="cli-duvidas">3.9 Dúvidas do cliente</h3>
+  <h3 id="cli-duvidas">3.10 Dúvidas do cliente</h3>
   <table>
     <thead><tr><th scope="col">Pergunta</th><th scope="col">Resposta</th></tr></thead>
     <tbody>
       <tr><td>Perdi o prazo de 72h, e agora?</td><td>O sistema já encaminhou para Tratativa. Fale com o comercial da Logvale para os próximos passos.</td></tr>
       <tr><td>Qual XML devo anexar?</td><td>O XML da <strong>nota fiscal de devolução</strong> emitida por você (exigido em Estoque e Retirada).</td></tr>
+      <tr><td>Onde baixo o XML ou o DANFE da NF de origem?</td><td>O sistema guarda apenas a <strong>chave de acesso</strong> da NF de origem, não o arquivo. Copie a chave (ou o Nº NF Origem) na tabela para localizar a nota no seu sistema.</td></tr>
+      <tr><td>Apareceu "Informar chave" na devolução</td><td>A caixa chegou sem a NF legível. Informe a chave da sua NF de venda em <a href="#cli-nfs-pendentes">NFs Pendentes</a> — isso não impede a decisão.</td></tr>
+      <tr><td>Não vejo o botão Reenvio</td><td>O Reenvio só aparece para depositantes habilitados. Fale com o comercial da Logvale.</td></tr>
       <tr><td>Posso desfazer uma decisão?</td><td>Não. A decisão é irreversível; em caso de erro, contate o suporte.</td></tr>
       <tr><td>Esqueci minha senha</td><td>Solicite ao gerente da Logvale; ele dispara para o seu e-mail um link de redefinição de senha. Não existe "esqueci minha senha" na tela de login.</td></tr>
     </tbody>
@@ -604,8 +677,32 @@
 
   <h3 id="ger-devolucoes">4.5 Visão geral de devoluções</h3>
   <p>Em <strong>Devoluções</strong> você consulta <strong>todas</strong> as devoluções do sistema. É possível <strong>buscar por RV</strong> e <strong>filtrar por status</strong> (aguardando decisão, decidido ou processado), para acompanhar qualquer item do início ao fim.</p>
+  <p>Os detalhes de cada devolução mostram depositante, itens e <strong>estado dos produtos</strong>, cliente final, operador que recebeu, datas (recebimento, decisão, processamento), o identificador, as fotos e os arquivos anexados pelo cliente (XML da NF de devolução, ou etiqueta e DANFE do Reenvio), para baixar.</p>
+  <ul>
+    <li><strong>Reverter</strong> — volta a devolução um passo: de <em>Processado</em> para <em>Decidido</em>, ou de <em>Decidido</em> para <em>Aguardando decisão</em> (neste caso a decisão e os anexos do cliente são apagados, e ele decide de novo). É uma ação excepcional — por exemplo, para corrigir uma decisão tomada por engano; o sistema pede confirmação.</li>
+    <li><strong>Remover devolução</strong> — apaga a devolução e as fotos <strong>de forma permanente</strong>. Use só para registros feitos por engano; o sistema pede confirmação.</li>
+  </ul>
 
-  <h3 id="ger-lgpd">4.6 Ferramentas LGPD</h3>
+  <h3 id="ger-relatorios">4.6 Relatórios</h3>
+  <p>Em <strong>Relatórios</strong> você gera o <strong>relatório de devoluções em planilha (XLSX)</strong>. Escolha:</p>
+  <ul>
+    <li><strong>Período</strong> — <em>Mês de referência</em>, <em>Últimos 90 dias</em> ou <em>Intervalo personalizado</em> (De / Até).</li>
+    <li><strong>Depositante</strong> — um depositante específico ou <em>Todos os depositantes</em>.</li>
+    <li><strong>Status</strong> — todos ou apenas um status.</li>
+  </ul>
+  <p>Clique em <strong>Gerar relatório</strong> e a planilha é baixada. As devoluções entram pela <strong>data de recebimento</strong>, sempre no horário de Brasília. A planilha tem as abas:</p>
+  <ul>
+    <li><strong>Resumo</strong> — os indicadores do período (os mesmos do Dashboard).</li>
+    <li><strong>Devoluções</strong> — uma linha por devolução. A coluna <strong>NF Origem</strong> traz a chave de acesso da NF de venda (ou, se ainda não houver, o código usado no recebimento) e a coluna <strong>NF Devolução</strong> traz a chave da NF de devolução.</li>
+    <li><strong>Por depositante</strong> — o consolidado por empresa (só no relatório com todos os depositantes).</li>
+  </ul>
+  <div class="callout note">Se não houver nenhuma devolução recebida no período escolhido, o sistema avisa em vez de baixar uma planilha vazia.</div>
+  <figure class="shot">
+    <img src="assets/screenshots/19.webp" alt="Relatórios — campos Período, Mês, Depositante e Status e o botão Gerar relatório">
+    <figcaption>Captura 19 — Relatórios.</figcaption>
+  </figure>
+
+  <h3 id="ger-lgpd">4.7 Ferramentas LGPD</h3>
   <p>As ações de <strong>Exportar dados</strong> e <strong>Anonimizar</strong> (na tela de Usuários) atendem aos direitos previstos na LGPD. A anonimização preserva apenas os dados fiscais exigidos por lei. Consulte também a Política de Privacidade e os Termos de Uso (<a href="#ref-lgpd">Parte 5.7</a>).</p>
 
   <a class="back-top no-print" href="#topo">↑ Voltar ao topo</a>
@@ -618,14 +715,15 @@
 
   <h3 id="ref-decisoes">5.1 Resumo das decisões</h3>
   <table>
-    <thead><tr><th scope="col">Decisão</th><th scope="col">Significado</th><th scope="col">Exige XML?</th><th scope="col">Reversível?</th></tr></thead>
+    <thead><tr><th scope="col">Decisão</th><th scope="col">Significado</th><th scope="col">Anexo exigido</th><th scope="col">Reversível?</th></tr></thead>
     <tbody>
-      <tr><td><span class="pill green"><span class="dot"></span>Estoque</span></td><td>Volta ao estoque para venda</td><td>Sim</td><td>Não</td></tr>
-      <tr><td><span class="pill orange"><span class="dot"></span>Tratativa</span></td><td>Área segregada; tratar com o comercial</td><td>Não</td><td>Não</td></tr>
-      <tr><td><span class="pill red"><span class="dot"></span>Retirada</span></td><td>Produto disponível para retirada (termos com o comercial)</td><td>Sim</td><td>Não</td></tr>
+      <tr><td><span class="pill green"><span class="dot"></span>Estoque</span></td><td>Volta ao estoque para venda</td><td>XML da NF de devolução</td><td>Não</td></tr>
+      <tr><td><span class="pill orange"><span class="dot"></span>Tratativa</span></td><td>Área segregada; tratar com o comercial</td><td>Nenhum</td><td>Não</td></tr>
+      <tr><td><span class="pill red"><span class="dot"></span>Retirada</span></td><td>Produto disponível para retirada (termos com o comercial)</td><td>XML da NF de devolução</td><td>Não</td></tr>
+      <tr><td><span class="pill blue"><span class="dot"></span>Reenvio</span></td><td>Mesmo pedido reenviado ao cliente final, com a mesma NF (só depositantes habilitados)</td><td>Etiqueta de reenvio + DANFE (PDF)</td><td>Não</td></tr>
     </tbody>
   </table>
-  <div class="callout note">A <span class="pill blue"><span class="dot"></span>Reembalagem</span> existe internamente no sistema, mas <strong>não é um botão</strong> à disposição do cliente.</div>
+  <div class="callout note">A <strong>Reembalagem</strong> existe internamente no sistema, mas <strong>não é um botão</strong> à disposição do cliente.</div>
 
   <h3 id="ref-ciclo">5.2 Ciclo de vida de uma devolução</h3>
   <div class="lifecycle">
@@ -635,7 +733,7 @@
     <span class="arrow">→</span>
     <span class="stage">🏁 Processado</span>
   </div>
-  <p><strong>Aguardando decisão:</strong> recebimento concluído pelo operador, aguardando o cliente. <strong>Decidido:</strong> o cliente (ou o sistema, após 72h) escolheu o destino; aguarda a tratativa. <strong>Processado:</strong> o operador concluiu a tratativa.</p>
+  <p><strong>Aguardando decisão:</strong> recebimento concluído pelo operador, aguardando o cliente. <strong>Decidido:</strong> o cliente (ou o sistema, após 72h — exceto para depositantes sem prazo) escolheu o destino; aguarda a tratativa. <strong>Processado:</strong> o operador concluiu a tratativa.</p>
 
   <h3 id="ref-prazos">5.3 Prazos do sistema</h3>
   <table>
@@ -645,6 +743,7 @@
       <tr><td>72 horas sem decisão</td><td>O sistema decide automaticamente por Tratativa (etiqueta "Auto").</td></tr>
     </tbody>
   </table>
+  <div class="callout note">Depositantes <strong>sem prazo de decisão</strong> (definidos pela Logvale) não recebem o aviso de 48h nem a auto-decisão de 72h.</div>
 
   <h3 id="ref-faq">5.4 Perguntas frequentes</h3>
   <h4>Acesso (todos)</h4>
@@ -655,11 +754,14 @@
   <h4>Operador</h4>
   <ul>
     <li><strong>O leitor não bipa:</strong> use "digitar à mão" na etapa.</li>
-    <li><strong>A NF não foi encontrada:</strong> tente CEP ou marque como Ilegível.</li>
+    <li><strong>A caixa não tem NF legível:</strong> use o Código de Logística Reversa ou o CEP; sem nenhum código, "Nenhum código está legível".</li>
+    <li><strong>A caixa chegou vazia:</strong> na Etapa 3, marque Caixa vazia (as fotos dos itens são puladas).</li>
   </ul>
   <h4>Cliente</h4>
   <ul>
     <li><strong>Não consigo confirmar Estoque/Retirada:</strong> verifique se anexou o XML da NF de devolução.</li>
+    <li><strong>Não consigo confirmar o Reenvio:</strong> anexe os dois PDFs — etiqueta de reenvio e DANFE (até 5 MB cada).</li>
+    <li><strong>A chave informada foi recusada:</strong> confira os 44 dígitos e se a NF foi emitida pelo CNPJ do depositante da devolução.</li>
     <li><strong>O botão Confirmar está desabilitado:</strong> aguarde os 2 segundos de segurança.</li>
   </ul>
 
@@ -667,15 +769,22 @@
   <table>
     <thead><tr><th scope="col">Termo</th><th scope="col">Significado</th></tr></thead>
     <tbody>
-      <tr><td>Auto-decisão</td><td>Decisão tomada pelo sistema após 72h sem resposta do cliente (vira Tratativa).</td></tr>
+      <tr><td>Auto-decisão</td><td>Decisão tomada pelo sistema após 72h sem resposta do cliente (vira Tratativa). Não vale para depositantes sem prazo de decisão.</td></tr>
+      <tr><td>Avaria</td><td>Estado dos produtos quando algum item chegou avariado; o operador informa quantos.</td></tr>
+      <tr><td>Caixa vazia</td><td>Caixa recebida sem nenhum item (0 itens); só a caixa é fotografada.</td></tr>
       <tr><td>CEP / Código Postal</td><td>Identificador alternativo usado quando a NF está ilegível.</td></tr>
       <tr><td>Chave de Acesso</td><td>Número de 44 dígitos que identifica a NF-e.</td></tr>
+      <tr><td>Código de Logística Reversa</td><td>Código de logística reversa do cliente, impresso na caixa; identificador alternativo quando a caixa não traz a NF.</td></tr>
       <tr><td>DANFE</td><td>Documento Auxiliar da NF-e — a versão em PDF da nota, para visualizar e imprimir.</td></tr>
       <tr><td>Depositante</td><td>Empresa (CNPJ) dona da mercadoria armazenada na Logvale.</td></tr>
       <tr><td>Devolução</td><td>Mercadoria devolvida registrada no sistema.</td></tr>
-      <tr><td>Ilegível</td><td>Estado quando NF e CEP não puderam ser lidos; o sistema gera um identificador próprio.</td></tr>
+      <tr><td>Estado dos produtos</td><td>Bom, Avaria ou Caixa vazia — informado pelo operador na Etapa 3; é só informativo.</td></tr>
+      <tr><td>Ilegível</td><td>Estado quando nenhum código (NF, código de logística reversa ou CEP) pôde ser lido; o sistema gera um identificador próprio.</td></tr>
       <tr><td>NF / NF-e</td><td>Nota fiscal eletrônica.</td></tr>
+      <tr><td>NF de devolução</td><td>NF emitida pelo cliente para a devolução; o XML é anexado nas decisões Estoque e Retirada.</td></tr>
+      <tr><td>NF de origem</td><td>NF de venda do depositante; o sistema guarda só a chave de acesso dela.</td></tr>
       <tr><td>Reembalagem</td><td>Destino interno em que o produto é reembalado; não disponível como botão ao cliente.</td></tr>
+      <tr><td>Reenvio</td><td>Decisão (só para depositantes habilitados) em que o mesmo pedido é reenviado ao cliente final com a mesma NF.</td></tr>
       <tr><td>RV</td><td>Etiqueta com código de barras colada na caixa.</td></tr>
       <tr><td>Tratativa</td><td>Execução, pelo operador, da decisão do cliente.</td></tr>
       <tr><td>XML</td><td>Arquivo digital da nota fiscal.</td></tr>
@@ -700,7 +809,7 @@
 </section>
 
 <footer class="doc-footer">
-  <p><strong>Sistema Logvale de Devoluções</strong> — Manual do Usuário · Versão 1.2 · 22/06/2026</p>
+  <p><strong>Sistema Logvale de Devoluções</strong> — Manual do Usuário · Versão 1.3 · 12/11/2026</p>
   <p>Suporte: cadu@logvale.com.br · +55 (12) 99713-8919</p>
 </footer>
 
