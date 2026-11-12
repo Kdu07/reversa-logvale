@@ -14,6 +14,7 @@ import { PhotoThumbs } from '@/components/shared/photo-thumbs'
 import { DownloadXmlButton } from '@/components/shared/download-xml-button'
 import { CopyButton } from '@/components/shared/copy-button'
 import { formatDate, xmlDownloadName, reshipLabelDownloadName, reshipDanfeDownloadName } from '@/lib/format'
+import { accessKeyInvoiceNumber } from '@/lib/access-key'
 import { Inbox, ChevronLeft, ChevronRight } from 'lucide-react'
 import type { ReturnRow, DepositorOption } from '../actions'
 import type { ReturnDecision, IdentifierType } from '@/types'
@@ -94,6 +95,17 @@ function IdentifierTag({ row }: { row: ReturnRow }) {
           Cliente: {row.finalCustomerName}
         </span>
       )}
+    </span>
+  )
+}
+
+function InvoiceNumberCell({ accessKey }: { accessKey: string | null }) {
+  const number = accessKeyInvoiceNumber(accessKey)
+  if (!number) return <span className="text-muted-foreground">—</span>
+  return (
+    <span className="inline-flex items-center gap-1">
+      <span className="font-mono text-xs">{number}</span>
+      <CopyButton value={number} title="Copiar Nº NF Origem" className="shrink-0" />
     </span>
   )
 }
@@ -202,6 +214,7 @@ export function ReturnsTable({
                 <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">RV</th>
                 <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">Data</th>
                 <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">NF Origem</th>
+                <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">Nº NF Origem</th>
                 {mode === 'history' && (
                   <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">NF Devolução</th>
                 )}
@@ -235,6 +248,11 @@ export function ReturnsTable({
                       não é mais necessário. */}
                   <td className="px-3 py-2.5">
                     <IdentifierTag row={row} />
+                  </td>
+                  {/* Nº NF Origem: extraído da chave (nNF) — sem chave, "—" até
+                      o cliente informá-la. */}
+                  <td className="px-3 py-2.5 whitespace-nowrap">
+                    <InvoiceNumberCell accessKey={row.accessKey} />
                   </td>
                   {/* NF Devolução: só existe depois da decisão (XML enviado no
                       DecisionModal, ou etiqueta + DANFE do Reenvio) — por isso

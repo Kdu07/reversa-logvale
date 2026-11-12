@@ -34,3 +34,12 @@ export function isValidAccessKey(key: string): boolean {
 export function accessKeyEmitterCnpj(key: string): string {
   return key.slice(6, 20)
 }
+
+/**
+ * Número da NF (nNF, posições 26–34) sem os zeros à esquerda — o que aparece
+ * no DANFE. `null` se não for uma chave de 44 dígitos.
+ */
+export function accessKeyInvoiceNumber(key: string | null | undefined): string | null {
+  if (!key || !/^\d{44}$/.test(key)) return null
+  return String(parseInt(key.slice(25, 34), 10))
+}
