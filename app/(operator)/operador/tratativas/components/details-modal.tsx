@@ -7,7 +7,7 @@ import { PhotoGallery } from '@/components/shared/photo-gallery'
 import { PhotoThumbs } from '@/components/shared/photo-thumbs'
 import { DownloadXmlButton } from '@/components/shared/download-xml-button'
 import { DECISION_META } from '@/lib/decisions'
-import { formatDate, identifierLabel, xmlDownloadName, reshipLabelDownloadName, reshipDanfeDownloadName } from '@/lib/format'
+import { formatDate, identifierLabel, itemConditionLabel, xmlDownloadName, reshipLabelDownloadName, reshipDanfeDownloadName } from '@/lib/format'
 import { processReturnAction } from '../actions'
 import type { TrativaRow } from '../actions'
 
@@ -88,6 +88,10 @@ export function DetailsModal({ row, onClose, onComplete }: DetailsModalProps) {
                 <div>
                   <p className="text-xs text-muted-foreground">Nº de Itens</p>
                   <p className="font-medium">{row.itemCount}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Estado</p>
+                  <p className="font-medium">{itemConditionLabel(row.itemCount, row.damagedItemCount) ?? '—'}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Identificador</p>

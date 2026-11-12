@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { DECISION_META } from '@/lib/decisions'
-import { formatDate, identifierLabel } from '@/lib/format'
+import { formatDate, identifierLabel, itemConditionLabel } from '@/lib/format'
 import { submitDecisionAction } from '../actions'
 import type { ReturnRow } from '../actions'
 import type { ReturnDecision } from '@/types'
@@ -155,7 +155,14 @@ export function DecisionModal({ row, decision, onClose, onSuccess }: DecisionMod
         <div className="rounded-lg border bg-muted/30 p-3 space-y-1 text-sm">
           <p className="text-xs font-medium text-muted-foreground mb-1">Resumo da Devolução</p>
           <p><span className="text-muted-foreground">Data:</span> {formatDate(row.receivedAt)}</p>
-          <p><span className="text-muted-foreground">Itens:</span> {row.itemCount}</p>
+          <p>
+            <span className="text-muted-foreground">Itens:</span> {row.itemCount}
+            {row.damagedItemCount !== null && (
+              <span className={row.damagedItemCount > 0 ? 'font-medium text-amber-700' : 'font-medium text-green-700'}>
+                {' · '}{itemConditionLabel(row.itemCount, row.damagedItemCount)}
+              </span>
+            )}
+          </p>
           <p><span className="text-muted-foreground">Identificador:</span> <span className="font-mono text-xs break-all">{identifierLabel(row)}</span></p>
           {row.depositorName && (
             <p><span className="text-muted-foreground">Depositante:</span> {row.depositorName}</p>

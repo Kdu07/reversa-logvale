@@ -61,6 +61,7 @@ const RETURN_ROW = {
   decided_at: '2026-07-21T10:00:00Z', processed_at: null,
   identifier_type: 'access_key', access_key: '3'.repeat(44),
   postal_code: null, logistics_code: null, illegible_token: null, item_count: 2,
+  damaged_item_count: 2,
   return_invoice_xml_url: 'returns/r-1.xml', final_customer_name: 'CLIENTE FINAL',
   depositors: { razao_social: 'ACME LTDA' },
   return_photos: [
@@ -110,11 +111,21 @@ describe('getMyReturnsAction', () => {
     expect(result.total).toBe(1)
     expect(result.rows[0]).toMatchObject({
       rv: 'RV2024001', depositorName: 'ACME LTDA', finalCustomerName: 'CLIENTE FINAL',
-      returnInvoiceXmlPath: 'returns/r-1.xml', itemCount: 2,
+      returnInvoiceXmlPath: 'returns/r-1.xml', itemCount: 2, damagedItemCount: 2,
     })
     // b1 (position 1) antes de b2 (position 2)
     expect(result.rows[0].boxPhotoUrls).toEqual(['box-photos/b1', 'box-photos/b2'])
     expect(result.rows[0].itemPhotoUrls).toEqual(['item-photos/i1'])
+  })
+
+  it('devolução recebida antes da etapa de estado sai como não avaliada (null)', async () => {
+    const { damaged_item_count: _omit, ...legacy } = RETURN_ROW
+    queryResult = { data: [legacy], count: 1, error: null }
+
+    const result = await getMyReturnsAction()
+
+    if ('error' in result) throw new Error(result.error)
+    expect(result.rows[0].damagedItemCount).toBeNull()
   })
 
   it('descarta fotos sem URL assinada', async () => {

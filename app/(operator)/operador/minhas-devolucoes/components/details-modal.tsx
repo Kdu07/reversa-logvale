@@ -8,7 +8,7 @@ import { DecisionPill } from '@/components/shared/decision-pill'
 import { PhotoGallery } from '@/components/shared/photo-gallery'
 import { PhotoThumbs } from '@/components/shared/photo-thumbs'
 import { DownloadXmlButton } from '@/components/shared/download-xml-button'
-import { formatDate, identifierLabel, xmlDownloadName, reshipLabelDownloadName, reshipDanfeDownloadName } from '@/lib/format'
+import { formatDate, identifierLabel, itemConditionLabel, xmlDownloadName, reshipLabelDownloadName, reshipDanfeDownloadName } from '@/lib/format'
 import { ptBR } from '@/lib/i18n/pt-BR'
 import type { ReturnStatus } from '@/types'
 import type { MyReturnRow } from '../actions'
@@ -63,6 +63,7 @@ export function DetailsModal({ row, onClose }: Props) {
               <div className="col-span-2">
                 <InfoField label="Cliente final" value={row.finalCustomerName ?? '—'} />
               </div>
+              <InfoField label="Estado" value={itemConditionLabel(row.itemCount, row.damagedItemCount) ?? '—'} />
               <InfoField label="Recebido em" value={formatDate(row.receivedAt)} />
               {row.decidedAt   && <InfoField label="Decisão em"    value={formatDate(row.decidedAt)} />}
               {row.processedAt && <InfoField label="Processado em" value={formatDate(row.processedAt)} />}

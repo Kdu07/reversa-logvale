@@ -23,6 +23,8 @@ export interface ReturnRow {
   illegibleToken: string | null
   rv:             string
   itemCount:      number
+  /** Estado no recebimento: null = não avaliado, 0 = Bom, >0 = itens avariados. */
+  damagedItemCount: number | null
   receivedAt:     string
   depositorId:    string | null
   depositorName:  string | null
@@ -98,7 +100,7 @@ export async function getClientReturnsAction(
       .from('returns')
       .select(
         `id, identifier_type, access_key, postal_code, logistics_code, illegible_token,
-         rv, item_count, received_at, depositor_id, final_customer_name,
+         rv, item_count, damaged_item_count, received_at, depositor_id, final_customer_name,
          depositors!depositor_id(razao_social, cnpj),
          return_photos(storage_path, photo_type, position)`,
         { count: 'exact' },
@@ -170,6 +172,7 @@ export async function getClientReturnsAction(
         illegibleToken: r.illegible_token,
         rv:             r.rv,
         itemCount:      r.item_count,
+        damagedItemCount: r.damaged_item_count ?? null,
         receivedAt:     r.received_at,
         depositorId:    r.depositor_id,
         depositorName:  dep?.razao_social ?? null,
@@ -205,7 +208,7 @@ export async function getClientHistoryAction(
       .from('returns')
       .select(
         `id, identifier_type, access_key, postal_code, logistics_code, illegible_token,
-         rv, item_count, received_at, depositor_id, return_invoice_xml_url, final_customer_name,
+         rv, item_count, damaged_item_count, received_at, depositor_id, return_invoice_xml_url, final_customer_name,
          decision, decided_at, decided_by_type, reship_label_url, reship_danfe_url,
          depositors!depositor_id(razao_social),
          return_photos(storage_path, photo_type, position)`,
@@ -278,6 +281,7 @@ export async function getClientHistoryAction(
         illegibleToken: r.illegible_token,
         rv:             r.rv,
         itemCount:      r.item_count,
+        damagedItemCount: r.damaged_item_count ?? null,
         receivedAt:     r.received_at,
         depositorId:    r.depositor_id,
         depositorName:  dep?.razao_social ?? null,
@@ -441,6 +445,7 @@ export async function exportHistoryAction(): Promise<
           illegibleToken: r.illegible_token,
           rv:             r.rv,
           itemCount:      r.item_count,
+          damagedItemCount: null, // não exportado
           receivedAt:     r.received_at,
           depositorId:    null,
           depositorName:  dep?.razao_social ?? null,

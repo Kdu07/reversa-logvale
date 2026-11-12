@@ -16,6 +16,8 @@ export interface TrativaRow {
   logisticsCode:  string | null
   illegibleToken: string | null
   itemCount:      number
+  /** Estado no recebimento: null = não avaliado, 0 = Bom, >0 = itens avariados. */
+  damagedItemCount: number | null
   receivedAt:     string
   decidedAt:      string
   decidedByType:  'client' | 'auto'
@@ -55,7 +57,7 @@ export async function getTrativasAction(
       .from('returns')
       .select(
         `id, rv, identifier_type, access_key, postal_code, logistics_code, illegible_token,
-         item_count, received_at, decided_at, decided_by_type, decision,
+         item_count, damaged_item_count, received_at, decided_at, decided_by_type, decision,
          depositor_id, return_invoice_xml_url, reship_label_url, reship_danfe_url, final_customer_name,
          depositors!depositor_id(razao_social),
          profiles!decided_by(full_name),
@@ -113,6 +115,7 @@ export async function getTrativasAction(
         logisticsCode:  r.logistics_code,
         illegibleToken: r.illegible_token,
         itemCount:      r.item_count,
+        damagedItemCount: r.damaged_item_count ?? null,
         receivedAt:     r.received_at,
         decidedAt:      r.decided_at,
         decidedByType:  r.decided_by_type,

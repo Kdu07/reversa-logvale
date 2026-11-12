@@ -36,6 +36,7 @@ const BASE_PAYLOAD = {
   illegibleToken:    null,
   rv:                'RV-001',
   itemCount:         3,
+  damagedItemCount:  0,
   depositorId:       'dep-1',
   invoiceXmlPath:    null,
   invoicePdfPath:    null,
@@ -76,6 +77,40 @@ describe('createReturnAction', () => {
     expect(mockInsert).toHaveBeenCalledWith(
       expect.objectContaining({ final_customer_name: 'FULANO DE TAL' }),
     )
+  })
+
+  it('grava o estado dos produtos: 0 = Bom', async () => {
+    mockOperator()
+
+    await createReturnAction(BASE_PAYLOAD)
+
+    expect(mockInsert).toHaveBeenCalledWith(
+      expect.objectContaining({ item_count: 3, damaged_item_count: 0 }),
+    )
+  })
+
+  it('grava a quantidade de itens avariados, inclusive todos', async () => {
+    mockOperator()
+
+    await createReturnAction({ ...BASE_PAYLOAD, damagedItemCount: 2 })
+    expect(mockInsert).toHaveBeenLastCalledWith(expect.objectContaining({ damaged_item_count: 2 }))
+
+    await createReturnAction({ ...BASE_PAYLOAD, damagedItemCount: 3 })
+    expect(mockInsert).toHaveBeenLastCalledWith(expect.objectContaining({ damaged_item_count: 3 }))
+  })
+
+  it.each([
+    ['mais avariados que itens', 4],
+    ['negativo', -1],
+    ['não inteiro', 1.5],
+    ['NaN', Number.NaN],
+  ])('rejeita quantidade de avariados inválida (%s) sem inserir', async (_caso, damagedItemCount) => {
+    mockOperator()
+
+    const result = await createReturnAction({ ...BASE_PAYLOAD, damagedItemCount })
+
+    expect(result).toEqual({ error: 'Quantidade de itens avariados inválida.' })
+    expect(mockInsert).not.toHaveBeenCalled()
   })
 
   it('rejeita recebimento sem foto de caixa ou de item', async () => {

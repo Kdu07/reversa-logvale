@@ -40,6 +40,8 @@ export interface Return {
   illegible_token: string | null
   rv: string
   item_count: number
+  /** Itens avariados no recebimento: null = não avaliado, 0 = Bom, >0 = Avaria. */
+  damaged_item_count: number | null
   depositor_id: string | null
   invoice_xml_url: string | null
   status: ReturnStatus

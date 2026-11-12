@@ -53,6 +53,8 @@ interface CreateReturnPayload {
   illegibleToken:    string | null
   rv:                string
   itemCount:         number
+  /** 0 = Bom · 1..itemCount = Avaria (quantos avariados). */
+  damagedItemCount:  number
   depositorId:       string | null
   invoiceXmlPath:    string | null
   invoicePdfPath:    string | null
@@ -73,6 +75,12 @@ export async function createReturnAction(
       return { error: 'É necessária ao menos 1 foto da caixa e 1 foto do item.' }
     }
 
+    // Estado dos produtos (Etapa 3): 0 = Bom, 1..itemCount = Avaria.
+    const damaged = payload.damagedItemCount
+    if (!Number.isInteger(damaged) || damaged < 0 || damaged > payload.itemCount) {
+      return { error: 'Quantidade de itens avariados inválida.' }
+    }
+
     const supabase = createClient()
 
     const { data: record, error: insertError } = await supabase
@@ -85,6 +93,7 @@ export async function createReturnAction(
         illegible_token:     payload.illegibleToken,
         rv:                  payload.rv,
         item_count:          payload.itemCount,
+        damaged_item_count:  damaged,
         depositor_id:        payload.depositorId,
         invoice_xml_url:     payload.invoiceXmlPath,
         invoice_pdf_url:     payload.invoicePdfPath,

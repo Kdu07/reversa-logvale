@@ -11,7 +11,7 @@ import { EmptyState } from '@/components/shared/empty-state'
 import { PhotoGallery } from '@/components/shared/photo-gallery'
 import { PhotoThumbs } from '@/components/shared/photo-thumbs'
 import { DownloadXmlButton } from '@/components/shared/download-xml-button'
-import { formatDate, identifierLabel, xmlDownloadName, reshipLabelDownloadName, reshipDanfeDownloadName } from '@/lib/format'
+import { formatDate, identifierLabel, itemConditionLabel, xmlDownloadName, reshipLabelDownloadName, reshipDanfeDownloadName } from '@/lib/format'
 import { ptBR } from '@/lib/i18n/pt-BR'
 import { revertReturnStatusAction, deleteReturnAction } from '../actions'
 import { Boxes, ChevronLeft, ChevronRight, Search } from 'lucide-react'
@@ -234,6 +234,7 @@ export function ReturnsAdminTable({
                 {detailsRow.decidedAt   && <InfoField label="Decisão em"    value={formatDate(detailsRow.decidedAt)} />}
                 {detailsRow.processedAt && <InfoField label="Processado em" value={formatDate(detailsRow.processedAt)} />}
                 <InfoField label="Itens" value={String(detailsRow.itemCount)} />
+                <InfoField label="Estado" value={itemConditionLabel(detailsRow.itemCount, detailsRow.damagedItemCount) ?? '—'} />
                 <div className="col-span-2">
                   <p className="text-xs text-muted-foreground">Identificador</p>
                   <p className="font-mono text-xs break-all mt-0.5">{identifierLabel(detailsRow)}</p>

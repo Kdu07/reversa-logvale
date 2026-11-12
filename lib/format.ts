@@ -44,6 +44,17 @@ export function identifierLabel(row: {
 }
 
 /**
+ * Estado dos produtos registrado no recebimento (Etapa 3). Deriva de
+ * `damaged_item_count`: `null` = não avaliado (recebida antes da etapa
+ * existir) → `null`; `0` → "Bom"; `n > 0` → "Avaria (n de N)".
+ */
+export function itemConditionLabel(itemCount: number, damagedItemCount: number | null): string | null {
+  if (damagedItemCount === null) return null
+  if (damagedItemCount === 0) return 'Bom'
+  return `Avaria (${damagedItemCount} de ${itemCount})`
+}
+
+/**
  * Coluna "NF Origem" dos relatórios: só a chave de acesso, sem rótulo. Sem
  * chave (recebida por CEP/código/ilegível e ainda não informada), cai no
  * identificador usado no recebimento, com o rótulo — ex.: "CEP: 01310-100".

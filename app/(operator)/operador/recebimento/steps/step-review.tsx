@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
+import { itemConditionLabel } from '@/lib/format'
 import type { ReceivingState } from '../receiving-flow'
 
 interface StepReviewProps {
@@ -61,8 +62,17 @@ export function StepReview({ state, onConfirm, onGoTo, onBack }: StepReviewProps
         <p className="text-sm font-mono">{state.rv}</p>
       </ReviewSection>
 
-      <ReviewSection label="Nº de Itens" onEdit={() => onGoTo(3)}>
-        <p className="text-sm">{state.itemCount}</p>
+      <ReviewSection label="Itens" onEdit={() => onGoTo(3)}>
+        <p className="text-sm">
+          {state.itemCount} {state.itemCount === 1 ? 'item' : 'itens'}
+          {state.itemCount !== null && state.damagedItemCount !== null && (
+            <span
+              className={state.damagedItemCount > 0 ? 'text-amber-700 font-medium' : 'text-green-700 font-medium'}
+            >
+              {' · '}{itemConditionLabel(state.itemCount, state.damagedItemCount)}
+            </span>
+          )}
+        </p>
       </ReviewSection>
 
       <ReviewSection label={`Fotos da Caixa (${state.boxPhotos.length})`} onEdit={() => onGoTo(4)}>

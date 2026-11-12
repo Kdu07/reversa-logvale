@@ -53,6 +53,7 @@ export function StepSubmit({ state, onBack, onReset }: StepSubmitProps) {
         illegibleToken:  state.illegibleToken,
         rv:                state.rv,
         itemCount:         state.itemCount!,
+        damagedItemCount:  state.damagedItemCount!,
         depositorId:       state.depositorId,
         invoiceXmlPath:    state.invoiceData?.xmlStoragePath ?? null,
         invoicePdfPath:    state.invoiceData?.pdfStoragePath ?? null,

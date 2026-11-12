@@ -29,8 +29,10 @@ test.describe('Operador — Fluxo de Recebimento', () => {
     await page.keyboard.press('Enter')
     await expect(page.getByText(/etapa 3/i)).toBeVisible()
 
-    // Etapa 3 — Número de itens
-    await page.getByLabel(/número de itens/i).fill('3')
+    // Etapa 3 — Itens: quantidade + estado dos produtos (Bom / Avaria)
+    await page.getByLabel(/quantidade de itens/i).fill('3')
+    await expect(page.getByRole('button', { name: /próximo/i })).toBeDisabled() // estado é obrigatório
+    await page.getByRole('button', { name: /^bom/i }).click()
     await page.getByRole('button', { name: /próximo/i }).click()
 
     // Etapa 4 — Fotos da caixa (skip webcam, use file upload fallback if available)

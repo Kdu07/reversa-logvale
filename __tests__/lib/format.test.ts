@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatDate, identifierLabel, xmlDownloadName } from '@/lib/format'
+import { formatDate, identifierLabel, itemConditionLabel, xmlDownloadName } from '@/lib/format'
 
 describe('formatDate', () => {
   it('formata data ISO para padrão pt-BR com dia, mês e ano', () => {
@@ -87,6 +87,21 @@ describe('identifierLabel', () => {
       illegibleToken: 'TOK-XYZ',
     })
     expect(result).toBe('Ilegível: TOK-XYZ')
+  })
+})
+
+describe('itemConditionLabel', () => {
+  it('retorna null quando o estado não foi avaliado (devolução antiga)', () => {
+    expect(itemConditionLabel(3, null)).toBeNull()
+  })
+
+  it('retorna "Bom" quando não há itens avariados', () => {
+    expect(itemConditionLabel(3, 0)).toBe('Bom')
+  })
+
+  it('retorna "Avaria (n de N)" quando há itens avariados', () => {
+    expect(itemConditionLabel(5, 2)).toBe('Avaria (2 de 5)')
+    expect(itemConditionLabel(1, 1)).toBe('Avaria (1 de 1)')
   })
 })
 

@@ -111,7 +111,11 @@ legível, o operador marca "Ilegível" (último recurso) → gera placeholder ú
 
 **Etapa 2: RV** — operador cola RV pré-impresso e bipa
 
-**Etapa 3: Número de Itens** — inteiro positivo
+**Etapa 3: Itens** — quantidade (inteiro positivo) + estado dos produtos
+- Estado obrigatório, sem pré-seleção: **Bom** ou **Avaria** (atalhos `B` / `A`, `Enter` avança)
+- Com Avaria, informa quantos itens estão avariados (1 até a quantidade; com 1 item já vem 1)
+- Gravado em `returns.damaged_item_count`: `0` = Bom, `n > 0` = Avaria; `null` = recebida antes da etapa existir
+- Só informa: aparece para o cliente (tabela e modal de decisão) e nos detalhes do operador/admin, sem mudar as opções de decisão nem a auto-decisão de 72h
 
 **Etapa 4: Fotos da Caixa (2-4 fotos)**
 - Webcam via `getUserMedia`

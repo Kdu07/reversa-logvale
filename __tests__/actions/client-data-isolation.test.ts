@@ -107,7 +107,7 @@ describe('getClientReturnsAction', () => {
     returnsResult = {
       data: [{
         id: 'r-1', identifier_type: 'access_key', access_key: '4'.repeat(44),
-        postal_code: null, illegible_token: null, rv: 'RV-1', item_count: 2,
+        postal_code: null, illegible_token: null, rv: 'RV-1', item_count: 2, damaged_item_count: 0,
         received_at: '2025-01-01', depositor_id: 'dep-1', invoice_xml_url: null,
         depositors: { razao_social: 'Acme Ltda' }, return_photos: [],
       }],
@@ -120,7 +120,7 @@ describe('getClientReturnsAction', () => {
     const ok = result as { rows: unknown[]; total: number; depositors: { id: string; name: string }[] }
     expect(ok.total).toBe(1)
     expect(ok.depositors).toEqual([{ id: 'dep-1', name: 'Acme Ltda' }])
-    expect(ok.rows[0]).toMatchObject({ id: 'r-1', depositorName: 'Acme Ltda' })
+    expect(ok.rows[0]).toMatchObject({ id: 'r-1', depositorName: 'Acme Ltda', itemCount: 2, damagedItemCount: 0 })
   })
 
   it('super user recebe todos os depositantes ativos', async () => {
@@ -217,6 +217,7 @@ describe('getClientHistoryAction', () => {
     const ok = result as unknown as { rows: Record<string, unknown>[] }
     expect(ok.rows[0]).toMatchObject({
       id: 'r-9', decision: 'return_to_stock', decidedByType: 'client', decidedAt: '2025-01-03',
+      damagedItemCount: null, // sem a coluna = recebida antes da etapa de estado
     })
   })
 

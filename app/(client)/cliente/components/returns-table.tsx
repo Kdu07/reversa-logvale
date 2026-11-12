@@ -13,6 +13,7 @@ import { PhotoGallery } from '@/components/shared/photo-gallery'
 import { PhotoThumbs } from '@/components/shared/photo-thumbs'
 import { DownloadXmlButton } from '@/components/shared/download-xml-button'
 import { CopyButton } from '@/components/shared/copy-button'
+import { ItemConditionBadge } from '@/components/shared/item-condition-badge'
 import { formatDate, xmlDownloadName, reshipLabelDownloadName, reshipDanfeDownloadName } from '@/lib/format'
 import { accessKeyInvoiceNumber } from '@/lib/access-key'
 import { Inbox, ChevronLeft, ChevronRight } from 'lucide-react'
@@ -292,7 +293,12 @@ export function ReturnsTable({
                       </div>
                     </td>
                   )}
-                  <td className="px-3 py-2.5 text-center text-muted-foreground">{row.itemCount}</td>
+                  <td className="px-3 py-2.5 text-center text-muted-foreground">
+                    <div className="flex flex-col items-center gap-1">
+                      {row.itemCount}
+                      <ItemConditionBadge itemCount={row.itemCount} damagedItemCount={row.damagedItemCount} />
+                    </div>
+                  </td>
                   <td className="px-3 py-2.5">
                     <PhotoThumbs
                       urls={row.boxPhotoUrls}

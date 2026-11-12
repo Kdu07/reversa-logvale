@@ -26,6 +26,8 @@ export interface ReceivingState {
   depositorName:  string | null
   rv:             string
   itemCount:      number | null
+  /** null = estado ainda não escolhido · 0 = Bom · >0 = Avaria. */
+  damagedItemCount: number | null
   boxPhotos:      File[]
   itemPhotos:     File[]
 }
@@ -36,7 +38,7 @@ type ReceivingAction =
   | { type: 'SET_INVOICE_DATA'; data: InvoiceData | null }
   | { type: 'SET_DEPOSITOR'; id: string | null; name: string | null }
   | { type: 'SET_RV'; rv: string }
-  | { type: 'SET_ITEM_COUNT'; count: number }
+  | { type: 'SET_ITEMS'; count: number; damaged: number }
   | { type: 'ADD_BOX_PHOTO'; file: File }
   | { type: 'REMOVE_BOX_PHOTO'; index: number }
   | { type: 'ADD_ITEM_PHOTO'; file: File }
@@ -55,6 +57,7 @@ const initialState: ReceivingState = {
   depositorName:  null,
   rv:             '',
   itemCount:      null,
+  damagedItemCount: null,
   boxPhotos:      [],
   itemPhotos:     [],
 }
@@ -78,8 +81,8 @@ function reducer(state: ReceivingState, action: ReceivingAction): ReceivingState
       return { ...state, depositorId: action.id, depositorName: action.name }
     case 'SET_RV':
       return { ...state, rv: action.rv }
-    case 'SET_ITEM_COUNT':
-      return { ...state, itemCount: action.count }
+    case 'SET_ITEMS':
+      return { ...state, itemCount: action.count, damagedItemCount: action.damaged }
     case 'ADD_BOX_PHOTO':
       return { ...state, boxPhotos: [...state.boxPhotos, action.file] }
     case 'REMOVE_BOX_PHOTO':
@@ -133,7 +136,8 @@ export function ReceivingFlow({ operatorName }: ReceivingFlowProps) {
         return (
           <StepItemCount
             itemCount={state.itemCount}
-            onComplete={(count) => { dispatch({ type: 'SET_ITEM_COUNT', count }); goTo(4) }}
+            damagedItemCount={state.damagedItemCount}
+            onComplete={(count, damaged) => { dispatch({ type: 'SET_ITEMS', count, damaged }); goTo(4) }}
             onBack={() => goTo(2)}
           />
         )
