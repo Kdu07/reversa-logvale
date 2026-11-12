@@ -52,8 +52,9 @@ interface CreateReturnPayload {
   logisticsCode:     string | null
   illegibleToken:    string | null
   rv:                string
+  /** 0 = Caixa vazia. */
   itemCount:         number
-  /** 0 = Bom · 1..itemCount = Avaria (quantos avariados). */
+  /** 0 = Bom (ou Caixa vazia) · 1..itemCount = Avaria (quantos avariados). */
   damagedItemCount:  number
   depositorId:       string | null
   invoiceXmlPath:    string | null
@@ -70,12 +71,19 @@ export async function createReturnAction(
     const user = await getCurrentUser()
     if (user.profile.role !== 'operator' && !isSuperUser(user)) return { error: 'Acesso negado' }
 
-    // Regra de negócio: todo recebimento exige ao menos 1 foto de caixa e 1 de item.
-    if (payload.boxPhotosPaths.length < 1 || payload.itemPhotosPaths.length < 1) {
+    // Quantidade de itens: 0 = Caixa vazia.
+    if (!Number.isInteger(payload.itemCount) || payload.itemCount < 0) {
+      return { error: 'Quantidade de itens inválida.' }
+    }
+    const emptyBox = payload.itemCount === 0
+
+    // Regra de negócio: todo recebimento exige ao menos 1 foto de caixa e 1 de
+    // item — exceto caixa vazia, que não tem item para fotografar.
+    if (payload.boxPhotosPaths.length < 1 || (!emptyBox && payload.itemPhotosPaths.length < 1)) {
       return { error: 'É necessária ao menos 1 foto da caixa e 1 foto do item.' }
     }
 
-    // Estado dos produtos (Etapa 3): 0 = Bom, 1..itemCount = Avaria.
+    // Estado dos produtos (Etapa 3): 0 = Bom, 1..itemCount = Avaria; caixa vazia = 0.
     const damaged = payload.damagedItemCount
     if (!Number.isInteger(damaged) || damaged < 0 || damaged > payload.itemCount) {
       return { error: 'Quantidade de itens avariados inválida.' }

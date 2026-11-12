@@ -1,17 +1,18 @@
 'use client'
 
 import { useRef, useEffect, useLayoutEffect, useState } from 'react'
-import { AlertTriangle, CheckCircle2, type LucideIcon } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, PackageOpen, type LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 
-type Condition = 'good' | 'damaged'
+type Condition = 'good' | 'damaged' | 'empty'
 
 interface StepItemCountProps {
+  /** 0 = Caixa vazia. */
   itemCount:        number | null
-  /** null = ainda não escolhido · 0 = Bom · >0 = Avaria. */
+  /** null = ainda não escolhido · 0 = Bom (ou Caixa vazia, se itemCount = 0) · >0 = Avaria. */
   damagedItemCount: number | null
   onComplete:       (count: number, damaged: number) => void
   onBack:           () => void
@@ -32,9 +33,12 @@ function isTypingTarget(target: EventTarget | null): boolean {
 }
 
 export function StepItemCount({ itemCount, damagedItemCount, onComplete, onBack }: StepItemCountProps) {
-  const [value, setValue] = useState(itemCount !== null ? String(itemCount) : '')
+  const [value, setValue] = useState(itemCount !== null && itemCount > 0 ? String(itemCount) : '')
   const [condition, setCondition] = useState<Condition | null>(
-    damagedItemCount === null ? null : damagedItemCount === 0 ? 'good' : 'damaged',
+    itemCount === 0 ? 'empty'
+      : damagedItemCount === null ? null
+      : damagedItemCount === 0 ? 'good'
+      : 'damaged',
   )
   const [damagedValue, setDamagedValue] = useState(
     damagedItemCount !== null && damagedItemCount > 0 ? String(damagedItemCount) : '',
@@ -52,12 +56,20 @@ export function StepItemCount({ itemCount, damagedItemCount, onComplete, onBack 
   const damagedValid = damaged > 0
   const tooMany      = condition === 'damaged' && countValid && damagedValid && damaged > count
 
+  const isEmpty = condition === 'empty'
   const valid =
-    countValid &&
-    (condition === 'good' || (condition === 'damaged' && damagedValid && damaged <= count))
+    isEmpty ||
+    (countValid &&
+      (condition === 'good' || (condition === 'damaged' && damagedValid && damaged <= count)))
 
   function chooseGood() {
     setCondition('good')
+  }
+
+  // Caixa vazia: não há o que contar — a quantidade fica travada em 0 (o valor
+  // digitado é preservado e volta se o operador trocar para Bom/Avaria).
+  function chooseEmpty() {
+    setCondition('empty')
   }
 
   // Marca Avaria → foco vai para "Quantos avariados?" logo após o campo
@@ -79,12 +91,13 @@ export function StepItemCount({ itemCount, damagedItemCount, onComplete, onBack 
 
   function handleSubmit() {
     if (!valid) return
-    onComplete(count, condition === 'good' ? 0 : damaged)
+    if (condition === 'empty') onComplete(0, 0)
+    else onComplete(count, condition === 'good' ? 0 : damaged)
   }
 
   // Sempre a versão mais recente dos handlers, sem re-registrar o listener.
-  const handlers = useRef({ chooseGood, chooseDamaged, handleSubmit })
-  handlers.current = { chooseGood, chooseDamaged, handleSubmit }
+  const handlers = useRef({ chooseGood, chooseDamaged, chooseEmpty, handleSubmit })
+  handlers.current = { chooseGood, chooseDamaged, chooseEmpty, handleSubmit }
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -106,6 +119,9 @@ export function StepItemCount({ itemCount, damagedItemCount, onComplete, onBack 
       } else if (key === 'a') {
         e.preventDefault()
         handlers.current.chooseDamaged()
+      } else if (key === 'v') {
+        e.preventDefault()
+        handlers.current.chooseEmpty()
       }
     }
     window.addEventListener('keydown', onKeyDown)
@@ -117,7 +133,7 @@ export function StepItemCount({ itemCount, damagedItemCount, onComplete, onBack 
       <div className="space-y-1">
         <h2 className="text-lg font-semibold text-primary">Etapa 3 — Itens</h2>
         <p className="text-sm text-muted-foreground">
-          Informe quantos itens estão na caixa e o estado dos produtos.
+          Informe quantos itens estão na caixa e o estado dos produtos — ou marque Caixa vazia.
         </p>
       </div>
 
@@ -130,8 +146,9 @@ export function StepItemCount({ itemCount, damagedItemCount, onComplete, onBack 
           inputMode="numeric"
           min={1}
           step={1}
-          value={value}
+          value={isEmpty ? '0' : value}
           onChange={(e) => setValue(e.target.value)}
+          disabled={isEmpty}
           placeholder="1"
           className="text-2xl h-14 text-center"
         />
@@ -139,7 +156,7 @@ export function StepItemCount({ itemCount, damagedItemCount, onComplete, onBack 
 
       <div className="space-y-2">
         <p id="condition-label" className="text-sm font-medium leading-none">Estado dos produtos</p>
-        <div role="group" aria-labelledby="condition-label" className="grid grid-cols-2 gap-3">
+        <div role="group" aria-labelledby="condition-label" className="grid grid-cols-3 gap-3">
           <ConditionOption
             label="Bom"
             shortcut="B"
@@ -155,6 +172,14 @@ export function StepItemCount({ itemCount, damagedItemCount, onComplete, onBack 
             selected={condition === 'damaged'}
             selectedClass="border-amber-500 bg-amber-100 text-amber-800"
             onSelect={chooseDamaged}
+          />
+          <ConditionOption
+            label="Caixa vazia"
+            shortcut="V"
+            icon={PackageOpen}
+            selected={isEmpty}
+            selectedClass="border-slate-500 bg-slate-100 text-slate-800"
+            onSelect={chooseEmpty}
           />
         </div>
       </div>
@@ -191,7 +216,7 @@ export function StepItemCount({ itemCount, damagedItemCount, onComplete, onBack 
       )}
 
       <p className="text-xs text-muted-foreground">
-        Atalhos: <Kbd>B</Kbd> Bom · <Kbd>A</Kbd> Avaria · <Kbd>Enter</Kbd> Próximo
+        Atalhos: <Kbd>B</Kbd> Bom · <Kbd>A</Kbd> Avaria · <Kbd>V</Kbd> Caixa vazia · <Kbd>Enter</Kbd> Próximo
       </p>
 
       <div className="flex gap-3">
@@ -227,7 +252,7 @@ function ConditionOption({
       aria-pressed={selected}
       onClick={onSelect}
       className={cn(
-        'flex h-16 items-center justify-center gap-2 rounded-lg border-2 text-base font-semibold',
+        'flex h-16 items-center justify-center gap-2 rounded-lg border-2 px-2 text-base font-semibold leading-tight',
         'transition-colors ease-quint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         selected ? selectedClass : 'border-border text-foreground hover:bg-muted/50',
       )}

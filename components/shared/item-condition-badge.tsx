@@ -7,8 +7,23 @@ interface ItemConditionBadgeProps {
   className?:       string
 }
 
-/** Selo do estado dos produtos no recebimento: "Bom" ou "Avaria n/N". */
+/** Selo do estado dos produtos no recebimento: "Bom", "Avaria n/N" ou "Caixa vazia". */
 export function ItemConditionBadge({ itemCount, damagedItemCount, className }: ItemConditionBadgeProps) {
+  if (itemCount === 0) {
+    return (
+      <span
+        title="Caixa recebida vazia, sem itens"
+        className={cn(
+          'inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-1.5 py-0 text-[10px] font-medium',
+          'border-slate-300 bg-slate-100 text-slate-700',
+          className,
+        )}
+      >
+        <span className="h-1.5 w-1.5 rounded-full bg-current" />
+        Caixa vazia
+      </span>
+    )
+  }
   if (damagedItemCount === null) return null
 
   const damaged = damagedItemCount > 0

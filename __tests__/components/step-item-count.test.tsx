@@ -20,6 +20,7 @@ function renderStep(props: { itemCount?: number | null; damagedItemCount?: numbe
 const next     = () => screen.getByRole('button', { name: /próximo/i })
 const good     = () => screen.getByRole('button', { name: /^bom/i })
 const damaged  = () => screen.getByRole('button', { name: /^avaria/i })
+const empty    = () => screen.getByRole('button', { name: /^caixa vazia/i })
 const quantity = () => screen.getByLabelText('Quantidade de itens')
 
 beforeEach(() => {
@@ -137,6 +138,41 @@ describe('StepItemCount — Etapa 3 (Itens)', () => {
 
     renderStep({ itemCount: 5, damagedItemCount: 0 })
     expect(good()).toHaveAttribute('aria-pressed', 'true')
+    expect(next()).toBeEnabled()
+  })
+
+  it('Caixa vazia dispensa a quantidade e envia 0 itens', async () => {
+    const user = userEvent.setup()
+    renderStep()
+
+    expect(next()).toBeDisabled()
+    await user.click(empty())
+    expect(empty()).toHaveAttribute('aria-pressed', 'true')
+    expect(quantity()).toBeDisabled()
+    expect(quantity()).toHaveValue(0)
+    await user.click(next())
+    expect(onComplete).toHaveBeenCalledWith(0, 0)
+  })
+
+  it('atalho V marca Caixa vazia; trocar para Bom restaura a quantidade digitada', async () => {
+    const user = userEvent.setup()
+    renderStep()
+
+    await user.type(quantity(), '3')
+    await user.keyboard('v')
+    expect(empty()).toHaveAttribute('aria-pressed', 'true')
+    expect(quantity()).toHaveValue(0)
+
+    await user.click(good())
+    expect(quantity()).toBeEnabled()
+    expect(quantity()).toHaveValue(3)
+    await user.click(next())
+    expect(onComplete).toHaveBeenCalledWith(3, 0)
+  })
+
+  it('ao voltar para a etapa, restaura Caixa vazia', () => {
+    renderStep({ itemCount: 0, damagedItemCount: 0 })
+    expect(empty()).toHaveAttribute('aria-pressed', 'true')
     expect(next()).toBeEnabled()
   })
 

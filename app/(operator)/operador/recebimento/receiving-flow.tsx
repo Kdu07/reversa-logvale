@@ -25,8 +25,9 @@ export interface ReceivingState {
   depositorId:    string | null
   depositorName:  string | null
   rv:             string
+  /** 0 = Caixa vazia (sem itens: a etapa 5, fotos dos itens, é pulada). */
   itemCount:      number | null
-  /** null = estado ainda não escolhido · 0 = Bom · >0 = Avaria. */
+  /** null = estado ainda não escolhido · 0 = Bom (ou Caixa vazia) · >0 = Avaria. */
   damagedItemCount: number | null
   boxPhotos:      File[]
   itemPhotos:     File[]
@@ -82,7 +83,13 @@ function reducer(state: ReceivingState, action: ReceivingAction): ReceivingState
     case 'SET_RV':
       return { ...state, rv: action.rv }
     case 'SET_ITEMS':
-      return { ...state, itemCount: action.count, damagedItemCount: action.damaged }
+      return {
+        ...state,
+        itemCount:        action.count,
+        damagedItemCount: action.damaged,
+        // Caixa vazia não tem fotos de itens — descarta as tiradas antes da troca.
+        itemPhotos:       action.count === 0 ? [] : state.itemPhotos,
+      }
     case 'ADD_BOX_PHOTO':
       return { ...state, boxPhotos: [...state.boxPhotos, action.file] }
     case 'REMOVE_BOX_PHOTO':
@@ -152,7 +159,7 @@ export function ReceivingFlow({ operatorName }: ReceivingFlowProps) {
             photos={state.boxPhotos}
             onAdd={(f) => dispatch({ type: 'ADD_BOX_PHOTO', file: f })}
             onRemove={(i) => dispatch({ type: 'REMOVE_BOX_PHOTO', index: i })}
-            onNext={() => goTo(5)}
+            onNext={() => goTo(state.itemCount === 0 ? 6 : 5)}
             onBack={() => goTo(3)}
           />
         )
@@ -177,7 +184,7 @@ export function ReceivingFlow({ operatorName }: ReceivingFlowProps) {
             state={state}
             onConfirm={() => goTo(7)}
             onGoTo={goTo}
-            onBack={() => goTo(5)}
+            onBack={() => goTo(state.itemCount === 0 ? 4 : 5)}
           />
         )
       case 7:

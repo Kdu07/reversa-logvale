@@ -64,8 +64,12 @@ export function StepReview({ state, onConfirm, onGoTo, onBack }: StepReviewProps
 
       <ReviewSection label="Itens" onEdit={() => onGoTo(3)}>
         <p className="text-sm">
-          {state.itemCount} {state.itemCount === 1 ? 'item' : 'itens'}
-          {state.itemCount !== null && state.damagedItemCount !== null && (
+          {state.itemCount === 0 ? (
+            <span className="font-medium text-slate-700">Caixa vazia</span>
+          ) : (
+            <>{state.itemCount} {state.itemCount === 1 ? 'item' : 'itens'}</>
+          )}
+          {state.itemCount !== null && state.itemCount > 0 && state.damagedItemCount !== null && (
             <span
               className={state.damagedItemCount > 0 ? 'text-amber-700 font-medium' : 'text-green-700 font-medium'}
             >
@@ -79,9 +83,11 @@ export function StepReview({ state, onConfirm, onGoTo, onBack }: StepReviewProps
         <PhotoGrid urls={boxUrls.current} />
       </ReviewSection>
 
-      <ReviewSection label={`Fotos dos Itens (${state.itemPhotos.length})`} onEdit={() => onGoTo(5)}>
-        <PhotoGrid urls={itemUrls.current} />
-      </ReviewSection>
+      {state.itemCount !== 0 && (
+        <ReviewSection label={`Fotos dos Itens (${state.itemPhotos.length})`} onEdit={() => onGoTo(5)}>
+          <PhotoGrid urls={itemUrls.current} />
+        </ReviewSection>
+      )}
 
       <div className="flex gap-3 pt-2">
         <Button type="button" variant="outline" onClick={onBack} className="flex-1">

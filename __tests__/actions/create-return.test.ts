@@ -125,6 +125,33 @@ describe('createReturnAction', () => {
     expect(mockInsert).not.toHaveBeenCalled()
   })
 
+  it('caixa vazia: aceita 0 itens sem foto de item, mas ainda exige foto da caixa', async () => {
+    mockOperator()
+
+    const vazia = await createReturnAction({ ...BASE_PAYLOAD, itemCount: 0, damagedItemCount: 0, itemPhotosPaths: [] })
+    expect(vazia).not.toHaveProperty('error')
+    expect(mockInsert).toHaveBeenLastCalledWith(
+      expect.objectContaining({ item_count: 0, damaged_item_count: 0 }),
+    )
+
+    mockInsert.mockClear()
+    const semCaixa = await createReturnAction({ ...BASE_PAYLOAD, itemCount: 0, damagedItemCount: 0, boxPhotosPaths: [] })
+    expect(semCaixa).toEqual({ error: 'É necessária ao menos 1 foto da caixa e 1 foto do item.' })
+    expect(mockInsert).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['negativa', -1],
+    ['não inteira', 2.5],
+  ])('rejeita quantidade de itens inválida (%s) sem inserir', async (_caso, itemCount) => {
+    mockOperator()
+
+    const result = await createReturnAction({ ...BASE_PAYLOAD, itemCount })
+
+    expect(result).toEqual({ error: 'Quantidade de itens inválida.' })
+    expect(mockInsert).not.toHaveBeenCalled()
+  })
+
   it('insere fotos quando fornecidas', async () => {
     mockOperator()
     const photoInsert = vi.fn().mockResolvedValue({ error: null })

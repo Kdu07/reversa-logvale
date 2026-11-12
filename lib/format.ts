@@ -46,9 +46,11 @@ export function identifierLabel(row: {
 /**
  * Estado dos produtos registrado no recebimento (Etapa 3). Deriva de
  * `damaged_item_count`: `null` = não avaliado (recebida antes da etapa
- * existir) → `null`; `0` → "Bom"; `n > 0` → "Avaria (n de N)".
+ * existir) → `null`; `0` → "Bom"; `n > 0` → "Avaria (n de N)". `itemCount = 0`
+ * (migration 021) → "Caixa vazia".
  */
 export function itemConditionLabel(itemCount: number, damagedItemCount: number | null): string | null {
+  if (itemCount === 0) return 'Caixa vazia'
   if (damagedItemCount === null) return null
   if (damagedItemCount === 0) return 'Bom'
   return `Avaria (${damagedItemCount} de ${itemCount})`

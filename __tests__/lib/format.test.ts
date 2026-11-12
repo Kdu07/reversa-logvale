@@ -103,6 +103,10 @@ describe('itemConditionLabel', () => {
     expect(itemConditionLabel(5, 2)).toBe('Avaria (2 de 5)')
     expect(itemConditionLabel(1, 1)).toBe('Avaria (1 de 1)')
   })
+
+  it('retorna "Caixa vazia" quando não há itens', () => {
+    expect(itemConditionLabel(0, 0)).toBe('Caixa vazia')
+  })
 })
 
 describe('xmlDownloadName', () => {

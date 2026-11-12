@@ -157,8 +157,12 @@ export function DecisionModal({ row, decision, onClose, onSuccess }: DecisionMod
           <p><span className="text-muted-foreground">Data:</span> {formatDate(row.receivedAt)}</p>
           <p>
             <span className="text-muted-foreground">Itens:</span> {row.itemCount}
-            {row.damagedItemCount !== null && (
-              <span className={row.damagedItemCount > 0 ? 'font-medium text-amber-700' : 'font-medium text-green-700'}>
+            {(row.itemCount === 0 || row.damagedItemCount !== null) && (
+              <span className={
+                row.itemCount === 0 ? 'font-medium text-slate-700'
+                  : (row.damagedItemCount ?? 0) > 0 ? 'font-medium text-amber-700'
+                  : 'font-medium text-green-700'
+              }>
                 {' · '}{itemConditionLabel(row.itemCount, row.damagedItemCount)}
               </span>
             )}
