@@ -123,6 +123,34 @@ describe('getClientReturnsAction', () => {
     expect(ok.rows[0]).toMatchObject({ id: 'r-1', depositorName: 'Acme Ltda', itemCount: 2, damagedItemCount: 0 })
   })
 
+  it('marca noDecisionDeadline só para depositante sem prazo (Blackskull)', async () => {
+    cdResult = { data: [], error: null }
+    const base = {
+      identifier_type: 'access_key', access_key: '4'.repeat(44), postal_code: null,
+      illegible_token: null, item_count: 1, damaged_item_count: 0,
+      received_at: '2025-01-01', invoice_xml_url: null, return_photos: [],
+    }
+    returnsResult = {
+      data: [
+        { ...base, id: 'r-bs', rv: 'RV-1', depositor_id: 'dep-bs',
+          depositors: { razao_social: 'BLACK SKULL-GDS', cnpj: '19897687000219', no_decision_deadline: true } },
+        { ...base, id: 'r-ac', rv: 'RV-2', depositor_id: 'dep-ac',
+          depositors: { razao_social: 'Acme', cnpj: '11222333000181', no_decision_deadline: false } },
+        { ...base, id: 'r-nl', rv: 'RV-3', depositor_id: null, depositors: null },
+      ],
+      count: 3, error: null,
+    }
+
+    const result = await getClientReturnsAction()
+
+    const ok = result as { rows: { id: string; noDecisionDeadline?: boolean }[] }
+    expect(ok.rows.map((r) => [r.id, r.noDecisionDeadline])).toEqual([
+      ['r-bs', true],
+      ['r-ac', false],
+      ['r-nl', false],
+    ])
+  })
+
   it('super user recebe todos os depositantes ativos', async () => {
     isSuperUser.mockReturnValue(true)
     depositorsResult = {

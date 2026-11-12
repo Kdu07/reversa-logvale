@@ -34,6 +34,9 @@ export interface ReturnRow {
    *  (RESHIP_DEPOSITOR_CNPJS). Só é calculado nas pendências; o servidor
    *  revalida em submitDecisionAction. */
   reshipEnabled?:  boolean
+  /** Depositante sem prazo de decisão (depositors.no_decision_deadline — hoje a
+   *  Blackskull): sem auto-decisão de 72h nem contagem regressiva. */
+  noDecisionDeadline?: boolean
   /** Etiqueta de reenvio (PDF em `reship-files`) — só nas decididas como Reenvio. */
   reshipLabelPath?: string | null
   /** DANFE anexada no Reenvio (PDF em `reship-files`). */
@@ -101,7 +104,7 @@ export async function getClientReturnsAction(
       .select(
         `id, identifier_type, access_key, postal_code, logistics_code, illegible_token,
          rv, item_count, damaged_item_count, received_at, depositor_id, final_customer_name,
-         depositors!depositor_id(razao_social, cnpj),
+         depositors!depositor_id(razao_social, cnpj, no_decision_deadline),
          return_photos(storage_path, photo_type, position)`,
         { count: 'exact' },
       )
@@ -162,7 +165,8 @@ export async function getClientReturnsAction(
     const rows: ReturnRow[] = allReturns.map((r) => {
       const photos = (r.return_photos as RawPhoto[]) ?? []
       const { boxUrls, itemUrls } = resolvePhotos(photos, boxMap, itemMap)
-      const dep = r.depositors as unknown as { razao_social: string; cnpj: string } | null
+      const dep = r.depositors as unknown as
+        { razao_social: string; cnpj: string; no_decision_deadline?: boolean | null } | null
       return {
         id:             r.id,
         identifierType: r.identifier_type as IdentifierType,
@@ -179,6 +183,7 @@ export async function getClientReturnsAction(
         finalCustomerName: r.final_customer_name ?? null,
         returnInvoiceXmlPath: null, // pendentes ainda não têm decisão/XML de devolução
         reshipEnabled:  isReshipDepositor(dep?.cnpj, env.reshipDepositorCnpjs),
+        noDecisionDeadline: dep?.no_decision_deadline === true,
         decision:       null,
         decidedAt:      null,
         decidedByType:  null,

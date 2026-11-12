@@ -146,7 +146,7 @@ export function ReturnsTable({
 
   return (
     <div className="space-y-4">
-      {mode === 'pending' && (
+      {mode === 'pending' && !(rows.length > 0 && rows.every((r) => r.noDecisionDeadline)) && (
         <div className="flex items-start gap-2.5 rounded-lg border border-info/30 bg-info/10 px-4 py-3 text-sm text-info">
           <span className="mt-0.5 shrink-0 text-base">ℹ</span>
           <span>Devoluções sem decisão em 72h são automaticamente armazenadas para tratativas.</span>
@@ -334,7 +334,11 @@ export function ReturnsTable({
                         </div>
                       </td>
                       <td className="px-3 py-2.5 whitespace-nowrap">
-                        <CountdownTimer receivedAt={row.receivedAt} />
+                        {row.noDecisionDeadline ? (
+                          <span className="text-xs text-muted-foreground">Sem prazo</span>
+                        ) : (
+                          <CountdownTimer receivedAt={row.receivedAt} />
+                        )}
                       </td>
                     </>
                   )}

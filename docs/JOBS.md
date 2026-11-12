@@ -16,6 +16,8 @@ Definido em `supabase/migrations/000_schema.sql` e criado automaticamente pelo `
 
 Lógica: atualiza returns com `status = 'awaiting_decision'` e `received_at < now() - 72h` para `decided` com `decision = 'store_for_handling'` e `decided_by_type = 'auto'`.
 
+Exceção (migration `020`): devoluções de depositantes com `depositors.no_decision_deadline = true` (hoje só a Blackskull) nunca são auto-decididas nem recebem o aviso de 48h — não há prazo.
+
 ---
 
 ## 2. Deploy das Edge Functions
