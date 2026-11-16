@@ -3,6 +3,7 @@ import { MyReturnsList } from './components/my-returns-list'
 import { PageHeader } from '@/components/shared/page-header'
 
 interface SearchParams {
+  scope?:     string
   rv?:        string
   depositor?: string
   from?:      string
@@ -15,6 +16,7 @@ export default async function MyReturnsPage({
 }: {
   searchParams: SearchParams
 }) {
+  const scope     = searchParams.scope === 'pending' ? 'pending' : 'mine'
   const rv        = searchParams.rv        ?? ''
   const depositor = searchParams.depositor ?? ''
   const from      = searchParams.from      ?? ''
@@ -23,20 +25,23 @@ export default async function MyReturnsPage({
 
   const [result, depositors] = await Promise.all([
     getMyReturnsAction({
-      rv:          rv        || undefined,
+      scope,
+      rv:         rv        || undefined,
       depositorId: depositor || undefined,
       from:        from      || undefined,
       to:          to        || undefined,
       page,
     }),
-    getMyReturnDepositorsAction(),
+    getMyReturnDepositorsAction(scope),
   ])
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Minhas Devoluções"
-        description="Todas as devoluções que você recebeu."
+        description={scope === 'pending'
+          ? 'Todas as devoluções aguardando decisão do cliente, de qualquer operador — podem ser editadas.'
+          : 'Todas as devoluções que você recebeu.'}
       />
       {'error' in result ? (
         <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-6 text-center text-destructive text-sm">
@@ -47,6 +52,7 @@ export default async function MyReturnsPage({
           rows={result.rows}
           total={result.total}
           depositors={depositors}
+          currentScope={scope}
           currentRv={rv}
           currentDepositor={depositor}
           currentFrom={from}

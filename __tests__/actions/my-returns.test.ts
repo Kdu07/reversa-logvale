@@ -18,6 +18,14 @@ vi.mock('@/lib/auth/super', () => ({ isSuperUser: (u: unknown) => isSuperUser(u)
 
 vi.mock('@/lib/supabase/storage', () => ({ buildSignedUrlMap: vi.fn() }))
 
+// Escopo `pending`: nomes de quem recebeu vêm via service role.
+const adminProfiles = vi.fn().mockResolvedValue({ data: [{ id: 'op-2', full_name: 'Outro Operador' }] })
+vi.mock('@/lib/supabase/admin', () => ({
+  createAdminClient: () => ({
+    from: () => ({ select: () => ({ in: () => adminProfiles() }) }),
+  }),
+}))
+
 // Query builder encadeável: todo método devolve o próprio builder e registra a
 // chamada, para os testes assertarem quais filtros a action aplicou. O objeto é
 // thenable, então `await query` entrega `queryResult`.
@@ -97,6 +105,16 @@ describe('getMyReturnsAction', () => {
   it('filtra pelas devoluções recebidas pelo próprio operador', async () => {
     await getMyReturnsAction()
     expect(argsOf('eq')).toEqual(['received_by', 'op-1'])
+  })
+
+  it('escopo pending lista todas aguardando decisão, com quem recebeu', async () => {
+    queryResult = { data: [{ ...RETURN_ROW, status: 'awaiting_decision', received_by: 'op-2' }], count: 1, error: null }
+
+    const result = await getMyReturnsAction({ scope: 'pending' })
+
+    expect(allArgsOf('eq')).toEqual([['status', 'awaiting_decision']])
+    if ('error' in result) throw new Error(result.error)
+    expect(result.rows[0].operatorName).toBe('Outro Operador')
   })
 
   it('mapeia a devolução com fotos ordenadas por position', async () => {
@@ -254,6 +272,11 @@ describe('getMyReturnDepositorsAction', () => {
     await getMyReturnDepositorsAction()
     expect(argsOf('eq')).toEqual(['received_by', 'op-1'])
     expect(argsOf('not')).toEqual(['depositor_id', 'is', null])
+  })
+
+  it('no escopo pending filtra por aguardando decisão', async () => {
+    await getMyReturnDepositorsAction('pending')
+    expect(allArgsOf('eq')).toEqual([['status', 'awaiting_decision']])
   })
 
   it('devolve lista vazia quando a query falha', async () => {

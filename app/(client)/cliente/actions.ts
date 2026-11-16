@@ -37,6 +37,9 @@ export interface ReturnRow {
   /** Depositante sem prazo de decisão (depositors.no_decision_deadline — hoje a
    *  Blackskull): sem auto-decisão de 72h nem contagem regressiva. */
   noDecisionDeadline?: boolean
+  /** Base do prazo de 72h (decision_deadline_from ?? received_at — migration
+   *  022: pode ser reiniciada ao trocar o depositante). Só nas pendências. */
+  deadlineFrom?:   string
   /** Etiqueta de reenvio (PDF em `reship-files`) — só nas decididas como Reenvio. */
   reshipLabelPath?: string | null
   /** DANFE anexada no Reenvio (PDF em `reship-files`). */
@@ -103,7 +106,7 @@ export async function getClientReturnsAction(
       .from('returns')
       .select(
         `id, identifier_type, access_key, postal_code, logistics_code, illegible_token,
-         rv, item_count, damaged_item_count, received_at, depositor_id, final_customer_name,
+         rv, item_count, damaged_item_count, received_at, decision_deadline_from, depositor_id, final_customer_name,
          depositors!depositor_id(razao_social, cnpj, no_decision_deadline),
          return_photos(storage_path, photo_type, position)`,
         { count: 'exact' },
@@ -184,6 +187,7 @@ export async function getClientReturnsAction(
         returnInvoiceXmlPath: null, // pendentes ainda não têm decisão/XML de devolução
         reshipEnabled:  isReshipDepositor(dep?.cnpj, env.reshipDepositorCnpjs),
         noDecisionDeadline: dep?.no_decision_deadline === true,
+        deadlineFrom:   r.decision_deadline_from ?? r.received_at,
         decision:       null,
         decidedAt:      null,
         decidedByType:  null,

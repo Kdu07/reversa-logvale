@@ -337,7 +337,7 @@ export function ReturnsTable({
                         {row.noDecisionDeadline ? (
                           <span className="text-xs text-muted-foreground">Sem prazo</span>
                         ) : (
-                          <CountdownTimer receivedAt={row.receivedAt} />
+                          <CountdownTimer receivedAt={row.deadlineFrom ?? row.receivedAt} />
                         )}
                       </td>
                     </>

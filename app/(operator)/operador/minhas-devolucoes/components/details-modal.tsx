@@ -8,6 +8,8 @@ import { DecisionPill } from '@/components/shared/decision-pill'
 import { PhotoGallery } from '@/components/shared/photo-gallery'
 import { PhotoThumbs } from '@/components/shared/photo-thumbs'
 import { DownloadXmlButton } from '@/components/shared/download-xml-button'
+import { ReturnEditHistory } from '@/components/shared/return-edit-history'
+import { Pencil } from 'lucide-react'
 import { formatDate, identifierLabel, itemConditionLabel, xmlDownloadName, reshipLabelDownloadName, reshipDanfeDownloadName } from '@/lib/format'
 import { ptBR } from '@/lib/i18n/pt-BR'
 import type { ReturnStatus } from '@/types'
@@ -28,9 +30,11 @@ const STATUS_CLASS: Record<ReturnStatus, string> = {
 interface Props {
   row:     MyReturnRow
   onClose: () => void
+  /** Presente quando a devolução pode ser editada (aguardando decisão). */
+  onEdit?: () => void
 }
 
-export function DetailsModal({ row, onClose }: Props) {
+export function DetailsModal({ row, onClose, onEdit }: Props) {
   const [gallery, setGallery] = useState<{ urls: string[]; index: number; prefix?: string } | null>(null)
 
   return (
@@ -60,6 +64,11 @@ export function DetailsModal({ row, onClose }: Props) {
             <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
               <InfoField label="Depositante" value={row.depositorName ?? '—'} />
               <InfoField label="Nº de Itens" value={String(row.itemCount)} />
+              {row.operatorName && (
+                <div className="col-span-2">
+                  <InfoField label="Recebido por" value={row.operatorName} />
+                </div>
+              )}
               <div className="col-span-2">
                 <InfoField label="Cliente final" value={row.finalCustomerName ?? '—'} />
               </div>
@@ -125,9 +134,18 @@ export function DetailsModal({ row, onClose }: Props) {
                 emptyText="Nenhuma foto"
               />
             </div>
+
+            <ReturnEditHistory returnId={row.id} />
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
+            {/* Editar no canto inferior esquerdo; Fechar à direita. */}
+            {onEdit && (
+              <Button type="button" variant="outline" onClick={onEdit} className="gap-1.5 sm:mr-auto">
+                <Pencil className="h-3.5 w-3.5" />
+                Editar
+              </Button>
+            )}
             <Button type="button" variant="outline" onClick={onClose}>Fechar</Button>
           </DialogFooter>
         </DialogContent>

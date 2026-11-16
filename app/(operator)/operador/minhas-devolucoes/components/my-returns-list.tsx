@@ -9,11 +9,12 @@ import { EmptyState } from '@/components/shared/empty-state'
 import { useBarcodeScanner } from '@/hooks/use-barcode-scanner'
 import { useAudioFeedback } from '@/hooks/use-audio-feedback'
 import { DetailsModal } from './details-modal'
+import { EditReturnDialog } from '@/components/shared/edit-return-dialog'
 import { formatDate } from '@/lib/format'
 import { ptBR } from '@/lib/i18n/pt-BR'
 import { Boxes, Search, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import type { ReturnStatus } from '@/types'
-import type { MyReturnRow, MyReturnDepositor } from '../actions'
+import type { MyReturnRow, MyReturnDepositor, MyReturnsScope } from '../actions'
 
 const PAGE_SIZE = 50
 
@@ -33,6 +34,7 @@ interface Props {
   rows:             MyReturnRow[]
   total:            number
   depositors:       MyReturnDepositor[]
+  currentScope:     MyReturnsScope
   currentRv:        string
   currentDepositor: string
   currentFrom:      string
@@ -41,19 +43,22 @@ interface Props {
 }
 
 export function MyReturnsList({
-  rows, total, depositors, currentRv, currentDepositor, currentFrom, currentTo, currentPage,
+  rows, total, depositors, currentScope, currentRv, currentDepositor, currentFrom, currentTo, currentPage,
 }: Props) {
   const router    = useRouter()
   const inputRef  = useRef<HTMLInputElement>(null)
   const [rvInput, setRvInput]         = useState(currentRv)
   const [selectedRow, setSelectedRow] = useState<MyReturnRow | null>(null)
+  const [editId, setEditId]           = useState<string | null>(null)
+  const pendingScope = currentScope === 'pending'
   const { beep } = useAudioFeedback()
 
   useEffect(() => { inputRef.current?.focus() }, [])
 
   function buildUrl(
-    next: Partial<{ rv: string; depositor: string; from: string; to: string; page: number }>,
+    next: Partial<{ scope: MyReturnsScope; rv: string; depositor: string; from: string; to: string; page: number }>,
   ) {
+    const scope     = next.scope     ?? currentScope
     const rv        = next.rv        ?? currentRv
     const depositor = next.depositor ?? currentDepositor
     const from      = next.from      ?? currentFrom
@@ -61,6 +66,7 @@ export function MyReturnsList({
     const page      = next.page      ?? 1
 
     const p = new URLSearchParams()
+    if (scope === 'pending') p.set('scope', 'pending')
     if (rv)        p.set('rv', rv)
     if (depositor) p.set('depositor', depositor)
     if (from)      p.set('from', from)
@@ -88,6 +94,33 @@ export function MyReturnsList({
 
   return (
     <div className="space-y-4">
+      {/* Escopo: as minhas × todas aguardando decisão (editáveis) */}
+      <div role="tablist" aria-label="Escopo" className="inline-flex rounded-lg border border-border bg-muted/30 p-0.5">
+        {([
+          ['mine',    'Recebidas por mim'],
+          ['pending', 'Todas aguardando decisão'],
+        ] as const).map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            role="tab"
+            aria-selected={currentScope === value}
+            onClick={() => {
+              if (currentScope === value) return
+              setRvInput('')
+              router.push(buildUrl({ scope: value, rv: '', depositor: '', from: '', to: '', page: 1 }))
+            }}
+            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ease-quint ${
+              currentScope === value
+                ? 'bg-background text-foreground shadow-elev-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       {/* Filtros */}
       <div className="flex gap-3 flex-wrap items-end">
         <div className="space-y-1">
@@ -156,7 +189,7 @@ export function MyReturnsList({
             type="button"
             variant="ghost"
             size="sm"
-            onClick={() => { setRvInput(''); router.push('/operador/minhas-devolucoes') }}
+            onClick={() => { setRvInput(''); router.push(buildUrl({ rv: '', depositor: '', from: '', to: '', page: 1 })) }}
             className="h-9"
           >
             Limpar filtros
@@ -175,7 +208,9 @@ export function MyReturnsList({
           title="Nenhuma devolução"
           description={hasFilters
             ? 'Nenhuma devolução encontrada com os filtros aplicados.'
-            : 'Você ainda não registrou nenhuma devolução.'}
+            : pendingScope
+              ? 'Nenhuma devolução aguardando decisão.'
+              : 'Você ainda não registrou nenhuma devolução.'}
         />
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border">
@@ -187,6 +222,9 @@ export function MyReturnsList({
                 <th className="px-4 py-2.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</th>
                 <th className="px-4 py-2.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">Decisão</th>
                 <th className="px-4 py-2.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">Depositante</th>
+                {pendingScope && (
+                  <th className="px-4 py-2.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">Recebido por</th>
+                )}
                 <th className="px-4 py-2.5 text-xs font-medium text-muted-foreground uppercase tracking-wider text-right">Itens</th>
                 <th className="px-4 py-2.5" />
               </tr>
@@ -208,6 +246,9 @@ export function MyReturnsList({
                       : <span className="text-xs text-muted-foreground">—</span>}
                   </td>
                   <td className="px-4 py-2.5 text-muted-foreground">{row.depositorName ?? '—'}</td>
+                  {pendingScope && (
+                    <td className="px-4 py-2.5 text-muted-foreground text-xs">{row.operatorName ?? '—'}</td>
+                  )}
                   <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">{row.itemCount}</td>
                   <td className="px-4 py-2.5 text-right">
                     <Button
@@ -257,7 +298,21 @@ export function MyReturnsList({
       )}
 
       {selectedRow && (
-        <DetailsModal row={selectedRow} onClose={() => setSelectedRow(null)} />
+        <DetailsModal
+          row={selectedRow}
+          onClose={() => setSelectedRow(null)}
+          onEdit={selectedRow.status === 'awaiting_decision'
+            ? () => { setEditId(selectedRow.id); setSelectedRow(null) }
+            : undefined}
+        />
+      )}
+
+      {editId && (
+        <EditReturnDialog
+          returnId={editId}
+          onClose={() => setEditId(null)}
+          onSaved={() => router.refresh()}
+        />
       )}
     </div>
   )

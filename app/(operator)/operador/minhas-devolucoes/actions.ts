@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { getCurrentUser } from '@/lib/supabase/get-current-user'
 import { isSuperUser } from '@/lib/auth/super'
 import { buildSignedUrlMap } from '@/lib/supabase/storage'
@@ -16,6 +17,8 @@ export interface MyReturnRow {
   decidedAt:            string | null
   processedAt:          string | null
   depositorName:        string | null
+  /** Quem recebeu — preenchido só no escopo `pending` (no `mine` é o próprio). */
+  operatorName:         string | null
   finalCustomerName:    string | null
   identifierType:       IdentifierType
   accessKey:            string | null
@@ -34,7 +37,14 @@ export interface MyReturnRow {
   itemPhotoUrls:        string[]
 }
 
+/**
+ * `mine` = recebidas por este operador (padrão); `pending` = todas as que
+ * aguardam decisão, de qualquer operador — para o operador poder editá-las.
+ */
+export type MyReturnsScope = 'mine' | 'pending'
+
 export interface GetMyReturnsFilters {
+  scope?:       MyReturnsScope
   rv?:          string
   depositorId?: string
   from?:        string  // YYYY-MM-DD (início do período, inclusivo)
@@ -68,15 +78,19 @@ export async function getMyReturnsAction(
       .from('returns')
       .select(
         `id, rv, status, decision, decided_by_type, received_at, decided_at, processed_at,
-         identifier_type, access_key, postal_code, logistics_code, illegible_token, item_count, damaged_item_count,
+         received_by, identifier_type, access_key, postal_code, logistics_code, illegible_token, item_count, damaged_item_count,
          return_invoice_xml_url, reship_label_url, reship_danfe_url, final_customer_name,
          depositors!depositor_id(razao_social),
          return_photos(photo_type, storage_path, position)`,
         { count: 'exact' },
       )
-      .eq('received_by', user.id)
       .order('received_at', { ascending: false })
       .range(offset, offset + PAGE_SIZE - 1)
+
+    const pendingScope = filters.scope === 'pending'
+    query = pendingScope
+      ? query.eq('status', 'awaiting_decision')
+      : query.eq('received_by', user.id)
 
     if (filters.rv)          query = query.ilike('rv', `%${filters.rv}%`)
     if (filters.depositorId) query = query.eq('depositor_id', filters.depositorId)
@@ -107,6 +121,17 @@ export async function getMyReturnsAction(
       buildSignedUrlMap(supabase, 'item-photos', itemPaths),
     ])
 
+    // Operador não lê o profile dos colegas (RLS) — nomes via service role.
+    const operatorNames = new Map<string, string>()
+    if (pendingScope && data?.length) {
+      const ids = Array.from(new Set(data.map((r) => r.received_by as string)))
+      const { data: profiles } = await createAdminClient()
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', ids)
+      for (const p of (profiles ?? []) as { id: string; full_name: string }[]) operatorNames.set(p.id, p.full_name)
+    }
+
     const rows: MyReturnRow[] = (data ?? []).map((r) => {
       const photos = photosByReturn.get(r.id) ?? { box: [], item: [] }
       return {
@@ -119,6 +144,7 @@ export async function getMyReturnsAction(
         decidedAt:            r.decided_at,
         processedAt:          r.processed_at,
         depositorName:        (r.depositors as unknown as { razao_social: string } | null)?.razao_social ?? null,
+        operatorName:         pendingScope ? operatorNames.get(r.received_by as string) ?? null : null,
         finalCustomerName:    r.final_customer_name ?? null,
         identifierType:       r.identifier_type as IdentifierType,
         accessKey:            r.access_key,
@@ -146,18 +172,23 @@ export interface MyReturnDepositor {
   name: string
 }
 
-/** Depositantes distintos das devoluções recebidas pelo operador (para o filtro). */
-export async function getMyReturnDepositorsAction(): Promise<MyReturnDepositor[]> {
+/** Depositantes distintos das devoluções do escopo (para o filtro). */
+export async function getMyReturnDepositorsAction(
+  scope: MyReturnsScope = 'mine',
+): Promise<MyReturnDepositor[]> {
   try {
     const user = await getCurrentUser()
     if (user.profile.role !== 'operator' && !isSuperUser(user)) return []
 
     const supabase = createClient()
-    const { data, error } = await supabase
+    let query = supabase
       .from('returns')
       .select('depositor_id, depositors!depositor_id(razao_social)')
-      .eq('received_by', user.id)
       .not('depositor_id', 'is', null)
+    query = scope === 'pending'
+      ? query.eq('status', 'awaiting_decision')
+      : query.eq('received_by', user.id)
+    const { data, error } = await query
     if (error) return []
 
     const byId = new Map<string, string>()

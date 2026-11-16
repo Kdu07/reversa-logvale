@@ -11,6 +11,8 @@ import { EmptyState } from '@/components/shared/empty-state'
 import { PhotoGallery } from '@/components/shared/photo-gallery'
 import { PhotoThumbs } from '@/components/shared/photo-thumbs'
 import { DownloadXmlButton } from '@/components/shared/download-xml-button'
+import { EditReturnDialog } from '@/components/shared/edit-return-dialog'
+import { ReturnEditHistory } from '@/components/shared/return-edit-history'
 import { formatDate, identifierLabel, itemConditionLabel, xmlDownloadName, reshipLabelDownloadName, reshipDanfeDownloadName } from '@/lib/format'
 import { ptBR } from '@/lib/i18n/pt-BR'
 import { revertReturnStatusAction, deleteReturnAction } from '../actions'
@@ -50,6 +52,7 @@ export function ReturnsAdminTable({
   const [deleteTarget, setDeleteTarget] = useState<AdminReturnRow | null>(null)
   const [deleteError, setDeleteError]   = useState<string | null>(null)
   const [gallery, setGallery]           = useState<{ urls: string[]; index: number; prefix?: string } | null>(null)
+  const [editId, setEditId]             = useState<string | null>(null)
   const [isPending, startTransition]    = useTransition()
 
   const totalPages = Math.max(1, Math.ceil(total / 50))
@@ -288,11 +291,20 @@ export function ReturnsAdminTable({
                   <PhotoThumbs urls={detailsRow.itemPhotoUrls} onOpen={(i) => setGallery({ urls: detailsRow.itemPhotoUrls, index: i, prefix: `${detailsRow.rv}-item` })} />
                 </div>
               )}
+
+              <ReturnEditHistory returnId={detailsRow.id} />
             </div>
 
             <DialogFooter className="gap-2 sm:gap-0">
               <Button type="button" variant="outline" onClick={() => setDetailsRow(null)}>
                 Fechar
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => { setEditId(detailsRow.id); setDetailsRow(null) }}
+              >
+                Editar
               </Button>
               {(detailsRow.status === 'decided' || detailsRow.status === 'processed') && (
                 <Button
@@ -364,6 +376,14 @@ export function ReturnsAdminTable({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {editId && (
+        <EditReturnDialog
+          returnId={editId}
+          onClose={() => setEditId(null)}
+          onSaved={() => router.refresh()}
+        />
+      )}
 
       {gallery && (
         <PhotoGallery
