@@ -30,6 +30,9 @@ export interface ReportReturnRow {
   depositorCnpj:     string | null
   finalCustomerName: string | null
   itemCount:         number
+  /** Produto não corresponde à NF (migration 024): quantos itens · o que veio. */
+  mismatchedItemCount: number | null
+  mismatchDescription: string | null
   operatorName:      string | null
   status:            ReturnStatus
   decision:          ReturnDecision | null
@@ -183,6 +186,8 @@ function detailSheet(rows: ReportReturnRow[]): XLSX.WorkSheet {
     'Depositante':        dash(row.depositorName),
     'Cliente Final':      dash(row.finalCustomerName),
     'Nº Itens':           row.itemCount,
+    'Não corresponde (itens)': row.mismatchedItemCount ?? '—',
+    'O que veio na caixa':     dash(row.mismatchDescription),
     'Operador':           dash(row.operatorName),
     'Status':             ptBR.returnStatus[row.status] ?? row.status,
     'Decisão':            row.decision ? DECISION_LABELS[row.decision] : '—',
@@ -194,7 +199,7 @@ function detailSheet(rows: ReportReturnRow[]): XLSX.WorkSheet {
   const ws = XLSX.utils.json_to_sheet(json)
   ws['!cols'] = [
     { wch: 18 }, { wch: 14 }, { wch: 24 }, { wch: 52 }, { wch: 48 }, { wch: 30 }, { wch: 30 },
-    { wch: 9 },  { wch: 24 }, { wch: 18 }, { wch: 24 }, { wch: 14 }, { wch: 18 },
+    { wch: 9 },  { wch: 12 }, { wch: 40 }, { wch: 24 }, { wch: 18 }, { wch: 24 }, { wch: 14 }, { wch: 18 },
     { wch: 18 }, { wch: 12 },
   ]
   return ws

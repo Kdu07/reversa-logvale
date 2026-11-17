@@ -237,7 +237,12 @@ export function ReturnsAdminTable({
                 {detailsRow.decidedAt   && <InfoField label="Decisão em"    value={formatDate(detailsRow.decidedAt)} />}
                 {detailsRow.processedAt && <InfoField label="Processado em" value={formatDate(detailsRow.processedAt)} />}
                 <InfoField label="Itens" value={String(detailsRow.itemCount)} />
-                <InfoField label="Estado" value={itemConditionLabel(detailsRow.itemCount, detailsRow.damagedItemCount) ?? '—'} />
+                <InfoField label="Estado" value={itemConditionLabel(detailsRow.itemCount, detailsRow.damagedItemCount, detailsRow.mismatchedItemCount) ?? '—'} />
+                {detailsRow.mismatchDescription && (
+                  <div className="col-span-2">
+                    <InfoField label="O que veio na caixa" value={detailsRow.mismatchDescription} />
+                  </div>
+                )}
                 <div className="col-span-2">
                   <p className="text-xs text-muted-foreground">Identificador</p>
                   <p className="font-mono text-xs break-all mt-0.5">{identifierLabel(detailsRow)}</p>
@@ -402,7 +407,7 @@ function InfoField({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="font-medium text-foreground mt-0.5">{value}</p>
+      <p className="font-medium text-foreground mt-0.5 break-words">{value}</p>
     </div>
   )
 }

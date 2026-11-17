@@ -24,6 +24,8 @@ function row(overrides: Partial<ReportReturnRow> = {}): ReportReturnRow {
     depositorCnpj:     '12345678000199',
     finalCustomerName: 'Cliente Final',
     itemCount:         2,
+    mismatchedItemCount: null,
+    mismatchDescription: null,
     operatorName:      'Operador Um',
     status:            'processed',
     decision:          'return_to_stock',
@@ -166,6 +168,18 @@ describe('buildReturnsReport', () => {
     expect(detail['Decidido por']).toBe('Cliente')
     expect(detail['Operador']).toBe('Operador Um')
     expect(detail).not.toHaveProperty('NF Original')
+  })
+
+  it('colunas de produto não corresponde: quantos itens e o que veio (travessão se não for o caso)', () => {
+    const { base64 } = buildReturnsReport([
+      row({ rv: 'RV-1', itemCount: 3, mismatchedItemCount: 2, mismatchDescription: 'boné azul' }),
+      row({ rv: 'RV-2' }),
+    ], META)
+    const [mismatch, normal] = sheetsOf(base64).rowsOf('Devoluções')
+    expect(mismatch['Não corresponde (itens)']).toBe(2)
+    expect(mismatch['O que veio na caixa']).toBe('boné azul')
+    expect(normal['Não corresponde (itens)']).toBe('—')
+    expect(normal['O que veio na caixa']).toBe('—')
   })
 
   it('NF Origem traz só a chave, sem o rótulo "Chave:"', () => {

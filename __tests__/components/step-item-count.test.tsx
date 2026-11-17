@@ -6,11 +6,16 @@ import { StepItemCount } from '@/app/(operator)/operador/recebimento/steps/step-
 const onComplete = vi.fn()
 const onBack     = vi.fn()
 
-function renderStep(props: { itemCount?: number | null; damagedItemCount?: number | null } = {}) {
+function renderStep(props: {
+  itemCount?:        number | null
+  damagedItemCount?: number | null
+  mismatch?:         { count: number; description: string } | null
+} = {}) {
   return render(
     <StepItemCount
       itemCount={props.itemCount ?? null}
       damagedItemCount={props.damagedItemCount ?? null}
+      mismatch={props.mismatch ?? null}
       onComplete={onComplete}
       onBack={onBack}
     />,
@@ -21,6 +26,7 @@ const next     = () => screen.getByRole('button', { name: /próximo/i })
 const good     = () => screen.getByRole('button', { name: /^bom/i })
 const damaged  = () => screen.getByRole('button', { name: /^avaria/i })
 const empty    = () => screen.getByRole('button', { name: /^caixa vazia/i })
+const mismatch = () => screen.getByRole('button', { name: /^produto não corresponde/i })
 const quantity = () => screen.getByLabelText('Quantidade de itens')
 
 beforeEach(() => {
@@ -40,7 +46,7 @@ describe('StepItemCount — Etapa 3 (Itens)', () => {
     await user.click(good())
     expect(next()).toBeEnabled()
     await user.click(next())
-    expect(onComplete).toHaveBeenCalledWith(3, 0)
+    expect(onComplete).toHaveBeenCalledWith(3, 0, null)
   })
 
   it('com Avaria pede quantos avariados e envia o número', async () => {
@@ -58,7 +64,7 @@ describe('StepItemCount — Etapa 3 (Itens)', () => {
 
     await user.type(avariados, '2')
     await user.click(next())
-    expect(onComplete).toHaveBeenCalledWith(5, 2)
+    expect(onComplete).toHaveBeenCalledWith(5, 2, null)
   })
 
   it('bloqueia avariados acima da quantidade, com mensagem', async () => {
@@ -82,7 +88,7 @@ describe('StepItemCount — Etapa 3 (Itens)', () => {
 
     expect(screen.getByLabelText('Quantos avariados?')).toHaveValue(1)
     await user.click(next())
-    expect(onComplete).toHaveBeenCalledWith(1, 1)
+    expect(onComplete).toHaveBeenCalledWith(1, 1, null)
   })
 
   it('atalhos: B marca Bom e Enter avança', async () => {
@@ -95,7 +101,7 @@ describe('StepItemCount — Etapa 3 (Itens)', () => {
     expect(quantity()).toHaveValue(4) // a letra não vai para o campo
 
     await user.keyboard('{Enter}')
-    expect(onComplete).toHaveBeenCalledWith(4, 0)
+    expect(onComplete).toHaveBeenCalledWith(4, 0, null)
   })
 
   it('atalhos: A marca Avaria e foca o campo de avariados', async () => {
@@ -108,7 +114,7 @@ describe('StepItemCount — Etapa 3 (Itens)', () => {
     expect(screen.getByLabelText('Quantos avariados?')).toHaveFocus()
 
     await user.keyboard('3{Enter}')
-    expect(onComplete).toHaveBeenCalledWith(6, 3)
+    expect(onComplete).toHaveBeenCalledWith(6, 3, null)
   })
 
   it('Enter não avança enquanto o estado não foi escolhido', async () => {
@@ -151,7 +157,7 @@ describe('StepItemCount — Etapa 3 (Itens)', () => {
     expect(quantity()).toBeDisabled()
     expect(quantity()).toHaveValue(0)
     await user.click(next())
-    expect(onComplete).toHaveBeenCalledWith(0, 0)
+    expect(onComplete).toHaveBeenCalledWith(0, 0, null)
   })
 
   it('atalho V marca Caixa vazia; trocar para Bom restaura a quantidade digitada', async () => {
@@ -167,12 +173,68 @@ describe('StepItemCount — Etapa 3 (Itens)', () => {
     expect(quantity()).toBeEnabled()
     expect(quantity()).toHaveValue(3)
     await user.click(next())
-    expect(onComplete).toHaveBeenCalledWith(3, 0)
+    expect(onComplete).toHaveBeenCalledWith(3, 0, null)
   })
 
   it('ao voltar para a etapa, restaura Caixa vazia', () => {
     renderStep({ itemCount: 0, damagedItemCount: 0 })
     expect(empty()).toHaveAttribute('aria-pressed', 'true')
+    expect(next()).toBeEnabled()
+  })
+
+  it('Produto não corresponde pede quantos e o que veio, e envia os dois', async () => {
+    const user = userEvent.setup()
+    renderStep()
+
+    await user.type(quantity(), '4')
+    await user.click(mismatch())
+    expect(mismatch()).toHaveAttribute('aria-pressed', 'true')
+    const qtd = screen.getByLabelText('Quantos não correspondem à NF?')
+    expect(qtd).toHaveFocus()
+    expect(screen.getByText('de 4')).toBeInTheDocument()
+    expect(next()).toBeDisabled()
+
+    await user.type(qtd, '2')
+    expect(next()).toBeDisabled() // falta a descrição
+    await user.type(screen.getByLabelText('O que veio na caixa?'), '  camiseta P azul  ')
+    await user.click(next())
+    expect(onComplete).toHaveBeenCalledWith(4, 0, { count: 2, description: 'camiseta P azul' })
+  })
+
+  it('atalho N marca Produto não corresponde; com 1 item já vem 1 e foca a descrição', async () => {
+    const user = userEvent.setup()
+    renderStep()
+
+    await user.type(quantity(), '1')
+    await user.keyboard('n')
+    expect(mismatch()).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByLabelText('Quantos não correspondem à NF?')).toHaveValue(1)
+    const desc = screen.getByLabelText('O que veio na caixa?')
+    expect(desc).toHaveFocus()
+
+    // Letras digitadas na descrição não acionam os atalhos.
+    await user.keyboard('bav')
+    expect(mismatch()).toHaveAttribute('aria-pressed', 'true')
+    expect(desc).toHaveValue('bav')
+  })
+
+  it('bloqueia não correspondentes acima da quantidade', async () => {
+    const user = userEvent.setup()
+    renderStep()
+
+    await user.type(quantity(), '2')
+    await user.click(mismatch())
+    await user.type(screen.getByLabelText('Quantos não correspondem à NF?'), '3')
+    await user.type(screen.getByLabelText('O que veio na caixa?'), 'outro produto')
+    expect(screen.getByText('Não pode passar de 2.')).toBeInTheDocument()
+    expect(next()).toBeDisabled()
+  })
+
+  it('ao voltar para a etapa, restaura Produto não corresponde', () => {
+    renderStep({ itemCount: 3, damagedItemCount: 0, mismatch: { count: 1, description: 'boné' } })
+    expect(mismatch()).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByLabelText('Quantos não correspondem à NF?')).toHaveValue(1)
+    expect(screen.getByLabelText('O que veio na caixa?')).toHaveValue('boné')
     expect(next()).toBeEnabled()
   })
 

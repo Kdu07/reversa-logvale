@@ -12,6 +12,7 @@ import { StepPhotos } from './steps/step-photos'
 import { StepReview } from './steps/step-review'
 import { StepSubmit } from './steps/step-submit'
 import type { InvoiceData } from './actions'
+import type { MismatchInput } from '@/lib/item-mismatch'
 import type { IdentifierType } from '@/types'
 
 export interface ReceivingState {
@@ -29,6 +30,8 @@ export interface ReceivingState {
   itemCount:      number | null
   /** null = estado ainda não escolhido · 0 = Bom (ou Caixa vazia) · >0 = Avaria. */
   damagedItemCount: number | null
+  /** Produto não corresponde à NF (quantos + o que veio); null = não é o caso. */
+  mismatch:       MismatchInput | null
   boxPhotos:      File[]
   itemPhotos:     File[]
 }
@@ -39,7 +42,7 @@ type ReceivingAction =
   | { type: 'SET_INVOICE_DATA'; data: InvoiceData | null }
   | { type: 'SET_DEPOSITOR'; id: string | null; name: string | null }
   | { type: 'SET_RV'; rv: string }
-  | { type: 'SET_ITEMS'; count: number; damaged: number }
+  | { type: 'SET_ITEMS'; count: number; damaged: number; mismatch: MismatchInput | null }
   | { type: 'ADD_BOX_PHOTO'; file: File }
   | { type: 'REMOVE_BOX_PHOTO'; index: number }
   | { type: 'ADD_ITEM_PHOTO'; file: File }
@@ -59,6 +62,7 @@ const initialState: ReceivingState = {
   rv:             '',
   itemCount:      null,
   damagedItemCount: null,
+  mismatch:       null,
   boxPhotos:      [],
   itemPhotos:     [],
 }
@@ -87,6 +91,7 @@ function reducer(state: ReceivingState, action: ReceivingAction): ReceivingState
         ...state,
         itemCount:        action.count,
         damagedItemCount: action.damaged,
+        mismatch:         action.mismatch,
         // Caixa vazia não tem fotos de itens — descarta as tiradas antes da troca.
         itemPhotos:       action.count === 0 ? [] : state.itemPhotos,
       }
@@ -144,7 +149,8 @@ export function ReceivingFlow({ operatorName }: ReceivingFlowProps) {
           <StepItemCount
             itemCount={state.itemCount}
             damagedItemCount={state.damagedItemCount}
-            onComplete={(count, damaged) => { dispatch({ type: 'SET_ITEMS', count, damaged }); goTo(4) }}
+            mismatch={state.mismatch}
+            onComplete={(count, damaged, mismatch) => { dispatch({ type: 'SET_ITEMS', count, damaged, mismatch }); goTo(4) }}
             onBack={() => goTo(2)}
           />
         )

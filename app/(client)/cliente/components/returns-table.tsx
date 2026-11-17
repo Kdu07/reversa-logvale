@@ -296,7 +296,12 @@ export function ReturnsTable({
                   <td className="px-3 py-2.5 text-center text-muted-foreground">
                     <div className="flex flex-col items-center gap-1">
                       {row.itemCount}
-                      <ItemConditionBadge itemCount={row.itemCount} damagedItemCount={row.damagedItemCount} />
+                      <ItemConditionBadge
+                        itemCount={row.itemCount}
+                        damagedItemCount={row.damagedItemCount}
+                        mismatchedItemCount={row.mismatchedItemCount}
+                        mismatchDescription={row.mismatchDescription}
+                      />
                     </div>
                   </td>
                   <td className="px-3 py-2.5">

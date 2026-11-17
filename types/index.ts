@@ -42,6 +42,10 @@ export interface Return {
   item_count: number
   /** Itens avariados no recebimento: null = não avaliado, 0 = Bom, >0 = Avaria. */
   damaged_item_count: number | null
+  /** Itens que não correspondem à NF (migration 024): null = não é o caso. */
+  mismatched_item_count: number | null
+  /** O que veio na caixa, quando o produto não corresponde. */
+  mismatch_description: string | null
   depositor_id: string | null
   invoice_xml_url: string | null
   status: ReturnStatus

@@ -198,10 +198,16 @@ describe('getMyReturnsAction', () => {
     expect(allArgsOf('eq')).toContainEqual(['item_count', 0])
   })
 
-  it('filtra por estado: Bom (sem avaria e com itens)', async () => {
+  it('filtra por estado: Bom (sem avaria, com itens e sem produto não correspondente)', async () => {
     await getMyReturnsAction({ condition: 'good' })
     expect(allArgsOf('eq')).toContainEqual(['damaged_item_count', 0])
     expect(allArgsOf('gt')).toEqual([['item_count', 0]])
+    expect(allArgsOf('is')).toEqual([['mismatched_item_count', null]])
+  })
+
+  it('filtra por estado: Produto não corresponde', async () => {
+    await getMyReturnsAction({ condition: 'mismatched' })
+    expect(allArgsOf('gt')).toEqual([['mismatched_item_count', 0]])
   })
 
   it('filtra devoluções sem chave de acesso', async () => {

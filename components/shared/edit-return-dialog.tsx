@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dialog'
 import { accessKeyEmitterCnpj, normalizeAccessKey } from '@/lib/access-key'
 import { cn } from '@/lib/utils'
+import { MISMATCH_DESCRIPTION_MAX } from '@/lib/item-mismatch'
 import {
   getEditReturnDataAction,
   updateReturnAction,
@@ -17,7 +18,7 @@ import {
 } from '@/lib/actions/edit-return'
 import type { IdentifierType } from '@/types'
 
-type Condition = 'good' | 'damaged' | 'empty' | 'unrated'
+type Condition = 'good' | 'damaged' | 'empty' | 'mismatched' | 'unrated'
 
 const IDENTIFIER_OPTIONS: { value: IdentifierType; label: string }[] = [
   { value: 'access_key',     label: 'Chave de acesso' },
@@ -67,6 +68,8 @@ export function EditReturnDialog({ returnId, onClose, onSaved }: Props) {
   const [itemCount, setItemCount]       = useState('')
   const [condition, setCondition]       = useState<Condition>('good')
   const [damaged, setDamaged]           = useState('')
+  const [mismatched, setMismatched]     = useState('')
+  const [mismatchDesc, setMismatchDesc] = useState('')
   const [finalCustomer, setFinalCustomer] = useState('')
   const [restartDeadline, setRestart]   = useState<boolean | null>(null)
 
@@ -85,11 +88,14 @@ export function EditReturnDialog({ returnId, onClose, onSaved }: Props) {
       setDepositorId(d.depositorId ?? '')
       setItemCount(String(d.itemCount))
       setCondition(
-        d.itemCount === 0           ? 'empty'   :
-        d.damagedItemCount === null ? 'unrated' :
+        d.itemCount === 0           ? 'empty'      :
+        d.mismatchedItemCount       ? 'mismatched' :
+        d.damagedItemCount === null ? 'unrated'    :
         d.damagedItemCount > 0      ? 'damaged' : 'good',
       )
       setDamaged(d.damagedItemCount && d.damagedItemCount > 0 ? String(d.damagedItemCount) : '')
+      setMismatched(d.mismatchedItemCount ? String(d.mismatchedItemCount) : '')
+      setMismatchDesc(d.mismatchDescription ?? '')
       setFinalCustomer(d.finalCustomerName ?? '')
     })
     return () => { alive = false }
@@ -111,7 +117,11 @@ export function EditReturnDialog({ returnId, onClose, onSaved }: Props) {
   const countOk   = condition === 'empty' || (Number.isInteger(count) && count > 0)
   const damagedN  = Number(damaged)
   const damagedOk = condition !== 'damaged' || (Number.isInteger(damagedN) && damagedN >= 1 && countOk && damagedN <= count)
-  const canSave   = !!data && rv.trim() !== '' && countOk && damagedOk && (!asksDeadline || restartDeadline !== null)
+  const mismatchedN  = Number(mismatched)
+  const mismatchedOk = condition !== 'mismatched' || (Number.isInteger(mismatchedN) && mismatchedN >= 1 && countOk && mismatchedN <= count)
+  const mismatchDescOk = condition !== 'mismatched' || mismatchDesc.trim() !== ''
+  const canSave   = !!data && rv.trim() !== '' && countOk && damagedOk && mismatchedOk && mismatchDescOk
+    && (!asksDeadline || restartDeadline !== null)
 
   function chooseCondition(c: Condition) {
     setCondition(c)
@@ -132,9 +142,12 @@ export function EditReturnDialog({ returnId, onClose, onSaved }: Props) {
         logisticsCode:     identifierType === 'logistics_code' ? logisticsCode : null,
         itemCount:         count,
         damagedItemCount:
-          condition === 'empty'   ? 0 :
-          condition === 'good'    ? 0 :
-          condition === 'damaged' ? damagedN : null,
+          condition === 'empty'      ? 0 :
+          condition === 'good'       ? 0 :
+          condition === 'mismatched' ? 0 :
+          condition === 'damaged'    ? damagedN : null,
+        mismatch:
+          condition === 'mismatched' ? { count: mismatchedN, description: mismatchDesc } : null,
         depositorId:       depositorId || null,
         finalCustomerName: finalCustomer || null,
         restartDeadline:   asksDeadline ? restartDeadline : null,
@@ -279,6 +292,13 @@ export function EditReturnDialog({ returnId, onClose, onSaved }: Props) {
                 <ConditionButton label="Bom"         selected={condition === 'good'}    selectedClass="border-green-500 bg-green-100 text-green-800" onClick={() => chooseCondition('good')} />
                 <ConditionButton label="Avaria"      selected={condition === 'damaged'} selectedClass="border-amber-500 bg-amber-100 text-amber-800" onClick={() => chooseCondition('damaged')} />
                 <ConditionButton label="Caixa vazia" selected={condition === 'empty'}   selectedClass="border-slate-500 bg-slate-100 text-slate-800" onClick={() => chooseCondition('empty')} />
+                <ConditionButton
+                  label="Produto não corresponde"
+                  selected={condition === 'mismatched'}
+                  selectedClass="border-violet-500 bg-violet-100 text-violet-800"
+                  onClick={() => chooseCondition('mismatched')}
+                  className="col-span-3"
+                />
               </div>
               {condition === 'unrated' && (
                 <p className="text-xs text-muted-foreground">Estado não avaliado no recebimento — escolha um para registrar.</p>
@@ -313,9 +333,42 @@ export function EditReturnDialog({ returnId, onClose, onSaved }: Props) {
                     />
                   </div>
                 )}
+                {condition === 'mismatched' && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="edit-mismatched">Não correspondem à NF</Label>
+                    <Input
+                      id="edit-mismatched"
+                      type="number"
+                      inputMode="numeric"
+                      min={1}
+                      max={countOk ? count : undefined}
+                      step={1}
+                      value={mismatched}
+                      aria-invalid={!mismatchedOk}
+                      onChange={(e) => setMismatched(e.target.value)}
+                    />
+                  </div>
+                )}
               </div>
               {condition === 'damaged' && damaged !== '' && !damagedOk && (
                 <p className="text-xs text-destructive">Avariados deve ser de 1 a {countOk ? count : 'nº de itens'}.</p>
+              )}
+              {condition === 'mismatched' && (
+                <>
+                  {mismatched !== '' && !mismatchedOk && (
+                    <p className="text-xs text-destructive">Deve ser de 1 a {countOk ? count : 'nº de itens'}.</p>
+                  )}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="edit-mismatch-desc">O que veio na caixa</Label>
+                    <Input
+                      id="edit-mismatch-desc"
+                      value={mismatchDesc}
+                      maxLength={MISMATCH_DESCRIPTION_MAX}
+                      onChange={(e) => setMismatchDesc(e.target.value)}
+                      placeholder="Ex.: camiseta P azul em vez de M preta"
+                    />
+                  </div>
+                </>
               )}
               {data.itemCount === 0 && condition !== 'empty' && (
                 <p className="text-xs text-muted-foreground">
@@ -348,8 +401,8 @@ export function EditReturnDialog({ returnId, onClose, onSaved }: Props) {
 }
 
 function ConditionButton({
-  label, selected, selectedClass, onClick,
-}: { label: string; selected: boolean; selectedClass: string; onClick: () => void }) {
+  label, selected, selectedClass, onClick, className,
+}: { label: string; selected: boolean; selectedClass: string; onClick: () => void; className?: string }) {
   return (
     <button
       type="button"
@@ -359,6 +412,7 @@ function ConditionButton({
         'h-10 rounded-md border-2 px-2 text-sm font-semibold transition-colors ease-quint',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         selected ? selectedClass : 'border-border text-foreground hover:bg-muted/50',
+        className,
       )}
     >
       {label}

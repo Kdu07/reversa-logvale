@@ -91,8 +91,14 @@ export function DetailsModal({ row, onClose, onComplete }: DetailsModalProps) {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Estado</p>
-                  <p className="font-medium">{itemConditionLabel(row.itemCount, row.damagedItemCount) ?? '—'}</p>
+                  <p className="font-medium">{itemConditionLabel(row.itemCount, row.damagedItemCount, row.mismatchedItemCount) ?? '—'}</p>
                 </div>
+                {row.mismatchDescription && (
+                  <div className="col-span-2">
+                    <p className="text-xs text-muted-foreground">O que veio na caixa</p>
+                    <p className="font-medium break-words">{row.mismatchDescription}</p>
+                  </div>
+                )}
                 <div>
                   <p className="text-xs text-muted-foreground">Identificador</p>
                   <p className="font-mono text-xs break-all">{identifierLabel(row)}</p>

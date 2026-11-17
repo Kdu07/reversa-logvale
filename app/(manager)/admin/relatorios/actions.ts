@@ -60,6 +60,8 @@ type RawReturn = {
   logistics_code:      string | null
   illegible_token:     string | null
   item_count:          number
+  mismatched_item_count: number | null
+  mismatch_description:  string | null
   status:              string
   decision:            string | null
   decided_by_type:     string | null
@@ -75,7 +77,7 @@ type RawReturn = {
 }
 
 const SELECT_COLUMNS = `id, rv, identifier_type, access_key, postal_code, logistics_code, illegible_token,
-   item_count, status, decision, decided_by_type, received_at, decided_at, processed_at,
+   item_count, mismatched_item_count, mismatch_description, status, decision, decided_by_type, received_at, decided_at, processed_at,
    final_customer_name, return_invoice_xml_url, return_invoice_key, depositor_id,
    depositors!depositor_id(razao_social, cnpj),
    profiles!received_by(full_name)`
@@ -180,6 +182,8 @@ function toReportRow(r: RawReturn): ReportReturnRow {
     depositorCnpj:     r.depositors?.cnpj ?? null,
     finalCustomerName: r.final_customer_name,
     itemCount:         r.item_count,
+    mismatchedItemCount: r.mismatched_item_count ?? null,
+    mismatchDescription: r.mismatch_description ?? null,
     operatorName:      r.profiles?.full_name ?? null,
     status:            r.status as ReturnStatus,
     decision:          r.decision as ReturnDecision | null,

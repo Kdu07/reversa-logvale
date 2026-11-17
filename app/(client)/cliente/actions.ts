@@ -25,6 +25,9 @@ export interface ReturnRow {
   itemCount:      number
   /** Estado no recebimento: null = não avaliado, 0 = Bom, >0 = itens avariados. */
   damagedItemCount: number | null
+  /** Produto não corresponde à NF (migration 024): quantos itens · o que veio. */
+  mismatchedItemCount: number | null
+  mismatchDescription: string | null
   receivedAt:     string
   depositorId:    string | null
   depositorName:  string | null
@@ -106,7 +109,7 @@ export async function getClientReturnsAction(
       .from('returns')
       .select(
         `id, identifier_type, access_key, postal_code, logistics_code, illegible_token,
-         rv, item_count, damaged_item_count, received_at, decision_deadline_from, depositor_id, final_customer_name,
+         rv, item_count, damaged_item_count, mismatched_item_count, mismatch_description, received_at, decision_deadline_from, depositor_id, final_customer_name,
          depositors!depositor_id(razao_social, cnpj, no_decision_deadline),
          return_photos(storage_path, photo_type, position)`,
         { count: 'exact' },
@@ -180,6 +183,8 @@ export async function getClientReturnsAction(
         rv:             r.rv,
         itemCount:      r.item_count,
         damagedItemCount: r.damaged_item_count ?? null,
+        mismatchedItemCount: r.mismatched_item_count ?? null,
+        mismatchDescription: r.mismatch_description ?? null,
         receivedAt:     r.received_at,
         depositorId:    r.depositor_id,
         depositorName:  dep?.razao_social ?? null,
@@ -217,7 +222,7 @@ export async function getClientHistoryAction(
       .from('returns')
       .select(
         `id, identifier_type, access_key, postal_code, logistics_code, illegible_token,
-         rv, item_count, damaged_item_count, received_at, depositor_id, return_invoice_xml_url, final_customer_name,
+         rv, item_count, damaged_item_count, mismatched_item_count, mismatch_description, received_at, depositor_id, return_invoice_xml_url, final_customer_name,
          decision, decided_at, decided_by_type, reship_label_url, reship_danfe_url,
          depositors!depositor_id(razao_social),
          return_photos(storage_path, photo_type, position)`,
@@ -291,6 +296,8 @@ export async function getClientHistoryAction(
         rv:             r.rv,
         itemCount:      r.item_count,
         damagedItemCount: r.damaged_item_count ?? null,
+        mismatchedItemCount: r.mismatched_item_count ?? null,
+        mismatchDescription: r.mismatch_description ?? null,
         receivedAt:     r.received_at,
         depositorId:    r.depositor_id,
         depositorName:  dep?.razao_social ?? null,
@@ -416,7 +423,7 @@ export async function exportHistoryAction(): Promise<
         .from('returns')
         .select(
           `id, identifier_type, access_key, postal_code, logistics_code, illegible_token,
-           rv, item_count, received_at, depositor_id, decision, decided_at, decided_by_type, status, final_customer_name,
+           rv, item_count, mismatched_item_count, mismatch_description, received_at, depositor_id, decision, decided_at, decided_by_type, status, final_customer_name,
            return_invoice_xml_url, return_invoice_key,
            depositors!depositor_id(razao_social)`,
         )
@@ -455,6 +462,8 @@ export async function exportHistoryAction(): Promise<
           rv:             r.rv,
           itemCount:      r.item_count,
           damagedItemCount: null, // não exportado
+          mismatchedItemCount: null,
+          mismatchDescription: null,
           receivedAt:     r.received_at,
           depositorId:    null,
           depositorName:  dep?.razao_social ?? null,
@@ -478,6 +487,8 @@ export async function exportHistoryAction(): Promise<
           'Depositante':         dep?.razao_social ?? '—',
           'Cliente Final':       r.final_customer_name ?? '—',
           'Nº Itens':            r.item_count,
+          'Não corresponde (itens)': r.mismatched_item_count ?? '—',
+          'O que veio na caixa':     r.mismatch_description ?? '—',
           'Decisão':             r.decision ? (DECISION_LABELS[r.decision as ReturnDecision] ?? r.decision) : '—',
           'Decidido por':        r.decided_by_type ? (DECIDED_BY_LABELS[r.decided_by_type as DecisionSource] ?? r.decided_by_type) : '—',
           'Data Decisão':        r.decided_at ? formatDate(r.decided_at) : '—',

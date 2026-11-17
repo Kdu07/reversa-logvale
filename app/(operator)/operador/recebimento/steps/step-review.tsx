@@ -71,12 +71,20 @@ export function StepReview({ state, onConfirm, onGoTo, onBack }: StepReviewProps
           )}
           {state.itemCount !== null && state.itemCount > 0 && state.damagedItemCount !== null && (
             <span
-              className={state.damagedItemCount > 0 ? 'text-amber-700 font-medium' : 'text-green-700 font-medium'}
+              className={
+                state.mismatch               ? 'text-violet-700 font-medium' :
+                state.damagedItemCount > 0   ? 'text-amber-700 font-medium'  : 'text-green-700 font-medium'
+              }
             >
-              {' · '}{itemConditionLabel(state.itemCount, state.damagedItemCount)}
+              {' · '}{itemConditionLabel(state.itemCount, state.damagedItemCount, state.mismatch?.count)}
             </span>
           )}
         </p>
+        {state.mismatch && (
+          <p className="text-xs text-muted-foreground mt-1 break-words">
+            O que veio: <span className="text-foreground">{state.mismatch.description}</span>
+          </p>
+        )}
       </ReviewSection>
 
       <ReviewSection label={`Fotos da Caixa (${state.boxPhotos.length})`} onEdit={() => onGoTo(4)}>

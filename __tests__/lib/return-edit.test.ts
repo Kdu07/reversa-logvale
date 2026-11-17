@@ -22,6 +22,8 @@ const CURRENT: ReturnEditCurrent = {
   illegible_token:     null,
   item_count:          3,
   damaged_item_count:  0,
+  mismatched_item_count: null,
+  mismatch_description:  null,
   depositor_id:        'dep-1',
   final_customer_name: 'FULANO',
 }
@@ -112,6 +114,25 @@ describe('normalizeReturnEdit', () => {
     expect(ok({ itemCount: 5, damagedItemCount: 2 })).toMatchObject({ item_count: 5, damaged_item_count: 2 })
   })
 
+  it('produto não corresponde: grava quantos + descrição aparada, com avariados = 0', () => {
+    expect(ok({ itemCount: 3, damagedItemCount: 0, mismatch: { count: 2, description: '  boné  ' } })).toMatchObject({
+      item_count: 3, damaged_item_count: 0, mismatched_item_count: 2, mismatch_description: 'boné',
+    })
+    // Sem marcação → limpa as colunas.
+    expect(ok({ mismatch: null }, { mismatched_item_count: 1, mismatch_description: 'boné' })).toMatchObject({
+      mismatched_item_count: null, mismatch_description: null,
+    })
+  })
+
+  it('produto não corresponde: valida quantidade, descrição e exclusividade', () => {
+    expect(err({ itemCount: 2, mismatch: { count: 3, description: 'x' } })).toMatch(/não correspondem/)
+    expect(err({ itemCount: 2, mismatch: { count: 0, description: 'x' } })).toMatch(/não correspondem/)
+    expect(err({ itemCount: 2, mismatch: { count: 1, description: '   ' } })).toMatch(/veio na caixa/)
+    expect(err({ itemCount: 2, mismatch: { count: 1, description: 'x'.repeat(501) } })).toMatch(/500/)
+    expect(err({ itemCount: 0, mismatch: { count: 1, description: 'x' } })).toMatch(/Caixa vazia/)
+    expect(err({ itemCount: 3, damagedItemCount: 1, mismatch: { count: 1, description: 'x' } })).toMatch(/Avaria/)
+  })
+
   it('"não avaliado" só se já era assim', () => {
     expect(err({ damagedItemCount: null })).toMatch(/estado/)
     expect(ok({ damagedItemCount: null }, { damaged_item_count: null }).damaged_item_count).toBeNull()
@@ -126,6 +147,19 @@ describe('normalizeReturnEdit', () => {
 
 describe('diffReturnEdit', () => {
   const names = { 'dep-1': 'ACME', 'dep-2': 'BLACKSKULL' }
+
+  it('produto não corresponde entra no antes/depois com o que veio', () => {
+    const after: ReturnEditCurrent = { ...CURRENT, mismatched_item_count: 1, mismatch_description: 'boné' }
+    expect(diffReturnEdit(CURRENT, after, names)).toEqual([{
+      field: 'items',
+      label: 'Itens / estado',
+      from:  '3 itens · Bom',
+      to:    '3 itens · Produto não corresponde (1 de 3) — veio: boné',
+    }])
+    // Só a descrição mudou → também é registrada.
+    const after2: ReturnEditCurrent = { ...after, mismatch_description: 'chapéu' }
+    expect(diffReturnEdit(after, after2, names)).toHaveLength(1)
+  })
 
   it('sem diferenças → lista vazia', () => {
     expect(diffReturnEdit(CURRENT, { ...CURRENT }, names)).toEqual([])

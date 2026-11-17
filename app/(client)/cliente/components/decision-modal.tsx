@@ -160,13 +160,19 @@ export function DecisionModal({ row, decision, onClose, onSuccess }: DecisionMod
             {(row.itemCount === 0 || row.damagedItemCount !== null) && (
               <span className={
                 row.itemCount === 0 ? 'font-medium text-slate-700'
+                  : row.mismatchedItemCount ? 'font-medium text-violet-700'
                   : (row.damagedItemCount ?? 0) > 0 ? 'font-medium text-amber-700'
                   : 'font-medium text-green-700'
               }>
-                {' · '}{itemConditionLabel(row.itemCount, row.damagedItemCount)}
+                {' · '}{itemConditionLabel(row.itemCount, row.damagedItemCount, row.mismatchedItemCount)}
               </span>
             )}
           </p>
+          {row.mismatchDescription && (
+            <p className="break-words">
+              <span className="text-muted-foreground">O que veio na caixa:</span> {row.mismatchDescription}
+            </p>
+          )}
           <p><span className="text-muted-foreground">Identificador:</span> <span className="font-mono text-xs break-all">{identifierLabel(row)}</span></p>
           {row.depositorName && (
             <p><span className="text-muted-foreground">Depositante:</span> {row.depositorName}</p>

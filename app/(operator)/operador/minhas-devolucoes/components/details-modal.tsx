@@ -72,10 +72,15 @@ export function DetailsModal({ row, onClose, onEdit }: Props) {
               <div className="col-span-2">
                 <InfoField label="Cliente final" value={row.finalCustomerName ?? '—'} />
               </div>
-              <InfoField label="Estado" value={itemConditionLabel(row.itemCount, row.damagedItemCount) ?? '—'} />
+              <InfoField label="Estado" value={itemConditionLabel(row.itemCount, row.damagedItemCount, row.mismatchedItemCount) ?? '—'} />
               <InfoField label="Recebido em" value={formatDate(row.receivedAt)} />
               {row.decidedAt   && <InfoField label="Decisão em"    value={formatDate(row.decidedAt)} />}
               {row.processedAt && <InfoField label="Processado em" value={formatDate(row.processedAt)} />}
+              {row.mismatchDescription && (
+                <div className="col-span-2">
+                  <InfoField label="O que veio na caixa" value={row.mismatchDescription} />
+                </div>
+              )}
               <div className="col-span-2">
                 <p className="text-xs text-muted-foreground">Identificador</p>
                 <p className="font-mono text-xs break-all mt-0.5">{identifierLabel(row)}</p>
@@ -168,7 +173,7 @@ function InfoField({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="font-medium text-foreground mt-0.5">{value}</p>
+      <p className="font-medium text-foreground mt-0.5 break-words">{value}</p>
     </div>
   )
 }

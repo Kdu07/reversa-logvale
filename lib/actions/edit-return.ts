@@ -22,7 +22,7 @@ import type { AuthUser, ReturnStatus } from '@/types'
 
 const EDITABLE_COLUMNS =
   'rv, identifier_type, access_key, postal_code, logistics_code, illegible_token, ' +
-  'item_count, damaged_item_count, depositor_id, final_customer_name'
+  'item_count, damaged_item_count, mismatched_item_count, mismatch_description, depositor_id, final_customer_name'
 
 export interface EditDepositorOption {
   id:                 string
@@ -45,6 +45,8 @@ export interface EditReturnData {
   illegibleToken:     string | null
   itemCount:          number
   damagedItemCount:   number | null
+  mismatchedItemCount: number | null
+  mismatchDescription: string | null
   depositorId:        string | null
   finalCustomerName:  string | null
   depositors:         EditDepositorOption[]
@@ -127,6 +129,8 @@ export async function getEditReturnDataAction(
         illegibleToken:    row.illegible_token,
         itemCount:         row.item_count,
         damagedItemCount:  row.damaged_item_count,
+        mismatchedItemCount: row.mismatched_item_count ?? null,
+        mismatchDescription: row.mismatch_description ?? null,
         depositorId:       row.depositor_id,
         finalCustomerName: row.final_customer_name,
         depositors,

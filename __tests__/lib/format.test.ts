@@ -107,6 +107,11 @@ describe('itemConditionLabel', () => {
   it('retorna "Caixa vazia" quando não há itens', () => {
     expect(itemConditionLabel(0, 0)).toBe('Caixa vazia')
   })
+
+  it('retorna "Produto não corresponde (n de N)" quando há itens que não correspondem à NF', () => {
+    expect(itemConditionLabel(4, 0, 2)).toBe('Produto não corresponde (2 de 4)')
+    expect(itemConditionLabel(4, 0, null)).toBe('Bom')
+  })
 })
 
 describe('xmlDownloadName', () => {

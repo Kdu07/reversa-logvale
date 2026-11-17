@@ -7,6 +7,7 @@
  */
 import { isValidAccessKey, normalizeAccessKey } from '@/lib/access-key'
 import { identifierLabel, itemConditionLabel } from '@/lib/format'
+import { validateMismatch, type MismatchInput } from '@/lib/item-mismatch'
 import type { IdentifierType } from '@/types'
 
 /** Campos editáveis, como chegam do formulário. */
@@ -19,6 +20,8 @@ export interface ReturnEditInput {
   itemCount:         number
   /** null só é aceito se a devolução já estava "não avaliada" (antes da 019). */
   damagedItemCount:  number | null
+  /** Produto não corresponde à NF (quantos + o que veio); null = não é o caso. */
+  mismatch?:         MismatchInput | null
   depositorId:       string | null
   finalCustomerName: string | null
   /** Escolha de quem edita ao trocar o depositante de uma devolução aguardando
@@ -36,6 +39,8 @@ export interface ReturnEditCurrent {
   illegible_token:     string | null
   item_count:          number
   damaged_item_count:  number | null
+  mismatched_item_count: number | null
+  mismatch_description:  string | null
   depositor_id:        string | null
   final_customer_name: string | null
 }
@@ -110,6 +115,14 @@ export function normalizeReturnEdit(
     return { error: 'Quantidade de itens avariados inválida.' }
   }
 
+  // Produto não corresponde: estado exclusivo (sem avariados).
+  const mismatchCheck = validateMismatch(itemCount, input.mismatch)
+  if ('error' in mismatchCheck) return mismatchCheck
+  const { mismatch } = mismatchCheck
+  if (mismatch && damaged !== 0) {
+    return { error: 'Produto não corresponde não pode ser marcado junto com Avaria.' }
+  }
+
   return {
     patch: {
       rv,
@@ -120,6 +133,8 @@ export function normalizeReturnEdit(
       illegible_token:     illegibleToken,
       item_count:          itemCount,
       damaged_item_count:  damaged,
+      mismatched_item_count: mismatch?.count ?? null,
+      mismatch_description:  mismatch?.description ?? null,
       depositor_id:        input.depositorId || null,
       final_customer_name: emptyToNull(input.finalCustomerName),
     },
@@ -138,10 +153,13 @@ function identifierText(r: ReturnEditCurrent): string {
 
 function itemsText(r: ReturnEditCurrent): string {
   const n         = r.item_count
-  const condition = itemConditionLabel(n, r.damaged_item_count)
+  const condition = itemConditionLabel(n, r.damaged_item_count, r.mismatched_item_count)
   if (n === 0) return 'Caixa vazia'
   const qty = `${n} ${n === 1 ? 'item' : 'itens'}`
-  return condition ? `${qty} · ${condition}` : `${qty} · não avaliado`
+  if (!condition) return `${qty} · não avaliado`
+  return r.mismatch_description
+    ? `${qty} · ${condition} — veio: ${r.mismatch_description}`
+    : `${qty} · ${condition}`
 }
 
 /**

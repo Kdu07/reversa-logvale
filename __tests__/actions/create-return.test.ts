@@ -113,6 +113,47 @@ describe('createReturnAction', () => {
     expect(mockInsert).not.toHaveBeenCalled()
   })
 
+  it('produto não corresponde: grava quantos itens e a descrição aparada', async () => {
+    mockOperator()
+
+    const result = await createReturnAction({
+      ...BASE_PAYLOAD, damagedItemCount: 0, mismatch: { count: 2, description: '  boné azul ' },
+    })
+
+    expect(result).not.toHaveProperty('error')
+    expect(mockInsert).toHaveBeenLastCalledWith(expect.objectContaining({
+      item_count: 3, damaged_item_count: 0, mismatched_item_count: 2, mismatch_description: 'boné azul',
+    }))
+  })
+
+  it('sem produto não corresponde grava as colunas como null', async () => {
+    mockOperator()
+    await createReturnAction(BASE_PAYLOAD)
+    expect(mockInsert).toHaveBeenLastCalledWith(expect.objectContaining({
+      mismatched_item_count: null, mismatch_description: null,
+    }))
+  })
+
+  it.each([
+    ['mais que os itens',      { count: 4, description: 'x' },  /não correspondem/],
+    ['zero',                   { count: 0, description: 'x' },  /não correspondem/],
+    ['sem descrição',          { count: 1, description: '  ' }, /veio na caixa/],
+  ])('rejeita produto não corresponde inválido (%s) sem inserir', async (_caso, mismatch, msg) => {
+    mockOperator()
+    const result = await createReturnAction({ ...BASE_PAYLOAD, mismatch })
+    expect(result).toEqual({ error: expect.stringMatching(msg) })
+    expect(mockInsert).not.toHaveBeenCalled()
+  })
+
+  it('rejeita produto não corresponde junto com Avaria', async () => {
+    mockOperator()
+    const result = await createReturnAction({
+      ...BASE_PAYLOAD, damagedItemCount: 1, mismatch: { count: 1, description: 'boné' },
+    })
+    expect(result).toEqual({ error: expect.stringMatching(/Avaria/) })
+    expect(mockInsert).not.toHaveBeenCalled()
+  })
+
   it('rejeita recebimento sem foto de caixa ou de item', async () => {
     mockOperator()
 

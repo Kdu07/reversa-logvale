@@ -10,14 +10,15 @@ import { todayValue } from '@/lib/reports/period'
 import type { ReturnDecision } from '@/types'
 
 /** Filtro de estado no recebimento (Etapa 3). */
-export type ItemConditionFilter = 'good' | 'damaged' | 'empty'
+export type ItemConditionFilter = 'good' | 'damaged' | 'empty' | 'mismatched'
 
-export const ITEM_CONDITION_FILTERS: readonly ItemConditionFilter[] = ['good', 'damaged', 'empty']
+export const ITEM_CONDITION_FILTERS: readonly ItemConditionFilter[] = ['good', 'damaged', 'empty', 'mismatched']
 
 export const ITEM_CONDITION_FILTER_LABELS: Record<ItemConditionFilter, string> = {
   good:    'Bom',
   damaged: 'Avaria',
   empty:   'Caixa vazia',
+  mismatched: 'Produto não corresponde',
 }
 
 export function isItemConditionFilter(value: unknown): value is ItemConditionFilter {

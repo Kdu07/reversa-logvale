@@ -5,6 +5,7 @@ import { getCurrentUser } from '@/lib/supabase/get-current-user'
 import { isSuperUser } from '@/lib/auth/super'
 import { lookupInvoice } from '@/lib/integrations/nfeio'
 import type { InvoiceData } from '@/lib/integrations/nfeio'
+import { validateMismatch, type MismatchInput } from '@/lib/item-mismatch'
 import type { IdentifierType } from '@/types'
 
 export type { InvoiceData }
@@ -56,6 +57,8 @@ interface CreateReturnPayload {
   itemCount:         number
   /** 0 = Bom (ou Caixa vazia) · 1..itemCount = Avaria (quantos avariados). */
   damagedItemCount:  number
+  /** Produto não corresponde à NF: quantos itens + o que veio. null = não é o caso. */
+  mismatch?:         MismatchInput | null
   depositorId:       string | null
   invoiceXmlPath:    string | null
   invoicePdfPath:    string | null
@@ -89,6 +92,14 @@ export async function createReturnAction(
       return { error: 'Quantidade de itens avariados inválida.' }
     }
 
+    // Produto não corresponde: estado exclusivo (sem avariados).
+    const mismatchCheck = validateMismatch(payload.itemCount, payload.mismatch)
+    if ('error' in mismatchCheck) return mismatchCheck
+    const { mismatch } = mismatchCheck
+    if (mismatch && damaged !== 0) {
+      return { error: 'Produto não corresponde não pode ser marcado junto com Avaria.' }
+    }
+
     const supabase = createClient()
 
     const { data: record, error: insertError } = await supabase
@@ -102,7 +113,9 @@ export async function createReturnAction(
         rv:                  payload.rv,
         item_count:          payload.itemCount,
         damaged_item_count:  damaged,
-        depositor_id:        payload.depositorId,
+        mismatched_item_count: mismatch?.count ?? null,
+        mismatch_description:  mismatch?.description ?? null,
+        depositor_id:       payload.depositorId,
         invoice_xml_url:     payload.invoiceXmlPath,
         invoice_pdf_url:     payload.invoicePdfPath,
         final_customer_name: payload.finalCustomerName,
