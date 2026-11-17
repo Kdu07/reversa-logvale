@@ -54,6 +54,39 @@ function buildCallbackLink(
   return `${appUrl}/auth/callback?token_hash=${encodeURIComponent(tokenHash)}&type=${type}`
 }
 
+/** "Para sempre" para o Supabase Auth (~100 anos); 'none' remove o bloqueio. */
+const LOGIN_BAN_DURATION = '876000h'
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/** Nome gravado pela anonimização (LGPD) — marca o perfil como irreversível. */
+const ANONYMIZED_NAME = '[ANONIMIZADO]'
+
+/**
+ * Devoluções aguardando decisão que dependem de um CLIENTE. `returns` não tem
+ * `client_id`: o vínculo é indireto (returns.depositor_id → client_depositors).
+ */
+async function countClientPendingReturns(
+  supabase: ReturnType<typeof createClient>,
+  clientId: string,
+): Promise<number> {
+  const { data: links, error: linksErr } = await supabase
+    .from('client_depositors')
+    .select('depositor_id')
+    .eq('client_id', clientId)
+  if (linksErr) throw linksErr
+  const depositorIds = (links ?? []).map((l) => l.depositor_id as string)
+  if (depositorIds.length === 0) return 0
+
+  const { count, error: countErr } = await supabase
+    .from('returns')
+    .select('id', { count: 'exact', head: true })
+    .in('depositor_id', depositorIds)
+    .eq('status', 'awaiting_decision')
+  if (countErr) throw countErr
+  return count ?? 0
+}
+
 /** Activation link backed by our own single-use token (valid until activation). */
 function buildActivationUrl(secret: string, appUrl: string): string {
   return `${appUrl}/ativar?token=${encodeURIComponent(secret)}`
@@ -231,24 +264,61 @@ export async function toggleActiveAction(
 ): Promise<{ ok: true } | { error: string }> {
   try {
     await assertManager()
+    const admin    = createAdminClient()
     const supabase = createClient()
 
-    if (!active) {
-      const { count, error: countErr } = await supabase
-        .from('returns')
-        .select('*', { count: 'exact', head: true })
-        .eq('client_id', userId)
-        .eq('status', 'awaiting_decision')
-      if (countErr) throw countErr
-      if ((count ?? 0) > 0) {
+    const { data: target, error: targetErr } = await supabase
+      .from('profiles')
+      .select('role, full_name')
+      .eq('id', userId)
+      .single()
+    if (targetErr) throw targetErr
+
+    // Anonimização é definitiva: reativar tiraria o ban e o login
+    // `anon-<id>@logvale.local` (previsível) voltaria a funcionar com a senha antiga.
+    if (active && target?.full_name === ANONYMIZED_NAME) {
+      return { error: 'Usuário anonimizado não pode ser reativado.' }
+    }
+
+    // Só cliente tem decisão pendente (operador/gestor não decidem devoluções).
+    if (!active && target?.role === 'client') {
+      const pending = await countClientPendingReturns(supabase, userId)
+      if (pending > 0) {
         return {
-          error: `Usuário tem ${count} devolução(ões) pendente(s) de decisão. Desative após resolução ou aguarde a auto-decisão automática.`,
+          error: `Usuário tem ${pending} devolução(ões) aguardando decisão nos depositantes dele. Desative após a resolução.`,
         }
       }
     }
 
+    // 1) Bloqueia (ou libera) o login no próprio Supabase Auth. Sem isso o
+    //    usuário desativado ainda obtém um JWT com a senha e fala direto com a
+    //    API — o middleware só o desloga ao navegar pelo app. Vem ANTES do
+    //    perfil: se falhar, nada mudou e a tela não mostra um status falso.
+    const { error: banErr } = await admin.auth.admin.updateUserById(userId, {
+      ban_duration: active ? 'none' : LOGIN_BAN_DURATION,
+    })
+    if (banErr) {
+      return {
+        error: active
+          ? `Não foi possível liberar o login (${banErr.message}). Nada foi alterado — tente novamente.`
+          : `Não foi possível bloquear o login (${banErr.message}). Nada foi alterado — tente novamente.`,
+      }
+    }
+
+    // 2) Perfil. Se falhar, desfaz o passo 1 para login e perfil não divergirem.
     const { error } = await supabase.from('profiles').update({ active }).eq('id', userId)
-    if (error) throw error
+    if (error) {
+      const { error: undoErr } = await admin.auth.admin.updateUserById(userId, {
+        ban_duration: active ? LOGIN_BAN_DURATION : 'none',
+      })
+      if (undoErr) {
+        return {
+          error: `${error.message} — e não foi possível desfazer o ${active ? 'desbloqueio' : 'bloqueio'} do login (${undoErr.message}). Tente novamente.`,
+        }
+      }
+      throw error
+    }
+
     revalidatePath('/admin/usuarios')
     return { ok: true }
   } catch (err) {
@@ -337,9 +407,12 @@ export async function exportUserDataAction(
 ): Promise<{ base64: string; filename: string } | { error: string }> {
   try {
     await assertManager()
+    if (!UUID_RE.test(userId)) throw new Error('Usuário inválido')
     const admin    = createAdminClient()
     const supabase = createClient()
 
+    // `returns` não tem `client_id`: o rastro pessoal do usuário nas devoluções
+    // é o que ele recebeu (operador), decidiu (cliente) ou tratou (operador).
     const [
       { data: { user: authUser }, error: authErr },
       { data: profile,           error: profErr },
@@ -347,7 +420,11 @@ export async function exportUserDataAction(
     ] = await Promise.all([
       admin.auth.admin.getUserById(userId),
       supabase.from('profiles').select('full_name, phone, role, created_at, terms_accepted_at').eq('id', userId).single(),
-      supabase.from('returns').select('rv, received_at, status, decision, decided_at, decided_by_type, processed_at').eq('client_id', userId),
+      supabase
+        .from('returns')
+        .select('rv, received_at, status, decision, decided_at, decided_by_type, processed_at')
+        .or(`received_by.eq.${userId},decided_by.eq.${userId},processed_by.eq.${userId}`)
+        .order('received_at', { ascending: true }),
     ])
 
     if (authErr) throw authErr
@@ -393,12 +470,13 @@ export async function anonymizeUserAction(
 
     const { error: profErr } = await supabase
       .from('profiles')
-      .update({ full_name: '[ANONIMIZADO]', phone: null, active: false })
+      .update({ full_name: ANONYMIZED_NAME, phone: null, active: false })
       .eq('id', userId)
     if (profErr) throw profErr
 
     const { error: authErr } = await admin.auth.admin.updateUserById(userId, {
-      email: `anon-${userId}@logvale.local`,
+      email:        `anon-${userId}@logvale.local`,
+      ban_duration: LOGIN_BAN_DURATION,
     })
     if (authErr) throw authErr
 

@@ -31,10 +31,14 @@ export default async function PrimeiroAcessoPage() {
     const { error: pwdErr } = await supabase.auth.updateUser({ password })
     if (pwdErr) return { error: 'Não foi possível definir a senha. Tente novamente.' }
 
+    // Só grava o aceite se ainda não houver um: a migration 023 proíbe trocar uma
+    // data já gravada, e um reenvio do formulário (duplo clique, aba antiga)
+    // falharia aqui depois de a senha já ter sido trocada.
     const { error: termsErr } = await supabase
       .from('profiles')
       .update({ terms_accepted_at: new Date().toISOString() })
       .eq('id', authUser.id)
+      .is('terms_accepted_at', null)
     if (termsErr) return { error: 'Não foi possível concluir a ativação. Tente novamente.' }
 
     // Ativação concluída → encerra o token de ativação (uso único).

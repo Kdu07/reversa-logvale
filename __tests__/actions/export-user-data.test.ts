@@ -11,12 +11,15 @@ vi.mock('@/lib/supabase/get-current-user', () => ({
 // ── Supabase server client (profiles + returns) ──────────────────────
 let profileResult: { data: unknown; error: unknown }
 let returnsResult: { data: unknown; error: unknown }
+const returnsOr = vi.fn()
 
 function serverBuilder(table: string) {
   const b: Record<string, unknown> = {}
   const chain = () => b
   b.select = vi.fn(chain)
   b.eq     = vi.fn(chain)
+  b.order  = vi.fn(chain)
+  b.or     = vi.fn((filter: string) => { returnsOr(table, filter); return b })
   // profiles is read via .single(); returns is awaited directly (thenable)
   b.single = vi.fn(() => Promise.resolve(profileResult))
   b.then   = (resolve: (v: unknown) => unknown, reject: (e: unknown) => unknown) =>
@@ -114,6 +117,23 @@ describe('exportUserDataAction (LGPD)', () => {
     const result = await exportUserDataAction(USER_ID)
 
     expect(result).toEqual({ error: 'profile not found' })
+  })
+
+  it('busca as devoluções em que o usuário atuou (returns não tem client_id)', async () => {
+    await exportUserDataAction(USER_ID)
+
+    expect(returnsOr).toHaveBeenCalledWith(
+      'returns',
+      `received_by.eq.${USER_ID},decided_by.eq.${USER_ID},processed_by.eq.${USER_ID}`,
+    )
+  })
+
+  it('recusa id que não é UUID (evita injeção no filtro .or)', async () => {
+    const result = await exportUserDataAction('x,decided_by.neq.null')
+
+    expect(result).toEqual({ error: 'Usuário inválido' })
+    expect(returnsOr).not.toHaveBeenCalled()
+    expect(mockGetUserById).not.toHaveBeenCalled()
   })
 
   it('propaga erro quando a busca das devoluções falha', async () => {

@@ -59,6 +59,9 @@ export function UsersTable({ users, depositors }: Props) {
   const [editingUser, setEditingUser] = useState<UserRow | null>(null)
   const [form, setForm]               = useState<FormState>(EMPTY_FORM)
   const [error, setError]             = useState<string | null>(null)
+  // Erros das ações da linha (desativar, reenviar link, exportar, anonimizar):
+  // `error` só aparece dentro do modal de criar/editar, que está fechado aqui.
+  const [actionError, setActionError] = useState<string | null>(null)
   const [linkModal, setLinkModal]     = useState<{ email: string; link: string; mode: 'activation' | 'recovery'; emailSent?: boolean; emailError?: string } | null>(null)
   const [anonymizeTarget, setAnonymizeTarget] = useState<UserRow | null>(null)
   const [anonCountdown, setAnonCountdown]     = useState(2)
@@ -159,21 +162,27 @@ export function UsersTable({ users, depositors }: Props) {
   }
 
   function handleToggle(u: UserRow) {
-    startTransition(async () => { await toggleActiveAction(u.id, !u.active) })
+    setActionError(null)
+    startTransition(async () => {
+      const result = await toggleActiveAction(u.id, !u.active)
+      if ('error' in result) setActionError(result.error)
+    })
   }
 
   function handleResendLink(u: UserRow) {
+    setActionError(null)
     startTransition(async () => {
       const result = await resendMagicLinkAction(u.email)
-      if ('error' in result) { setError(result.error); return }
+      if ('error' in result) { setActionError(result.error); return }
       setLinkModal({ email: u.email, link: result.link, mode: result.mode })
     })
   }
 
   function handleExport(u: UserRow) {
+    setActionError(null)
     startTransition(async () => {
       const result = await exportUserDataAction(u.id)
-      if ('error' in result) { setError(result.error); return }
+      if ('error' in result) { setActionError(result.error); return }
       const a = document.createElement('a')
       a.href = `data:application/zip;base64,${result.base64}`
       a.download = result.filename
@@ -190,9 +199,10 @@ export function UsersTable({ users, depositors }: Props) {
     if (!anonymizeTarget) return
     const target = anonymizeTarget
     setAnonymizeTarget(null)
+    setActionError(null)
     startTransition(async () => {
       const result = await anonymizeUserAction(target.id)
-      if ('error' in result) { setError(result.error); return }
+      if ('error' in result) setActionError(result.error)
     })
   }
 
@@ -220,6 +230,19 @@ export function UsersTable({ users, depositors }: Props) {
           {t.createBtn}
         </Button>
       </div>
+
+      {actionError && (
+        <Alert variant="destructive" className="flex items-start justify-between gap-3">
+          <AlertDescription>{actionError}</AlertDescription>
+          <button
+            type="button"
+            onClick={() => setActionError(null)}
+            className="text-xs underline shrink-0"
+          >
+            Fechar
+          </button>
+        </Alert>
+      )}
 
       {/* Tabela */}
       {paginated.length === 0 ? (
@@ -254,9 +277,12 @@ export function UsersTable({ users, depositors }: Props) {
                   <td className="px-4 py-2.5">
                     <div className="flex gap-3 justify-end flex-wrap">
                       <button type="button" onClick={() => openEdit(u)} className="text-xs text-primary hover:underline">{t.editBtn}</button>
-                      <button type="button" onClick={() => handleToggle(u)} disabled={isPending} className="text-xs text-muted-foreground hover:underline">
-                        {u.active ? t.deactivateBtn : t.activateBtn}
-                      </button>
+                      {/* Anonimizado é definitivo: sem botão de reativar (a action também recusa). */}
+                      {(u.active || u.full_name !== '[ANONIMIZADO]') && (
+                        <button type="button" onClick={() => handleToggle(u)} disabled={isPending} className="text-xs text-muted-foreground hover:underline">
+                          {u.active ? t.deactivateBtn : t.activateBtn}
+                        </button>
+                      )}
                       <button type="button" onClick={() => handleResendLink(u)} disabled={isPending} className="text-xs text-muted-foreground hover:underline">{t.resendLinkBtn}</button>
                       <button type="button" onClick={() => handleExport(u)} disabled={isPending} className="text-xs text-muted-foreground hover:underline">Exportar dados</button>
                       {u.active && (
