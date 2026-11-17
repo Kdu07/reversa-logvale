@@ -325,7 +325,7 @@ reprocessamento foi removido. Sem chave na bipagem, o cliente a informa depois (
 - `/login`, `/auth/callback`, `/privacidade`, `/termos`
 
 ### Operador (`/operador/*`)
-- `/operador` — home com botões "Novo Recebimento" e "Tratativas"
+- `/operador` — visão geral: atalhos compactos (Novo recebimento, Tratativas, Minhas Devoluções) no topo + contadores clicáveis (minha produção, tratativas por decisão, aguardando cliente, sem chave) e as 10 tratativas pendentes mais recentes, com filtro de depositante (clique abre o detalhe)
 - `/operador/recebimento` — fluxo 7 etapas
 - `/operador/tratativas` — lista decididas
 

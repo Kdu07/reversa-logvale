@@ -1,6 +1,16 @@
 import type { ReturnDecision } from '@/types'
 import { ptBR } from '@/lib/i18n/pt-BR'
 
+/** Todas as decisões, na ordem em que aparecem em filtros e resumos. */
+export const RETURN_DECISIONS: readonly ReturnDecision[] = [
+  'return_to_stock', 'store_for_handling', 'discard', 'repackage', 'reship',
+]
+
+/** Valida um valor vindo de fora (ex.: query string) como decisão conhecida. */
+export function isReturnDecision(value: unknown): value is ReturnDecision {
+  return typeof value === 'string' && (RETURN_DECISIONS as readonly string[]).includes(value)
+}
+
 export const DECISION_LABELS: Record<ReturnDecision, string> = {
   return_to_stock:    ptBR.decisions.return_to_stock,
   store_for_handling: ptBR.decisions.store_for_handling,

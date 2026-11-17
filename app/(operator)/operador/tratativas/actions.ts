@@ -36,8 +36,10 @@ export interface TrativaRow {
 }
 
 export interface GetTrativasFilters {
-  rv?:   string
-  page?: number
+  rv?:          string
+  decision?:    ReturnDecision
+  depositorId?: string
+  page?:        number
 }
 
 const PAGE_SIZE = 50
@@ -65,10 +67,13 @@ export async function getTrativasAction(
         { count: 'exact' },
       )
       .eq('status', 'decided')
-      .order('decided_at', { ascending: true })
+      // Decididas mais recentemente primeiro (mesma ordem da visão geral).
+      .order('decided_at', { ascending: false })
       .range(offset, offset + PAGE_SIZE - 1)
 
-    if (filters.rv) query = query.ilike('rv', `%${filters.rv}%`)
+    if (filters.rv)       query = query.ilike('rv', `%${filters.rv}%`)
+    if (filters.decision)    query = query.eq('decision', filters.decision)
+    if (filters.depositorId) query = query.eq('depositor_id', filters.depositorId)
 
     const { data: returns, count, error } = await query
     if (error) return { error: error.message }
@@ -135,6 +140,60 @@ export async function getTrativasAction(
     return { rows, total: count ?? 0 }
   } catch (err) {
     return { error: err instanceof Error ? err.message : 'Erro interno' }
+  }
+}
+
+export interface TrativaDepositor {
+  id:    string
+  name:  string
+  /** Tratativas pendentes desse depositante. */
+  count: number
+}
+
+/** O PostgREST corta cada resposta em 1000 linhas: lê em lotes desse tamanho. */
+const DEPOSITORS_BATCH_SIZE = 1000
+/** Teto de segurança da varredura (50 lotes = 50 mil tratativas pendentes). */
+const DEPOSITORS_MAX_BATCHES = 50
+
+/**
+ * Depositantes com tratativa pendente (status `decided`), com a contagem de
+ * cada um, ordenados por nome — opções do filtro de depositante.
+ */
+export async function getTrativaDepositorsAction(): Promise<TrativaDepositor[]> {
+  try {
+    const user = await getCurrentUser()
+    if (user.profile.role !== 'operator' && !isSuperUser(user)) return []
+
+    const supabase = createClient()
+    const byId     = new Map<string, TrativaDepositor>()
+
+    for (let batch = 0; batch < DEPOSITORS_MAX_BATCHES; batch++) {
+      const offset = batch * DEPOSITORS_BATCH_SIZE
+      const { data, error } = await supabase
+        .from('returns')
+        .select('id, depositor_id, depositors!depositor_id(razao_social)')
+        .eq('status', 'decided')
+        .not('depositor_id', 'is', null)
+        // Ordem estável: sem ela os lotes podem repetir ou pular linhas.
+        .order('id', { ascending: true })
+        .range(offset, offset + DEPOSITORS_BATCH_SIZE - 1)
+      if (error) return []
+
+      const rows = data ?? []
+      for (const r of rows) {
+        const id   = r.depositor_id as string | null
+        const name = (r.depositors as unknown as { razao_social: string } | null)?.razao_social
+        if (!id || !name) continue
+        const entry = byId.get(id)
+        if (entry) entry.count++
+        else byId.set(id, { id, name, count: 1 })
+      }
+      if (rows.length < DEPOSITORS_BATCH_SIZE) break
+    }
+
+    return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+  } catch {
+    return []
   }
 }
 

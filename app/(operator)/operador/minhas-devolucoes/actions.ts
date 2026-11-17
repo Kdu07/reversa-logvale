@@ -5,6 +5,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getCurrentUser } from '@/lib/supabase/get-current-user'
 import { isSuperUser } from '@/lib/auth/super'
 import { buildSignedUrlMap } from '@/lib/supabase/storage'
+import { dayBoundaryIso } from '@/lib/reports/period'
+import type { ItemConditionFilter } from '@/lib/operator-home'
 import type { ReturnStatus, ReturnDecision, IdentifierType } from '@/types'
 
 export interface MyReturnRow {
@@ -49,19 +51,16 @@ export interface GetMyReturnsFilters {
   depositorId?: string
   from?:        string  // YYYY-MM-DD (início do período, inclusivo)
   to?:          string  // YYYY-MM-DD (fim do período, inclusivo)
+  /** Estado no recebimento: Bom / Avaria / Caixa vazia. */
+  condition?:   ItemConditionFilter
+  /** Só devoluções ainda sem chave de acesso da NF de origem. */
+  withoutKey?:  boolean
   page?:        number
 }
 
 type RawPhoto = { photo_type: string; storage_path: string; position: number }
 
 const PAGE_SIZE = 50
-
-/** Converte uma data local (YYYY-MM-DD) para ISO no início/fim do dia. */
-function dayBoundary(date: string, edge: 'start' | 'end'): string | null {
-  const suffix = edge === 'start' ? 'T00:00:00.000' : 'T23:59:59.999'
-  const d = new Date(`${date}${suffix}`)
-  return Number.isNaN(d.getTime()) ? null : d.toISOString()
-}
 
 export async function getMyReturnsAction(
   filters: GetMyReturnsFilters = {},
@@ -95,8 +94,14 @@ export async function getMyReturnsAction(
     if (filters.rv)          query = query.ilike('rv', `%${filters.rv}%`)
     if (filters.depositorId) query = query.eq('depositor_id', filters.depositorId)
 
-    const fromIso = filters.from ? dayBoundary(filters.from, 'start') : null
-    const toIso   = filters.to   ? dayBoundary(filters.to,   'end')   : null
+    if (filters.condition === 'good')    query = query.eq('damaged_item_count', 0).gt('item_count', 0)
+    if (filters.condition === 'damaged') query = query.gt('damaged_item_count', 0)
+    if (filters.condition === 'empty')   query = query.eq('item_count', 0)
+    if (filters.withoutKey)              query = query.is('access_key', null)
+
+    // Dias civis de São Paulo — os mesmos períodos dos contadores da visão geral.
+    const fromIso = filters.from ? dayBoundaryIso(filters.from, 'start') : null
+    const toIso   = filters.to   ? dayBoundaryIso(filters.to,   'end')   : null
     if (fromIso) query = query.gte('received_at', fromIso)
     if (toIso)   query = query.lte('received_at', toIso)
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { getTrativasAction } from '@/app/(operator)/operador/tratativas/actions'
+import { getTrativasAction, getTrativaDepositorsAction } from '@/app/(operator)/operador/tratativas/actions'
 
 // ── auth ─────────────────────────────────────────────────────────────
 const getCurrentUser = vi.fn()
@@ -18,16 +18,25 @@ vi.mock('@/lib/supabase/storage', () => ({
 }))
 
 // ── Supabase server client (thenable builder) ────────────────────────
-let returnsResult: { data: unknown; count?: number; error: unknown }
+type ReturnsResult = { data: unknown; count?: number; error: unknown }
+let returnsResult: ReturnsResult
+/** Respostas por chamada (lotes paginados); vazia = usa `returnsResult`. */
+let returnsQueue: ReturnsResult[] = []
 const ilikeCalls: unknown[][] = []
+const eqCalls:    unknown[][] = []
+const orderCalls: unknown[][] = []
+const rangeCalls: unknown[][] = []
 
 function builder() {
   const b: Record<string, unknown> = {}
   const chain = () => b
-  for (const m of ['select', 'eq', 'order', 'range']) b[m] = vi.fn(chain)
+  for (const m of ['select', 'not']) b[m] = vi.fn(chain)
+  b.range = vi.fn((...args: unknown[]) => { rangeCalls.push(args); return b })
+  b.eq    = vi.fn((...args: unknown[]) => { eqCalls.push(args);    return b })
+  b.order = vi.fn((...args: unknown[]) => { orderCalls.push(args); return b })
   b.ilike = vi.fn((col: string, val: unknown) => { ilikeCalls.push([col, val]); return b })
   b.then = (resolve: (v: unknown) => unknown, reject: (e: unknown) => unknown) =>
-    Promise.resolve(returnsResult).then(resolve, reject)
+    Promise.resolve(returnsQueue.length > 0 ? returnsQueue.shift() : returnsResult).then(resolve, reject)
   return b
 }
 
@@ -46,6 +55,10 @@ function asOperator() {
 beforeEach(() => {
   vi.clearAllMocks()
   ilikeCalls.length = 0
+  eqCalls.length    = 0
+  orderCalls.length = 0
+  rangeCalls.length = 0
+  returnsQueue      = []
   asOperator()
   returnsResult = { data: [], count: 0, error: null }
 })
@@ -119,6 +132,31 @@ describe('getTrativasAction', () => {
     expect(ilikeCalls).toContainEqual(['rv', '%RV-7%'])
   })
 
+  it('lista as decididas mais recentemente primeiro', async () => {
+    await getTrativasAction()
+
+    expect(orderCalls).toEqual([['decided_at', { ascending: false }]])
+  })
+
+  it('aplica filtro de decisão', async () => {
+    await getTrativasAction({ decision: 'reship' })
+
+    expect(eqCalls).toContainEqual(['status', 'decided'])
+    expect(eqCalls).toContainEqual(['decision', 'reship'])
+  })
+
+  it('aplica filtro de depositante', async () => {
+    await getTrativasAction({ depositorId: 'dep-1' })
+
+    expect(eqCalls).toContainEqual(['depositor_id', 'dep-1'])
+  })
+
+  it('sem filtro de decisão não restringe a decisão', async () => {
+    await getTrativasAction()
+
+    expect(eqCalls).toEqual([['status', 'decided']])
+  })
+
   it('propaga erro do banco', async () => {
     returnsResult = { data: null, count: 0, error: { message: 'rls denied' } }
 
@@ -137,5 +175,60 @@ describe('getTrativasAction', () => {
     const result = await getTrativasAction()
 
     expect(result).not.toHaveProperty('error')
+  })
+})
+
+describe('getTrativaDepositorsAction', () => {
+  it('agrupa por depositante com a contagem e ordena por nome', async () => {
+    returnsResult = {
+      data: [
+        { depositor_id: 'd-2', depositors: { razao_social: 'Zeta' } },
+        { depositor_id: 'd-1', depositors: { razao_social: 'Acme' } },
+        { depositor_id: 'd-2', depositors: { razao_social: 'Zeta' } },
+        { depositor_id: null,  depositors: null },
+      ],
+      error: null,
+    }
+
+    const result = await getTrativaDepositorsAction()
+
+    expect(result).toEqual([
+      { id: 'd-1', name: 'Acme', count: 1 },
+      { id: 'd-2', name: 'Zeta', count: 2 },
+    ])
+    expect(eqCalls).toContainEqual(['status', 'decided'])
+  })
+
+  it('lê em lotes de 1000 até um lote incompleto (sem truncar no limite do PostgREST)', async () => {
+    const full = Array.from({ length: 1000 }, () => ({ depositor_id: 'd-1', depositors: { razao_social: 'Acme' } }))
+    returnsQueue = [
+      { data: full, error: null },
+      { data: [
+        { depositor_id: 'd-1', depositors: { razao_social: 'Acme' } },
+        { depositor_id: 'd-2', depositors: { razao_social: 'Zeta' } },
+      ], error: null },
+    ]
+
+    const result = await getTrativaDepositorsAction()
+
+    expect(result).toEqual([
+      { id: 'd-1', name: 'Acme', count: 1001 },
+      { id: 'd-2', name: 'Zeta', count: 1 },
+    ])
+    expect(rangeCalls).toEqual([[0, 999], [1000, 1999]])
+    expect(orderCalls).toContainEqual(['id', { ascending: true }])
+  })
+
+  it('devolve lista vazia com erro do banco', async () => {
+    returnsResult = { data: null, error: { message: 'x' } }
+    expect(await getTrativaDepositorsAction()).toEqual([])
+  })
+
+  it('devolve lista vazia para quem não é operador nem super', async () => {
+    getCurrentUser.mockResolvedValue({
+      id: 'c-1', email: 'c@test.com',
+      profile: { id: 'c-1', role: 'client', active: true, full_name: 'C', phone: null, terms_accepted_at: null, created_at: '' },
+    })
+    expect(await getTrativaDepositorsAction()).toEqual([])
   })
 })

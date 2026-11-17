@@ -60,11 +60,23 @@ function daysBetween(from: string, to: string): number {
   return diff / 86_400_000 + 1
 }
 
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+
 const startOfDay = (isoDate: string) => `${isoDate}T00:00:00${APP_TZ_OFFSET}`
 
-const brDate = (isoDate: string) => isoDate.split('-').reverse().join('/')
+/**
+ * Limite de um dia civil de São Paulo ("YYYY-MM-DD") como ISO UTC — início
+ * (00:00:00.000) ou fim (23:59:59.999), ambos inclusivos. `null` se a data for
+ * inválida, para o chamador simplesmente não aplicar o filtro.
+ */
+export function dayBoundaryIso(isoDate: string, edge: 'start' | 'end'): string | null {
+  if (!DATE_RE.test(isoDate)) return null
+  const time = edge === 'start' ? '00:00:00.000' : '23:59:59.999'
+  const d = new Date(`${isoDate}T${time}${APP_TZ_OFFSET}`)
+  return Number.isNaN(d.getTime()) ? null : d.toISOString()
+}
 
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+const brDate = (isoDate: string) => isoDate.split('-').reverse().join('/')
 
 /**
  * Período a partir de duas datas civis "YYYY-MM-DD", ambas inclusivas.

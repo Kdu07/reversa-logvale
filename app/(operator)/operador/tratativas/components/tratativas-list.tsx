@@ -9,14 +9,21 @@ import { EmptyState } from '@/components/shared/empty-state'
 import { useBarcodeScanner } from '@/hooks/use-barcode-scanner'
 import { useAudioFeedback } from '@/hooks/use-audio-feedback'
 import { DetailsModal } from './details-modal'
+import { DECISION_LABELS, RETURN_DECISIONS } from '@/lib/decisions'
 import { ClipboardList, Search, X, ChevronLeft, ChevronRight } from 'lucide-react'
-import type { TrativaRow } from '../actions'
+import type { ReturnDecision } from '@/types'
+import type { TrativaRow, TrativaDepositor } from '../actions'
 
 interface TrativasListProps {
-  rows:        TrativaRow[]
-  total:       number
-  currentRv:   string
-  currentPage: number
+  rows:            TrativaRow[]
+  total:           number
+  currentRv:       string
+  currentDecision: ReturnDecision | ''
+  depositors:      TrativaDepositor[]
+  currentDepositor: string
+  currentPage:     number
+  /** Abre o modal desta devolução ao carregar (vindo da visão geral). */
+  openId?:         string
 }
 
 const PAGE_SIZE = 50
@@ -28,25 +35,52 @@ function formatDate(iso: string) {
   })
 }
 
-export function TrativasList({ rows, total, currentRv, currentPage }: TrativasListProps) {
+export function TrativasList({
+  rows, total, currentRv, currentDecision, depositors, currentDepositor, currentPage, openId = '',
+}: TrativasListProps) {
   const router       = useRouter()
   const inputRef     = useRef<HTMLInputElement>(null)
+  const openedIdRef  = useRef<string>('')
   const [rvInput, setRvInput]         = useState(currentRv)
   const [selectedRow, setSelectedRow] = useState<TrativaRow | null>(null)
   const { beep }     = useAudioFeedback()
 
   useEffect(() => { inputRef.current?.focus() }, [])
 
-  function buildUrl(rv: string, page: number) {
+  // Link da visão geral (`?open=<id>`): abre o modal daquela devolução uma vez.
+  useEffect(() => {
+    if (!openId || openedIdRef.current === openId) return
+    const row = rows.find((r) => r.id === openId)
+    if (row) {
+      openedIdRef.current = openId
+      setSelectedRow(row)
+    }
+  }, [openId, rows])
+
+  function buildUrl(
+    rv: string,
+    page: number,
+    decision: ReturnDecision | '' = currentDecision,
+    depositor: string = currentDepositor,
+  ) {
     const params = new URLSearchParams()
-    if (rv)       params.set('rv',   rv)
-    if (page > 1) params.set('page', String(page))
+    if (rv)        params.set('rv',        rv)
+    if (decision)  params.set('decision',  decision)
+    if (depositor) params.set('depositor', depositor)
+    if (page > 1)  params.set('page',      String(page))
     const qs = params.toString()
-    return qs ? `?${qs}` : ''
+    return `/operador/tratativas${qs ? `?${qs}` : ''}`
   }
 
   function submitSearch(rv: string) {
     router.push(buildUrl(rv.trim(), 1))
+  }
+
+  /** Fecha o modal; se veio por `?open=`, tira o parâmetro para não reabrir. */
+  function closeModal(processed: boolean) {
+    setSelectedRow(null)
+    if (openId) router.replace(buildUrl(currentRv, currentPage), { scroll: false })
+    else if (processed) router.refresh()
   }
 
   useBarcodeScanner({
@@ -63,7 +97,7 @@ export function TrativasList({ rows, total, currentRv, currentPage }: TrativasLi
   return (
     <div className="space-y-4">
       {/* Busca RV */}
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
           <input
@@ -78,7 +112,7 @@ export function TrativasList({ rows, total, currentRv, currentPage }: TrativasLi
           {rvInput && (
             <button
               type="button"
-              onClick={() => { setRvInput(''); router.push('') }}
+              onClick={() => { setRvInput(''); router.push(buildUrl('', 1)) }}
               className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
             >
               <X className="h-3.5 w-3.5" />
@@ -88,6 +122,32 @@ export function TrativasList({ rows, total, currentRv, currentPage }: TrativasLi
         <Button type="button" size="sm" onClick={() => submitSearch(rvInput)}>
           Buscar
         </Button>
+        <select
+          aria-label="Filtrar por decisão"
+          className="h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          value={currentDecision}
+          onChange={(e) => router.push(buildUrl(currentRv, 1, e.target.value as ReturnDecision | ''))}
+        >
+          <option value="">Todas as decisões</option>
+          {RETURN_DECISIONS.map((d) => (
+            <option key={d} value={d}>{DECISION_LABELS[d]}</option>
+          ))}
+        </select>
+        <select
+          aria-label="Filtrar por depositante"
+          className="h-9 max-w-[16rem] rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          value={currentDepositor}
+          onChange={(e) => router.push(buildUrl(currentRv, 1, currentDecision, e.target.value))}
+        >
+          <option value="">Todos os depositantes</option>
+          {/* Filtro ativo de um depositante que já não tem pendências continua selecionável. */}
+          {currentDepositor && !depositors.some((d) => d.id === currentDepositor) && (
+            <option value={currentDepositor}>Depositante selecionado (0)</option>
+          )}
+          {depositors.map((d) => (
+            <option key={d.id} value={d.id}>{d.name} ({d.count})</option>
+          ))}
+        </select>
         {total > 0 && (
           <Badge variant="secondary" className="ml-auto self-center">
             {total} pendente{total !== 1 ? 's' : ''}
@@ -102,7 +162,9 @@ export function TrativasList({ rows, total, currentRv, currentPage }: TrativasLi
           title="Nenhuma tratativa"
           description={currentRv
             ? `Nenhuma tratativa encontrada para RV "${currentRv}".`
-            : 'Todas as tratativas foram concluídas.'}
+            : currentDecision || currentDepositor
+              ? 'Nenhuma tratativa pendente com os filtros selecionados.'
+              : 'Todas as tratativas foram concluídas.'}
         />
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border">
@@ -192,11 +254,8 @@ export function TrativasList({ rows, total, currentRv, currentPage }: TrativasLi
       {selectedRow && (
         <DetailsModal
           row={selectedRow}
-          onClose={() => setSelectedRow(null)}
-          onComplete={() => {
-            setSelectedRow(null)
-            router.refresh()
-          }}
+          onClose={() => closeModal(false)}
+          onComplete={() => closeModal(true)}
         />
       )}
     </div>

@@ -37,7 +37,7 @@ let queryResult: { data: unknown; count?: number | null; error: unknown } = {
 
 function makeQueryBuilder() {
   const builder: Record<string, unknown> = {}
-  for (const method of ['select', 'eq', 'order', 'range', 'ilike', 'gte', 'lte', 'not']) {
+  for (const method of ['select', 'eq', 'order', 'range', 'ilike', 'gte', 'lte', 'not', 'gt', 'is']) {
     builder[method] = (...args: unknown[]) => {
       calls.push([method, args])
       return builder
@@ -181,15 +181,39 @@ describe('getMyReturnsAction', () => {
     expect(allArgsOf('eq')).toContainEqual(['depositor_id', 'd-1'])
   })
 
-  it('converte o período para o início e o fim do dia local', async () => {
+  it('converte o período para o início e o fim do dia em São Paulo', async () => {
     await getMyReturnsAction({ from: '2026-07-01', to: '2026-07-31' })
 
-    expect(argsOf('gte')).toEqual([
-      'received_at', new Date('2026-07-01T00:00:00.000').toISOString(),
-    ])
-    expect(argsOf('lte')).toEqual([
-      'received_at', new Date('2026-07-31T23:59:59.999').toISOString(),
-    ])
+    expect(argsOf('gte')).toEqual(['received_at', '2026-07-01T03:00:00.000Z'])
+    expect(argsOf('lte')).toEqual(['received_at', '2026-08-01T02:59:59.999Z'])
+  })
+
+  it('filtra por estado: Avaria', async () => {
+    await getMyReturnsAction({ condition: 'damaged' })
+    expect(allArgsOf('gt')).toEqual([['damaged_item_count', 0]])
+  })
+
+  it('filtra por estado: Caixa vazia', async () => {
+    await getMyReturnsAction({ condition: 'empty' })
+    expect(allArgsOf('eq')).toContainEqual(['item_count', 0])
+  })
+
+  it('filtra por estado: Bom (sem avaria e com itens)', async () => {
+    await getMyReturnsAction({ condition: 'good' })
+    expect(allArgsOf('eq')).toContainEqual(['damaged_item_count', 0])
+    expect(allArgsOf('gt')).toEqual([['item_count', 0]])
+  })
+
+  it('filtra devoluções sem chave de acesso', async () => {
+    await getMyReturnsAction({ scope: 'pending', withoutKey: true })
+    expect(allArgsOf('is')).toEqual([['access_key', null]])
+    expect(allArgsOf('eq')).toContainEqual(['status', 'awaiting_decision'])
+  })
+
+  it('sem filtros de estado/chave não aplica gt nem is', async () => {
+    await getMyReturnsAction()
+    expect(argsOf('gt')).toBeUndefined()
+    expect(argsOf('is')).toBeUndefined()
   })
 
   it('ignora datas inválidas em vez de gerar filtro quebrado', async () => {

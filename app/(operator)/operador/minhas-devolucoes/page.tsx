@@ -1,6 +1,7 @@
 import { getMyReturnsAction, getMyReturnDepositorsAction } from './actions'
 import { MyReturnsList } from './components/my-returns-list'
 import { PageHeader } from '@/components/shared/page-header'
+import { isItemConditionFilter } from '@/lib/operator-home'
 
 interface SearchParams {
   scope?:     string
@@ -8,6 +9,8 @@ interface SearchParams {
   depositor?: string
   from?:      string
   to?:        string
+  condition?: string
+  nokey?:     string
   page?:      string
 }
 
@@ -21,6 +24,8 @@ export default async function MyReturnsPage({
   const depositor = searchParams.depositor ?? ''
   const from      = searchParams.from      ?? ''
   const to        = searchParams.to        ?? ''
+  const condition  = isItemConditionFilter(searchParams.condition) ? searchParams.condition : undefined
+  const withoutKey = searchParams.nokey === '1'
   const page      = Math.max(1, parseInt(searchParams.page ?? '1', 10) || 1)
 
   const [result, depositors] = await Promise.all([
@@ -30,6 +35,8 @@ export default async function MyReturnsPage({
       depositorId: depositor || undefined,
       from:        from      || undefined,
       to:          to        || undefined,
+      condition,
+      withoutKey,
       page,
     }),
     getMyReturnDepositorsAction(scope),
@@ -57,6 +64,8 @@ export default async function MyReturnsPage({
           currentDepositor={depositor}
           currentFrom={from}
           currentTo={to}
+          currentCondition={condition ?? ''}
+          currentWithoutKey={withoutKey}
           currentPage={page}
         />
       )}

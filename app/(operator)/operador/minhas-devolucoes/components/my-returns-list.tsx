@@ -12,6 +12,9 @@ import { DetailsModal } from './details-modal'
 import { EditReturnDialog } from '@/components/shared/edit-return-dialog'
 import { formatDate } from '@/lib/format'
 import { ptBR } from '@/lib/i18n/pt-BR'
+import {
+  ITEM_CONDITION_FILTERS, ITEM_CONDITION_FILTER_LABELS, type ItemConditionFilter,
+} from '@/lib/operator-home'
 import { Boxes, Search, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import type { ReturnStatus } from '@/types'
 import type { MyReturnRow, MyReturnDepositor, MyReturnsScope } from '../actions'
@@ -39,11 +42,14 @@ interface Props {
   currentDepositor: string
   currentFrom:      string
   currentTo:        string
+  currentCondition: ItemConditionFilter | ''
+  currentWithoutKey: boolean
   currentPage:      number
 }
 
 export function MyReturnsList({
-  rows, total, depositors, currentScope, currentRv, currentDepositor, currentFrom, currentTo, currentPage,
+  rows, total, depositors, currentScope, currentRv, currentDepositor, currentFrom, currentTo,
+  currentCondition, currentWithoutKey, currentPage,
 }: Props) {
   const router    = useRouter()
   const inputRef  = useRef<HTMLInputElement>(null)
@@ -56,14 +62,19 @@ export function MyReturnsList({
   useEffect(() => { inputRef.current?.focus() }, [])
 
   function buildUrl(
-    next: Partial<{ scope: MyReturnsScope; rv: string; depositor: string; from: string; to: string; page: number }>,
+    next: Partial<{
+      scope: MyReturnsScope; rv: string; depositor: string; from: string; to: string
+      condition: ItemConditionFilter | ''; withoutKey: boolean; page: number
+    }>,
   ) {
-    const scope     = next.scope     ?? currentScope
-    const rv        = next.rv        ?? currentRv
-    const depositor = next.depositor ?? currentDepositor
-    const from      = next.from      ?? currentFrom
-    const to        = next.to        ?? currentTo
-    const page      = next.page      ?? 1
+    const scope      = next.scope      ?? currentScope
+    const rv         = next.rv         ?? currentRv
+    const depositor  = next.depositor  ?? currentDepositor
+    const from       = next.from       ?? currentFrom
+    const to         = next.to         ?? currentTo
+    const condition  = next.condition  ?? currentCondition
+    const withoutKey = next.withoutKey ?? currentWithoutKey
+    const page       = next.page       ?? 1
 
     const p = new URLSearchParams()
     if (scope === 'pending') p.set('scope', 'pending')
@@ -71,6 +82,8 @@ export function MyReturnsList({
     if (depositor) p.set('depositor', depositor)
     if (from)      p.set('from', from)
     if (to)        p.set('to', to)
+    if (condition) p.set('condition', condition)
+    if (withoutKey) p.set('nokey', '1')
     if (page > 1)  p.set('page', String(page))
     const qs = p.toString()
     return `/operador/minhas-devolucoes${qs ? `?${qs}` : ''}`
@@ -90,7 +103,9 @@ export function MyReturnsList({
   })
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
-  const hasFilters = !!(currentRv || currentDepositor || currentFrom || currentTo)
+  const hasFilters = !!(
+    currentRv || currentDepositor || currentFrom || currentTo || currentCondition || currentWithoutKey
+  )
 
   return (
     <div className="space-y-4">
@@ -108,7 +123,9 @@ export function MyReturnsList({
             onClick={() => {
               if (currentScope === value) return
               setRvInput('')
-              router.push(buildUrl({ scope: value, rv: '', depositor: '', from: '', to: '', page: 1 }))
+              router.push(buildUrl({
+                scope: value, rv: '', depositor: '', from: '', to: '', condition: '', withoutKey: false, page: 1,
+              }))
             }}
             className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ease-quint ${
               currentScope === value
@@ -184,12 +201,41 @@ export function MyReturnsList({
           />
         </div>
 
+        <div className="space-y-1">
+          <label className="text-xs font-medium text-muted-foreground">Estado</label>
+          <select
+            className="h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            value={currentCondition}
+            onChange={(e) => router.push(buildUrl({ condition: e.target.value as ItemConditionFilter | '', page: 1 }))}
+          >
+            <option value="">Todos</option>
+            {ITEM_CONDITION_FILTERS.map((c) => (
+              <option key={c} value={c}>{ITEM_CONDITION_FILTER_LABELS[c]}</option>
+            ))}
+          </select>
+        </div>
+
+        <label className="flex h-9 cursor-pointer items-center gap-2 text-sm text-foreground">
+          <input
+            type="checkbox"
+            checked={currentWithoutKey}
+            onChange={(e) => router.push(buildUrl({ withoutKey: e.target.checked, page: 1 }))}
+            className="h-4 w-4 rounded border-input accent-primary"
+          />
+          Sem chave de acesso
+        </label>
+
         {hasFilters && (
           <Button
             type="button"
             variant="ghost"
             size="sm"
-            onClick={() => { setRvInput(''); router.push(buildUrl({ rv: '', depositor: '', from: '', to: '', page: 1 })) }}
+            onClick={() => {
+              setRvInput('')
+              router.push(buildUrl({
+                rv: '', depositor: '', from: '', to: '', condition: '', withoutKey: false, page: 1,
+              }))
+            }}
             className="h-9"
           >
             Limpar filtros
