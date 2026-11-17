@@ -7,13 +7,14 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { EmptyState } from '@/components/shared/empty-state'
 import { ptBR } from '@/lib/i18n/pt-BR'
-import { Users, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Users, ChevronLeft, ChevronRight, Pencil, UserCheck, UserX, Mail, Trash2 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import {
   createUserAction,
   updateUserAction,
   toggleActiveAction,
   resendMagicLinkAction,
-  exportUserDataAction,
   anonymizeUserAction,
 } from '../actions'
 import { createDepositorAction } from '@/app/(manager)/admin/depositantes/actions'
@@ -29,10 +30,10 @@ const ROLE_LABELS: Record<UserRole, string> = {
   manager:  ptBR.roles.manager,
 }
 
-const ROLE_VARIANT: Record<UserRole, 'default' | 'secondary' | 'outline'> = {
+const ROLE_VARIANT: Record<UserRole, 'default' | 'secondary' | 'warning'> = {
   operator: 'default',
   client:   'secondary',
-  manager:  'outline',
+  manager:  'warning',
 }
 
 interface Props {
@@ -59,21 +60,22 @@ export function UsersTable({ users, depositors }: Props) {
   const [editingUser, setEditingUser] = useState<UserRow | null>(null)
   const [form, setForm]               = useState<FormState>(EMPTY_FORM)
   const [error, setError]             = useState<string | null>(null)
-  // Erros das ações da linha (desativar, reenviar link, exportar, anonimizar):
+  // Erros das ações da linha (desativar, reenviar link, excluir):
   // `error` só aparece dentro do modal de criar/editar, que está fechado aqui.
   const [actionError, setActionError] = useState<string | null>(null)
   const [linkModal, setLinkModal]     = useState<{ email: string; link: string; mode: 'activation' | 'recovery'; emailSent?: boolean; emailError?: string } | null>(null)
-  const [anonymizeTarget, setAnonymizeTarget] = useState<UserRow | null>(null)
-  const [anonCountdown, setAnonCountdown]     = useState(2)
+  // "Excluir" = anonimizar (LGPD): o usuário some da tela, mas fica no banco.
+  const [deleteTarget, setDeleteTarget]       = useState<UserRow | null>(null)
+  const [deleteCountdown, setDeleteCountdown] = useState(2)
   const [localDepositors, setLocalDepositors] = useState<DepositorOption[]>(depositors)
   const [newDep, setNewDep] = useState({ open: false, cnpj: '', razao_social: '', error: null as string | null, loading: false })
   const [isPending, startTransition] = useTransition()
 
   useEffect(() => {
-    if (!anonymizeTarget || anonCountdown <= 0) return
-    const id = setTimeout(() => setAnonCountdown((c) => c - 1), 1000)
+    if (!deleteTarget || deleteCountdown <= 0) return
+    const id = setTimeout(() => setDeleteCountdown((c) => c - 1), 1000)
     return () => clearTimeout(id)
-  }, [anonymizeTarget, anonCountdown])
+  }, [deleteTarget, deleteCountdown])
 
   const filtered   = roleFilter === 'all' ? users : users.filter((u) => u.role === roleFilter)
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
@@ -178,27 +180,15 @@ export function UsersTable({ users, depositors }: Props) {
     })
   }
 
-  function handleExport(u: UserRow) {
-    setActionError(null)
-    startTransition(async () => {
-      const result = await exportUserDataAction(u.id)
-      if ('error' in result) { setActionError(result.error); return }
-      const a = document.createElement('a')
-      a.href = `data:application/zip;base64,${result.base64}`
-      a.download = result.filename
-      a.click()
-    })
+  function handleDelete(u: UserRow) {
+    setDeleteTarget(u)
+    setDeleteCountdown(2)
   }
 
-  function handleAnonymize(u: UserRow) {
-    setAnonymizeTarget(u)
-    setAnonCountdown(2)
-  }
-
-  function confirmAnonymize() {
-    if (!anonymizeTarget) return
-    const target = anonymizeTarget
-    setAnonymizeTarget(null)
+  function confirmDelete() {
+    if (!deleteTarget) return
+    const target = deleteTarget
+    setDeleteTarget(null)
     setActionError(null)
     startTransition(async () => {
       const result = await anonymizeUserAction(target.id)
@@ -248,6 +238,7 @@ export function UsersTable({ users, depositors }: Props) {
       {paginated.length === 0 ? (
         <EmptyState icon={Users} title="Nenhum usuário" description={ptBR.common.noResults} />
       ) : (
+        <TooltipProvider delayDuration={200}>
         <div className="rounded-lg border border-border overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -275,19 +266,17 @@ export function UsersTable({ users, depositors }: Props) {
                     </span>
                   </td>
                   <td className="px-4 py-2.5">
-                    <div className="flex gap-3 justify-end flex-wrap">
-                      <button type="button" onClick={() => openEdit(u)} className="text-xs text-primary hover:underline">{t.editBtn}</button>
-                      {/* Anonimizado é definitivo: sem botão de reativar (a action também recusa). */}
-                      {(u.active || u.full_name !== '[ANONIMIZADO]') && (
-                        <button type="button" onClick={() => handleToggle(u)} disabled={isPending} className="text-xs text-muted-foreground hover:underline">
-                          {u.active ? t.deactivateBtn : t.activateBtn}
-                        </button>
-                      )}
-                      <button type="button" onClick={() => handleResendLink(u)} disabled={isPending} className="text-xs text-muted-foreground hover:underline">{t.resendLinkBtn}</button>
-                      <button type="button" onClick={() => handleExport(u)} disabled={isPending} className="text-xs text-muted-foreground hover:underline">Exportar dados</button>
-                      {u.active && (
-                        <button type="button" onClick={() => handleAnonymize(u)} disabled={isPending} className="text-xs text-destructive hover:underline">Anonimizar</button>
-                      )}
+                    <div className="flex gap-0.5 justify-end">
+                      <IconAction icon={Pencil} label={t.editBtn} onClick={() => openEdit(u)} />
+                      <IconAction
+                        icon={u.active ? UserX : UserCheck}
+                        label={u.active ? t.deactivateBtn : t.activateBtn}
+                        onClick={() => handleToggle(u)}
+                        disabled={isPending}
+                        tone={u.active ? 'default' : 'success'}
+                      />
+                      <IconAction icon={Mail} label={t.resendLinkBtn} onClick={() => handleResendLink(u)} disabled={isPending} />
+                      <IconAction icon={Trash2} label="Excluir" onClick={() => handleDelete(u)} disabled={isPending} tone="destructive" />
                     </div>
                   </td>
                 </tr>
@@ -295,6 +284,7 @@ export function UsersTable({ users, depositors }: Props) {
             </tbody>
           </table>
         </div>
+        </TooltipProvider>
       )}
 
       {/* Paginação */}
@@ -435,20 +425,21 @@ export function UsersTable({ users, depositors }: Props) {
         </DialogContent>
       </Dialog>
 
-      {/* Anonimização */}
-      <Dialog open={!!anonymizeTarget} onOpenChange={(o) => !o && setAnonymizeTarget(null)}>
+      {/* Exclusão (anonimização LGPD) */}
+      <Dialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Anonimizar usuário</DialogTitle>
+            <DialogTitle>Excluir usuário</DialogTitle>
             <DialogDescription>
-              Você está prestes a anonimizar <strong>{anonymizeTarget?.full_name}</strong>.<br />
-              Ação irreversível — dados pessoais serão apagados permanentemente. Os dados fiscais são mantidos por exigência legal.
+              Você está prestes a excluir <strong>{deleteTarget?.full_name}</strong>.<br />
+              Ação irreversível: o acesso é bloqueado e os dados pessoais (nome, e-mail, telefone) são apagados.
+              As devoluções ligadas a ele e os dados fiscais são mantidos por exigência legal.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button type="button" variant="outline" onClick={() => setAnonymizeTarget(null)}>Cancelar</Button>
-            <Button type="button" variant="destructive" onClick={confirmAnonymize} disabled={anonCountdown > 0}>
-              {anonCountdown > 0 ? `Anonimizar (${anonCountdown}s)` : 'Anonimizar'}
+            <Button type="button" variant="outline" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
+            <Button type="button" variant="destructive" onClick={confirmDelete} disabled={deleteCountdown > 0}>
+              {deleteCountdown > 0 ? `Excluir (${deleteCountdown}s)` : 'Excluir'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -487,6 +478,37 @@ export function UsersTable({ users, depositors }: Props) {
         )}
       </Dialog>
     </>
+  )
+}
+
+const TONE_CLASS = {
+  default:     'text-muted-foreground hover:text-foreground',
+  success:     'text-success hover:text-success',
+  destructive: 'text-destructive/80 hover:text-destructive',
+} as const
+
+function IconAction({ icon: Icon, label, onClick, disabled, tone = 'default' }: {
+  icon:      LucideIcon
+  label:     string
+  onClick:   () => void
+  disabled?: boolean
+  tone?:     keyof typeof TONE_CLASS
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          onClick={onClick}
+          disabled={disabled}
+          aria-label={label}
+          className={`inline-flex h-8 w-8 items-center justify-center rounded-md transition-colors ease-quint hover:bg-muted disabled:opacity-50 disabled:pointer-events-none ${TONE_CLASS[tone]}`}
+        >
+          <Icon className="h-4 w-4" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
   )
 }
 

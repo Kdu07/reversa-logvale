@@ -128,7 +128,8 @@ export async function getUsersAction(): Promise<UserRow[] | { error: string }> {
     const rows: UserRow[] = allAuthUsers
       .map((u) => {
         const p = profileMap.get(u.id)
-        if (!p) return null
+        // Anonimizado = "excluído" na tela: fica só no banco (devoluções o referenciam).
+        if (!p || p.full_name === ANONYMIZED_NAME) return null
         return {
           id:           u.id,
           email:        u.email ?? '',
@@ -465,8 +466,26 @@ export async function anonymizeUserAction(
 ): Promise<{ ok: true } | { error: string }> {
   try {
     await assertManager()
+    if (!UUID_RE.test(userId)) throw new Error('Usuário inválido')
     const admin    = createAdminClient()
     const supabase = createClient()
+
+    // Mesma regra da desativação: um cliente não pode sumir com devoluções
+    // aguardando a decisão dele.
+    const { data: target, error: targetErr } = await supabase
+      .from('profiles')
+      .select('role, full_name')
+      .eq('id', userId)
+      .single()
+    if (targetErr) throw targetErr
+    if (target?.role === 'client') {
+      const pending = await countClientPendingReturns(supabase, userId)
+      if (pending > 0) {
+        return {
+          error: `Usuário tem ${pending} devolução(ões) aguardando decisão nos depositantes dele. Exclua após a resolução.`,
+        }
+      }
+    }
 
     const { error: profErr } = await supabase
       .from('profiles')

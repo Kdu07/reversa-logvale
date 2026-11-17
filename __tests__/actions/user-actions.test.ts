@@ -221,6 +221,25 @@ describe('getUsersAction', () => {
     expect(rows.find((r) => r.full_name === 'Zeca')!.depositorIds).toEqual(['dep-1'])
   })
 
+  it('oculta usuários anonimizados (excluídos)', async () => {
+    mockListUsers.mockResolvedValue({
+      data: { users: [{ id: 'u-1', email: 'ana@test.com' }, { id: 'u-2', email: 'anon-u-2@logvale.local' }], nextPage: null },
+      error: null,
+    })
+    tableResult.profiles = {
+      data: [
+        { id: 'u-1', full_name: 'Ana',           phone: null, role: 'client', active: true,  created_at: '' },
+        { id: 'u-2', full_name: '[ANONIMIZADO]', phone: null, role: 'client', active: false, created_at: '' },
+      ],
+      error: null,
+    }
+    tableResult.client_depositors = { data: [], error: null }
+
+    const result = await getUsersAction()
+
+    expect((result as { id: string }[]).map((r) => r.id)).toEqual(['u-1'])
+  })
+
   it('propaga erro quando listUsers do auth falha', async () => {
     mockListUsers.mockResolvedValue({ data: null, error: new Error('auth list failed') })
 

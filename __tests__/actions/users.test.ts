@@ -327,16 +327,45 @@ describe('createUserAction', () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────
+const ANON_ID = '11111111-2222-4333-8444-555555555555'
+
 describe('anonymizeUserAction', () => {
+  it('recusa id que não é UUID', async () => {
+    const result = await anonymizeUserAction('nao-uuid')
+
+    expect(result).toEqual({ error: 'Usuário inválido' })
+    expect(mockUpdate).not.toHaveBeenCalled()
+  })
+
+  it('nega excluir cliente com devoluções pendentes nos depositantes dele', async () => {
+    mockCountEq.mockResolvedValue({ count: 2, error: null })
+
+    const result = await anonymizeUserAction(ANON_ID)
+
+    expect(result).toEqual({ error: expect.stringContaining('2 devolução(ões) aguardando decisão') })
+    expect(mockUpdate).not.toHaveBeenCalled()
+    expect(mockUpdateUserById).not.toHaveBeenCalled()
+  })
+
+  it('não checa pendências de operador', async () => {
+    mockProfileSingle.mockResolvedValue({ data: { role: 'operator', full_name: 'Op' }, error: null })
+    mockCountEq.mockResolvedValue({ count: 5, error: null })
+
+    const result = await anonymizeUserAction(ANON_ID)
+
+    expect(result).toEqual({ ok: true })
+    expect(mockLinksSelect).not.toHaveBeenCalled()
+  })
+
   it('anonimiza perfil e email de auth', async () => {
-    const result = await anonymizeUserAction('user-to-anon')
+    const result = await anonymizeUserAction(ANON_ID)
 
     expect(result).toEqual({ ok: true })
     expect(mockUpdate).toHaveBeenCalledWith(
       expect.objectContaining({ full_name: '[ANONIMIZADO]', phone: null, active: false }),
     )
     expect(mockUpdateUserById).toHaveBeenCalledWith(
-      'user-to-anon',
+      ANON_ID,
       expect.objectContaining({ email: expect.stringContaining('anon-'), ban_duration: '876000h' }),
     )
   })
@@ -344,7 +373,7 @@ describe('anonymizeUserAction', () => {
   it('retorna erro quando update do profile falha', async () => {
     mockUpdateEq.mockResolvedValue({ error: new Error('profile update failed') })
 
-    const result = await anonymizeUserAction('user-1')
+    const result = await anonymizeUserAction(ANON_ID)
 
     expect(result).toEqual({ error: 'profile update failed' })
     expect(mockUpdateUserById).not.toHaveBeenCalled()
@@ -353,7 +382,7 @@ describe('anonymizeUserAction', () => {
   it('retorna erro quando update do auth falha', async () => {
     mockUpdateUserById.mockResolvedValue({ error: new Error('auth update failed') })
 
-    const result = await anonymizeUserAction('user-1')
+    const result = await anonymizeUserAction(ANON_ID)
 
     expect(result).toEqual({ error: 'auth update failed' })
   })
