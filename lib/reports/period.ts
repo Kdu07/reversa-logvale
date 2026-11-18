@@ -10,7 +10,7 @@
 export const APP_TZ_OFFSET = '-03:00'
 
 /** Milissegundos de defasagem de São Paulo em relação ao UTC. */
-const TZ_SHIFT_MS = 3 * 60 * 60 * 1000
+export const TZ_SHIFT_MS = 3 * 60 * 60 * 1000
 
 /** Teto de dias por relatório — protege contra exportações gigantes. */
 export const MAX_PERIOD_DAYS = 366

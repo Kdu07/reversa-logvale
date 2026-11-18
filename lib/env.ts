@@ -72,6 +72,12 @@ export const env = {
   // então não há senha/App Password (incompatível com Workspace sem verificação em 2 etapas).
   smtpHost:    process.env.SMTP_HOST,
   smtpPort:    process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 465,
+  // Alternativa à service account: login SMTP com usuário + senha de app (ex.: uma
+  // conta @gmail.com pessoal, que a Domain-Wide Delegation NÃO alcança). Quando os
+  // dois estão definidos, têm prioridade sobre o OAuth2. A senha de app do Google
+  // é exibida com espaços ("abcd efgh ijkl mnop"); removemos para tolerar a colagem.
+  smtpUser:    process.env.SMTP_USER?.trim() || undefined,
+  smtpPass:    process.env.SMTP_PASS?.replace(/\s+/g, '') || undefined,
   // Caixa impersonada (default: o próprio MAIL_FROM, se definido).
   gmailOAuthUser:   process.env.GMAIL_OAUTH_USER ?? process.env.SMTP_USER ?? process.env.MAIL_FROM,
   // client_id (Unique ID numérico) da service account = serviceClient do Nodemailer.
@@ -87,9 +93,13 @@ export const env = {
     .map((c) => c.replace(/\D/g, ''))
     .filter((c) => c.length === 14),
   mailEnabled: Boolean(
-    process.env.SMTP_HOST &&
-    (process.env.GMAIL_OAUTH_USER ?? process.env.SMTP_USER ?? process.env.MAIL_FROM) &&
-    process.env.GOOGLE_SA_CLIENT_ID &&
-    process.env.GOOGLE_SA_PRIVATE_KEY,
+    process.env.SMTP_HOST && (
+      // senha de app (SMTP_USER + SMTP_PASS) …
+      (process.env.SMTP_USER?.trim() && process.env.SMTP_PASS?.trim()) ||
+      // … ou service account (OAuth2 / Domain-Wide Delegation)
+      ((process.env.GMAIL_OAUTH_USER ?? process.env.SMTP_USER ?? process.env.MAIL_FROM) &&
+        process.env.GOOGLE_SA_CLIENT_ID &&
+        process.env.GOOGLE_SA_PRIVATE_KEY)
+    ),
   ),
 } as const

@@ -50,7 +50,11 @@ supabase secrets set \
   NEXT_PUBLIC_APP_URL=https://logvale.com.br
 ```
 
-> O `warning-email` envia pela **Gmail API REST** usando OAuth2 / Service Account (Domain-Wide Delegation): gera o token via JWT bearer (assinado com `GOOGLE_SA_PRIVATE_KEY`) e impersona `GMAIL_OAUTH_USER`. Não há `SMTP_PASS`. O issuer do JWT aceita o Unique ID (`GOOGLE_SA_CLIENT_ID`) ou o `GOOGLE_SA_CLIENT_EMAIL` — basta definir um deles. Garanta que a `private_key` mantenha as quebras de linha (use a chave do JSON da service account).
+> **Senha de app (opcional, tem prioridade):** com os secrets `SMTP_USER` + `SMTP_PASS` definidos, o `warning-email` envia por SMTP (`SMTP_HOST`, padrão `smtp.gmail.com`, sempre na porta **465** — o Supabase bloqueia 25 e 587 nas Edge Functions) em vez da service account. Use para uma caixa fora do Workspace (ex.: `@gmail.com` pessoal) e defina `MAIL_FROM` = `SMTP_USER`. Login recusado → **500** `smtp_auth`.
+>
+> Sem senha de app, o `warning-email` envia pela **Gmail API REST** usando OAuth2 / Service Account (Domain-Wide Delegation): gera o token via JWT bearer (assinado com `GOOGLE_SA_PRIVATE_KEY`) e impersona `GMAIL_OAUTH_USER`. O issuer do JWT aceita o Unique ID (`GOOGLE_SA_CLIENT_ID`) ou o `GOOGLE_SA_CLIENT_EMAIL` — basta definir um deles. Garanta que a `private_key` mantenha as quebras de linha (use a chave do JSON da service account).
+>
+> **Escopo OAuth:** a função pede `https://mail.google.com/` — o mesmo escopo que o Nodemailer do app usa e o único liberado para o client ID na *Domain-Wide Delegation* do Google Admin. Pedir um escopo fora dessa lista (ex.: `gmail.send`) faz o Google responder **403 "Requested client not authorized"** e nenhum aviso sai — foi o que aconteceu de jun/2026 a nov/2026. A função responde **500** (`oauth_token`, `smtp_auth` ou `{"sent":N,"failed":M}`) quando algo falha; confira em `select status_code, content from net._http_response order by created desc` (retenção ~6h).
 
 > As variáveis `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` são injetadas automaticamente pelo runtime Supabase.
 

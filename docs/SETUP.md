@@ -104,6 +104,9 @@ GMAIL_OAUTH_USER=cadu@logvale.com.br          # caixa impersonada pela service a
 GOOGLE_SA_CLIENT_ID=                          # "ID exclusivo" (numérico) da service account
 GOOGLE_SA_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
 GOOGLE_SA_CLIENT_EMAIL=                        # client_email da SA (usado pela Edge Function)
+# Alternativa: senha de app (têm prioridade sobre a service account quando os dois existem)
+SMTP_USER=
+SMTP_PASS=
 
 # App
 NEXT_PUBLIC_APP_URL=http://localhost:3000
@@ -113,7 +116,9 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 >
 > **Etapa manual (uma vez):** no Google Cloud Console crie um projeto, ative a **Gmail API**, crie uma **conta de serviço** e gere uma **chave JSON** (dela vêm `client_id`/`GOOGLE_SA_CLIENT_ID`, `client_email`/`GOOGLE_SA_CLIENT_EMAIL` e `private_key`/`GOOGLE_SA_PRIVATE_KEY`). No Admin Console (`admin.google.com`) → **Segurança → Controles de API → Delegação em todo o domínio**, autorize o **ID do cliente** (Unique ID) com o escopo `https://mail.google.com/`.
 >
-> O envio é opcional em dev: sem `GOOGLE_SA_CLIENT_ID`/`GOOGLE_SA_PRIVATE_KEY`, a criação de usuário ainda funciona e mostra o link de ativação para envio manual.
+> **Alternativa — senha de app:** a Domain-Wide Delegation só alcança caixas do próprio Workspace com o serviço Gmail ativo. Para enviar por outra conta (ex.: um `@gmail.com` pessoal), ative a verificação em 2 etapas nela, gere uma **senha de app** e defina `SMTP_USER` (a conta) + `SMTP_PASS` (a senha; os espaços são ignorados), com `MAIL_FROM` igual a `SMTP_USER` — o Gmail reescreve um remetente diferente da conta logada. Com os dois definidos, o app usa esse login em vez do OAuth2.
+>
+> O envio é opcional em dev: sem credenciais (service account ou senha de app), a criação de usuário ainda funciona e mostra o link de ativação para envio manual.
 
 > Em produção, configure as mesmas variáveis em Vercel → Project Settings → Environment Variables. Veja [DEPLOY.md](DEPLOY.md) para a lista completa.
 

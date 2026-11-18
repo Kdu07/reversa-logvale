@@ -7,28 +7,41 @@ import { PendingDecisionWarningEmail } from '@/emails/PendingDecisionWarning'
 
 let cached: Transporter | null = null
 
+/** Login SMTP por usuário + senha de app (tem prioridade sobre a service account). */
+function usesAppPassword(): boolean {
+  return Boolean(env.smtpUser && env.smtpPass)
+}
+
 function transport(): Transporter {
   if (cached) return cached
   cached = nodemailer.createTransport({
     host:   env.smtpHost,
     port:   env.smtpPort,
     secure: env.smtpPort === 465, // 465 = TLS implícito; 587 = STARTTLS
-    // OAuth2 com Service Account: o Nodemailer gera o token (JWT bearer) e impersona
-    // `user` via Domain-Wide Delegation — sem senha nem App Password.
-    auth: {
-      type:          'OAuth2',
-      user:          env.gmailOAuthUser,     // caixa impersonada (sub do JWT)
-      serviceClient: env.googleSaClientId,   // client_id (Unique ID) da service account
-      privateKey:    env.googleSaPrivateKey, // private_key da service account
-    },
+    auth: usesAppPassword()
+      // Senha de app (exige verificação em 2 etapas na conta). Serve para contas
+      // @gmail.com pessoais, que a Domain-Wide Delegation não alcança.
+      ? { user: env.smtpUser, pass: env.smtpPass }
+      // OAuth2 com Service Account: o Nodemailer gera o token (JWT bearer) e
+      // impersona `user` via Domain-Wide Delegation — sem senha. Só funciona para
+      // caixas do Google Workspace com o serviço Gmail ativo.
+      : {
+          type:          'OAuth2',
+          user:          env.gmailOAuthUser,     // caixa impersonada (sub do JWT)
+          serviceClient: env.googleSaClientId,   // client_id (Unique ID) da service account
+          privateKey:    env.googleSaPrivateKey, // private_key da service account
+        },
   })
   return cached
 }
 
-/** True quando há host + caixa impersonada + credenciais OAuth2 da service account. */
+/** True quando há host + (senha de app OU caixa impersonada + credenciais da service account). */
 export function isEmailConfigured(): boolean {
   return Boolean(
-    env.smtpHost && env.gmailOAuthUser && env.googleSaClientId && env.googleSaPrivateKey,
+    env.smtpHost && (
+      usesAppPassword() ||
+      (env.gmailOAuthUser && env.googleSaClientId && env.googleSaPrivateKey)
+    ),
   )
 }
 

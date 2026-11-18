@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/server'
 import { assertManager } from '@/lib/supabase/assert-role'
 import { buildSignedUrlMap } from '@/lib/supabase/storage'
 import { revalidatePath } from 'next/cache'
+import { dayBoundaryIso } from '@/lib/reports/period'
+import { deadlineOrExpression, type AdminReturnsFilters } from '@/lib/admin-returns-filters'
 import type { ReturnStatus, ReturnDecision, IdentifierType } from '@/types'
 
 export interface AdminReturnRow {
@@ -40,14 +42,27 @@ export interface AdminReturnRow {
 
 type RawPhoto = { photo_type: string; storage_path: string; position: number }
 
-export async function getAdminReturnsAction(filters?: {
-  rv?:     string
-  status?: ReturnStatus
-  page?:   number
-}): Promise<{ rows: AdminReturnRow[]; total: number } | { error: string }> {
+export async function getAdminReturnsAction(
+  filters?: Partial<AdminReturnsFilters>,
+): Promise<{ rows: AdminReturnRow[]; total: number } | { error: string }> {
   try {
     await assertManager()
     const supabase = createClient()
+
+    // Prazo de decisão: depositantes sem prazo (020) nunca vencem.
+    let deadlineExpr: string | null = null
+    if (filters?.deadline) {
+      const { data: noDeadline, error: depErr } = await supabase
+        .from('depositors')
+        .select('id')
+        .eq('no_decision_deadline', true)
+      if (depErr) throw depErr
+      deadlineExpr = deadlineOrExpression(
+        filters.deadline,
+        new Date(),
+        (noDeadline ?? []).map((d) => d.id as string),
+      )
+    }
 
     const page   = Math.max(1, filters?.page ?? 1)
     const limit  = 50
@@ -67,8 +82,27 @@ export async function getAdminReturnsAction(filters?: {
       .order('received_at', { ascending: false })
       .range(offset, offset + limit - 1)
 
-    if (filters?.rv)     query = query.ilike('rv', `%${filters.rv}%`)
-    if (filters?.status) query = query.eq('status', filters.status)
+    if (filters?.rv)          query = query.ilike('rv', `%${filters.rv}%`)
+    if (filters?.status)      query = query.eq('status', filters.status)
+    if (filters?.depositorId) query = query.eq('depositor_id', filters.depositorId)
+    if (filters?.decision)    query = query.eq('decision', filters.decision)
+
+    // Mesmas regras de estado de "Minhas Devoluções" (Produto não corresponde grava damaged = 0).
+    if (filters?.condition === 'good') {
+      query = query.eq('damaged_item_count', 0).gt('item_count', 0).is('mismatched_item_count', null)
+    }
+    if (filters?.condition === 'damaged')    query = query.gt('damaged_item_count', 0)
+    if (filters?.condition === 'empty')      query = query.eq('item_count', 0)
+    if (filters?.condition === 'mismatched') query = query.gt('mismatched_item_count', 0)
+    if (filters?.noKey)                      query = query.is('access_key', null)
+
+    // Dias civis de São Paulo — o mesmo critério (received_at) do dashboard.
+    const fromIso = filters?.from ? dayBoundaryIso(filters.from, 'start') : null
+    const toIso   = filters?.to   ? dayBoundaryIso(filters.to,   'end')   : null
+    if (fromIso) query = query.gte('received_at', fromIso)
+    if (toIso)   query = query.lte('received_at', toIso)
+
+    if (deadlineExpr) query = query.eq('status', 'awaiting_decision').or(deadlineExpr)
 
     const { data, count, error } = await query
     if (error) throw error

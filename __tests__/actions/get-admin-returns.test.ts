@@ -19,6 +19,8 @@ vi.mock('@/lib/supabase/storage', () => ({
 let returnsResult: { data: unknown; count?: number; error: unknown }
 const ilikeCalls: unknown[][] = []
 const eqCalls:    unknown[][] = []
+const calls:      unknown[][] = []
+let depositorsResult: { data: unknown; error: unknown } = { data: [], error: null }
 
 function builder() {
   const b: Record<string, unknown> = {}
@@ -26,13 +28,25 @@ function builder() {
   for (const m of ['select', 'order', 'range']) b[m] = vi.fn(chain)
   b.ilike = vi.fn((c: string, v: unknown) => { ilikeCalls.push([c, v]); return b })
   b.eq    = vi.fn((c: string, v: unknown) => { eqCalls.push([c, v]); return b })
+  for (const m of ['gt', 'is', 'gte', 'lte', 'or']) {
+    b[m] = vi.fn((...args: unknown[]) => { calls.push([m, ...args]); return b })
+  }
   b.then  = (resolve: (v: unknown) => unknown, reject: (e: unknown) => unknown) =>
     Promise.resolve(returnsResult).then(resolve, reject)
   return b
 }
 
 vi.mock('@/lib/supabase/server', () => ({
-  createClient: vi.fn(() => ({ from: () => builder() })),
+  createClient: vi.fn(() => ({
+    from: (table: string) => {
+      if (table !== 'depositors') return builder()
+      const d: Record<string, unknown> = {}
+      d.select = vi.fn(() => d)
+      d.eq     = vi.fn(() => d)
+      d.then   = (resolve: (v: unknown) => unknown) => Promise.resolve(depositorsResult).then(resolve)
+      return d
+    },
+  })),
 }))
 
 function asManager() {
@@ -46,6 +60,8 @@ beforeEach(() => {
   vi.clearAllMocks()
   ilikeCalls.length = 0
   eqCalls.length = 0
+  calls.length = 0
+  depositorsResult = { data: [], error: null }
   asManager()
   returnsResult = { data: [], count: 0, error: null }
 })
@@ -88,6 +104,51 @@ describe('getAdminReturnsAction', () => {
 
     expect(ilikeCalls).toContainEqual(['rv', '%RV-9%'])
     expect(eqCalls).toContainEqual(['status', 'processed'])
+  })
+
+  it('aplica os filtros vindos do dashboard', async () => {
+    await getAdminReturnsAction({
+      depositorId: 'dep-1', decision: 'discard', condition: 'good', noKey: true,
+      from: '2026-11-01', to: '2026-11-17',
+    })
+
+    expect(eqCalls).toContainEqual(['depositor_id', 'dep-1'])
+    expect(eqCalls).toContainEqual(['decision', 'discard'])
+    expect(eqCalls).toContainEqual(['damaged_item_count', 0])
+    expect(calls).toContainEqual(['gt', 'item_count', 0])
+    expect(calls).toContainEqual(['is', 'mismatched_item_count', null])
+    expect(calls).toContainEqual(['is', 'access_key', null])
+    expect(calls).toContainEqual(['gte', 'received_at', '2026-11-01T03:00:00.000Z'])
+    expect(calls).toContainEqual(['lte', 'received_at', '2026-11-18T02:59:59.999Z'])
+  })
+
+  it.each([
+    ['damaged',    ['gt', 'damaged_item_count', 0]],
+    ['mismatched', ['gt', 'mismatched_item_count', 0]],
+  ] as const)('estado %s', async (condition, expected) => {
+    await getAdminReturnsAction({ condition })
+    expect(calls).toContainEqual(expected)
+  })
+
+  it('estado caixa vazia', async () => {
+    await getAdminReturnsAction({ condition: 'empty' })
+    expect(eqCalls).toContainEqual(['item_count', 0])
+  })
+
+  it('filtro de prazo: só aguardando e sem os depositantes sem prazo', async () => {
+    depositorsResult = { data: [{ id: 'bsk' }], error: null }
+
+    await getAdminReturnsAction({ deadline: 'urgent' })
+
+    expect(eqCalls).toContainEqual(['status', 'awaiting_decision'])
+    const or = calls.find((c) => c[0] === 'or')
+    expect(or?.[1]).toMatch(/^and\(or\(and\(decision_deadline_from\.is\.null,received_at\.lt\./)
+    expect(or?.[1]).toContain('depositor_id.not.in.(bsk)')
+  })
+
+  it('erro ao buscar depositantes sem prazo vira erro da action', async () => {
+    depositorsResult = { data: null, error: new Error('dep down') }
+    expect(await getAdminReturnsAction({ deadline: 'overdue' })).toEqual({ error: 'dep down' })
   })
 
   it('propaga erro do banco', async () => {

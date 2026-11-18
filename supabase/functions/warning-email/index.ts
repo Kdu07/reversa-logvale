@@ -1,18 +1,39 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
+import nodemailer from 'npm:nodemailer@9.0.1'
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 )
-// Envio via Gmail API REST com OAuth2 / Service Account (Domain-Wide Delegation):
-// a service account impersona OAUTH_USER, sem senha/App Password.
-// O issuer (iss) do JWT pode ser o client_email OU o Unique ID numérico — o Google aceita ambos.
+
+// Dois modos de envio, na mesma prioridade do app (lib/integrations/email.ts):
+//
+// 1. Senha de app — SMTP_USER + SMTP_PASS definidos: login SMTP direto (ex.:
+//    uma conta @gmail.com pessoal, que a Domain-Wide Delegation não alcança).
+//    Sempre na porta 465 (TLS implícito): o Supabase bloqueia a saída pelas
+//    portas 25 e 587 nas Edge Functions, então SMTP_PORT não é lido aqui.
+// 2. Service account — Gmail API REST com OAuth2 / Domain-Wide Delegation: a
+//    service account impersona OAUTH_USER, sem senha. O issuer (iss) do JWT pode
+//    ser o client_email OU o Unique ID numérico — o Google aceita ambos.
+const SMTP_HOST       = Deno.env.get('SMTP_HOST') ?? 'smtp.gmail.com'
+const SMTP_USER       = Deno.env.get('SMTP_USER')?.trim() || undefined
+// A senha de app do Google é exibida com espaços ("abcd efgh ijkl mnop").
+const SMTP_PASS       = Deno.env.get('SMTP_PASS')?.replace(/\s+/g, '') || undefined
+const USE_APP_PASSWORD = Boolean(SMTP_USER && SMTP_PASS)
+
 const SA_ISS          = Deno.env.get('GOOGLE_SA_CLIENT_EMAIL') ?? Deno.env.get('GOOGLE_SA_CLIENT_ID')!
 const SA_PRIVATE_KEY  = (Deno.env.get('GOOGLE_SA_PRIVATE_KEY') ?? '').replace(/\\n/g, '\n')
 const OAUTH_USER      = Deno.env.get('GMAIL_OAUTH_USER') ?? Deno.env.get('MAIL_FROM') ?? 'cadu@logvale.com.br'
-const FROM            = Deno.env.get('MAIL_FROM') ?? OAUTH_USER
+// Com senha de app o Gmail reescreve um From diferente da conta logada, então o
+// padrão é a própria conta.
+const FROM            = Deno.env.get('MAIL_FROM') ?? (USE_APP_PASSWORD ? SMTP_USER! : OAUTH_USER)
 const APP_URL         = Deno.env.get('NEXT_PUBLIC_APP_URL') ?? 'https://logvale.com.br'
-const GMAIL_SCOPE     = 'https://www.googleapis.com/auth/gmail.send'
+// Tem de ser um escopo LIBERADO para o client ID na Domain-Wide Delegation do
+// Google Admin. Lá só está `https://mail.google.com/` (o mesmo que o Nodemailer
+// usa no app). `gmail.send` não está liberado → o Google responde 403
+// "Requested client not authorized" e nenhum aviso sai (foi o que aconteceu de
+// 2026-06 a 2026-11).
+const GMAIL_SCOPE     = 'https://mail.google.com/'
 
 interface WarningRow {
   id:          string
@@ -44,15 +65,19 @@ Deno.serve(async (_req) => {
     byClient.get(r.client_id)!.push(r)
   }
 
-  let accessToken: string
+  // Autentica uma vez antes do laço: credencial errada vira um 500 claro
+  // (`smtp_auth` / `oauth_token`) em vez de N falhas iguais.
+  let send: (msg: Mail) => Promise<void>
   try {
-    accessToken = await getAccessToken()
+    send = await createMailer()
   } catch (e) {
-    console.error('[warning-email] OAuth token error:', e)
-    return json({ sent: 0, error: 'oauth_token' }, 500)
+    const error = USE_APP_PASSWORD ? 'smtp_auth' : 'oauth_token'
+    console.error(`[warning-email] ${error} error:`, e)
+    return json({ sent: 0, error }, 500)
   }
 
-  let sent = 0
+  let sent   = 0
+  let failed = 0
   for (const [clientId, clientRows] of byClient) {
     try {
       const { data: { user }, error: userErr } = await supabase.auth.admin.getUserById(clientId)
@@ -64,7 +89,7 @@ Deno.serve(async (_req) => {
       const returns = clientRows.map((r) => ({ rv: r.rv, receivedAt: r.received_at }))
       const subject = `${returns.length} devolução${returns.length > 1 ? 'ões' : ''} pendente${returns.length > 1 ? 's' : ''} de decisão`
 
-      await sendGmail(accessToken, {
+      await send({
         to:      user.email,
         subject,
         html:    buildHtml(returns, APP_URL),
@@ -79,12 +104,40 @@ Deno.serve(async (_req) => {
       console.log(`[warning-email] sent to ${user.email} (${ids.length} returns)`)
       sent++
     } catch (e) {
+      failed++
       console.error(`[warning-email] failed for client ${clientId}:`, e)
     }
   }
 
-  return json({ sent })
+  // Falha em algum envio → 500, para aparecer em net._http_response / logs em
+  // vez de um 200 {"sent":0} que parece "fila vazia".
+  return json({ sent, failed }, failed > 0 ? 500 : 200)
 })
+
+interface Mail {
+  to:      string
+  subject: string
+  html:    string
+}
+
+/** Prepara o envio no modo configurado (senha de app tem prioridade). Lança se a autenticação falhar. */
+async function createMailer(): Promise<(msg: Mail) => Promise<void>> {
+  if (USE_APP_PASSWORD) {
+    const transporter = nodemailer.createTransport({
+      host:   SMTP_HOST,
+      port:   465,
+      secure: true,
+      auth:   { user: SMTP_USER, pass: SMTP_PASS },
+    })
+    await transporter.verify() // login SMTP — 535 aqui = usuário/senha de app errados
+    return async (msg) => {
+      await transporter.sendMail({ from: FROM, to: msg.to, subject: msg.subject, html: msg.html })
+    }
+  }
+
+  const token = await getAccessToken()
+  return (msg) => sendGmail(token, msg)
+}
 
 /** base64url (sem padding) a partir de bytes ou string UTF-8. */
 function base64url(input: Uint8Array | string): string {
@@ -155,7 +208,7 @@ async function getAccessToken(): Promise<string> {
 }
 
 /** Envia um e-mail HTML pela Gmail API REST (users/me = a caixa impersonada). */
-async function sendGmail(token: string, msg: { to: string; subject: string; html: string }): Promise<void> {
+async function sendGmail(token: string, msg: Mail): Promise<void> {
   const body = base64(new TextEncoder().encode(msg.html)).replace(/(.{76})/g, '$1\r\n')
   const mime = [
     `From: ${FROM}`,

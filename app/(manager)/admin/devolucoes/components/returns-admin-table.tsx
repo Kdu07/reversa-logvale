@@ -40,10 +40,16 @@ interface Props {
   currentRv:     string
   currentStatus: string
   currentPage:   number
+  /** Depositantes do seletor (todos, inclusive inativos). */
+  depositors?:      { id: string; name: string; active: boolean }[]
+  currentDepositor?: string
+  /** Filtros vindos do dashboard (período, estado…) já serializados; mantidos ao buscar/paginar. */
+  extraQuery?:   string
 }
 
 export function ReturnsAdminTable({
   rows, total, currentRv, currentStatus, currentPage,
+  depositors = [], currentDepositor = '', extraQuery = '',
 }: Props) {
   const router                          = useRouter()
   const [detailsRow, setDetailsRow]     = useState<AdminReturnRow | null>(null)
@@ -57,10 +63,11 @@ export function ReturnsAdminTable({
 
   const totalPages = Math.max(1, Math.ceil(total / 50))
 
-  function buildUrl(rv: string, status: string, page: number) {
-    const p = new URLSearchParams()
+  function buildUrl(rv: string, status: string, page: number, depositor: string = currentDepositor) {
+    const p = new URLSearchParams(extraQuery)
     if (rv)     p.set('rv', rv)
     if (status) p.set('status', status)
+    if (depositor) p.set('depositor', depositor)
     if (page > 1) p.set('page', String(page))
     const qs = p.toString()
     return `/admin/devolucoes${qs ? `?${qs}` : ''}`
@@ -116,6 +123,20 @@ export function ReturnsAdminTable({
             <option key={s} value={s}>
               {s ? STATUS_LABELS[s as ReturnStatus] : 'Todos os status'}
             </option>
+          ))}
+        </select>
+        <select
+          aria-label="Filtrar por depositante"
+          className="h-9 max-w-[16rem] rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          value={currentDepositor}
+          onChange={(e) => router.push(buildUrl(currentRv, currentStatus, 1, e.target.value))}
+        >
+          <option value="">Todos os depositantes</option>
+          {currentDepositor && !depositors.some((d) => d.id === currentDepositor) && (
+            <option value={currentDepositor}>Depositante selecionado</option>
+          )}
+          {depositors.map((d) => (
+            <option key={d.id} value={d.id}>{d.name}{d.active ? '' : ' (inativo)'}</option>
           ))}
         </select>
         <Badge variant="secondary" className="ml-auto">{total} devoluções</Badge>

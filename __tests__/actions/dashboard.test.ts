@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { getDashboardStatsAction } from '@/app/(manager)/admin/actions'
+import { getAdminDashboardAction } from '@/app/(manager)/admin/actions'
+import { resolveDashboardFilters } from '@/lib/admin-dashboard/filters'
 
 const mockRpc = vi.fn()
 
@@ -13,150 +14,73 @@ vi.mock('@/lib/supabase/get-current-user', () => ({
 
 import { getCurrentUser } from '@/lib/supabase/get-current-user'
 
-function mockManager() {
+const NOW     = new Date('2026-11-17T18:00:00Z')
+const filters = resolveDashboardFilters({ period: '7d' }, NOW)
+
+function asRole(role: 'manager' | 'operator') {
   vi.mocked(getCurrentUser).mockResolvedValue({
-    id:      'm-1',
-    email:   'm@logvale.com',
-    profile: { id: 'm-1', role: 'manager', active: true, full_name: 'Manager', phone: null, terms_accepted_at: '2024-01-01', created_at: '' },
+    id: 'u-1', email: 'u@logvale.com',
+    profile: { id: 'u-1', role, active: true, full_name: 'U', phone: null, terms_accepted_at: '2024-01-01', created_at: '' },
   } as never)
 }
 
-function mockRpcResponse(overrides: Record<string, unknown> = {}) {
-  mockRpc.mockResolvedValue({
-    data: {
-      counts: {
-        today:              5,
-        last7d:             20,
-        last30d:            80,
-        cnt_awaiting:       10,
-        cnt_decided:        15,
-        cnt_processed:      55,
-        cnt_rts:            8,
-        cnt_sfh:            4,
-        cnt_disc:           2,
-        cnt_repk:           1,
-        cnt_reship:         3,
-        avg_decision_hours: 3.5,
-        avg_process_hours:  1.2,
-        decided_total:      10,
-        decided_auto:       2,
-        ...overrides,
-      },
-      topClients:    [{ name: 'Cliente A', count: 5 }],
-      urgentPending: [{ id: 'r1', rv: 'RV-001', receivedAt: '2024-01-01T00:00:00Z', depositorName: 'TechStore' }],
+const RPC_DATA = {
+  attention: {
+    awaiting: { total: 1, onTime: 1, dueSoon: 0, overdue: 0, noDeadline: 0 },
+    decidedBacklog: { total: 0, oldestHours: null, byDecision: [] },
+    withoutKey: { awaiting: 0, decided: 0 },
+    warnings24h: 0, urgent: [], urgentDepositors: [],
+  },
+  volume: { current: { received: 3 }, previous: {}, series: [], byDecision: [] },
+  quality: {
+    conditions: {
+      good: { returns: 3, items: 3 }, damaged: { returns: 0, items: 0 },
+      empty: { returns: 0, items: 0 }, mismatched: { returns: 0, items: 0 },
+      notEvaluated: 0, totalItems: 3,
     },
-    error: null,
-  })
+    identification: [],
+  },
+  depositors: [], team: [], depositorOptions: [],
 }
 
 beforeEach(() => {
   vi.clearAllMocks()
 })
 
-describe('getDashboardStatsAction', () => {
-  it('retorna {error} quando usuário não é manager', async () => {
-    vi.mocked(getCurrentUser).mockResolvedValue({
-      id:      'op-1',
-      email:   'op@test.com',
-      profile: { id: 'op-1', role: 'operator', active: true, full_name: 'Op', phone: null, terms_accepted_at: null, created_at: '' },
-    } as never)
-
-    const result = await getDashboardStatsAction()
-
-    expect(result).toEqual({ error: 'Acesso negado' })
+describe('getAdminDashboardAction', () => {
+  it('nega acesso a quem não é gerente, sem ir ao banco', async () => {
+    asRole('operator')
+    expect(await getAdminDashboardAction(filters)).toEqual({ error: 'Acesso negado' })
     expect(mockRpc).not.toHaveBeenCalled()
   })
 
-  it('retorna totals mapeados corretamente do RPC', async () => {
-    mockManager()
-    mockRpcResponse()
+  it('chama get_admin_dashboard com o período em São Paulo e mapeia a resposta', async () => {
+    asRole('manager')
+    mockRpc.mockResolvedValue({ data: RPC_DATA, error: null })
 
-    const result = await getDashboardStatsAction()
+    const result = await getAdminDashboardAction(filters)
 
+    expect(mockRpc).toHaveBeenCalledWith('get_admin_dashboard', expect.objectContaining({
+      p_from: '2026-11-11T00:00:00-03:00',
+      p_to:   '2026-11-18T00:00:00-03:00',
+      p_bucket: 'day',
+    }))
     expect(result).not.toHaveProperty('error')
-    const stats = result as Exclude<typeof result, { error: string }>
-    expect(stats.totals).toEqual({ today: 5, last7d: 20, last30d: 80 })
+    expect((result as { volume: { received: unknown } }).volume.received).toEqual({ value: 3, previous: 0 })
   })
 
-  it('retorna byStatus com 3 itens mapeados corretamente', async () => {
-    mockManager()
-    mockRpcResponse()
-
-    const result = await getDashboardStatsAction()
-
-    const stats = result as Exclude<typeof result, { error: string }>
-    expect(stats.byStatus).toEqual([
-      { status: 'awaiting_decision', count: 10 },
-      { status: 'decided',           count: 15 },
-      { status: 'processed',         count: 55 },
-    ])
+  it('propaga o erro da RPC', async () => {
+    asRole('manager')
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'Access denied' } })
+    expect(await getAdminDashboardAction(filters)).toEqual({ error: 'Access denied' })
   })
 
-  it('retorna byDecision com 3 itens mapeados corretamente (sem reembalagem)', async () => {
-    mockManager()
-    mockRpcResponse()
+  it('trata resposta vazia e exceções', async () => {
+    asRole('manager')
+    mockRpc.mockResolvedValueOnce({ data: null, error: null })
+    expect(await getAdminDashboardAction(filters)).toEqual({ error: 'Resposta vazia do banco' })
 
-    const result = await getDashboardStatsAction()
-
-    const stats = result as Exclude<typeof result, { error: string }>
-    expect(stats.byDecision).toEqual([
-      { decision: 'return_to_stock',    count: 8 },
-      { decision: 'store_for_handling', count: 4 },
-      { decision: 'discard',            count: 2 },
-      { decision: 'reship',             count: 3 },
-    ])
-  })
-
-  it('calcula autoRate corretamente (2 auto / 10 total = 20%)', async () => {
-    mockManager()
-    mockRpcResponse({ decided_total: 10, decided_auto: 2 })
-
-    const result = await getDashboardStatsAction()
-
-    const stats = result as Exclude<typeof result, { error: string }>
-    expect(stats.autoRate).toBe(20)
-  })
-
-  it('retorna autoRate null quando decided_total é 0', async () => {
-    mockManager()
-    mockRpcResponse({ decided_total: 0, decided_auto: 0 })
-
-    const result = await getDashboardStatsAction()
-
-    const stats = result as Exclude<typeof result, { error: string }>
-    expect(stats.autoRate).toBeNull()
-  })
-
-  it('repassa topClients e urgentPending direto do RPC', async () => {
-    mockManager()
-    mockRpcResponse()
-
-    const result = await getDashboardStatsAction()
-
-    const stats = result as Exclude<typeof result, { error: string }>
-    expect(stats.topClients).toEqual([{ name: 'Cliente A', count: 5 }])
-    expect(stats.urgentPending).toEqual([
-      { id: 'r1', rv: 'RV-001', receivedAt: '2024-01-01T00:00:00Z', depositorName: 'TechStore' },
-    ])
-  })
-
-  it('retorna {error} quando RPC falha', async () => {
-    mockManager()
-    mockRpc.mockResolvedValue({ data: null, error: { message: 'RPC failed' } })
-
-    const result = await getDashboardStatsAction()
-
-    expect(result).toEqual({ error: 'RPC failed' })
-  })
-
-  it('repassa avgDecisionHours e avgProcessHours do RPC', async () => {
-    mockManager()
-    mockRpcResponse({ avg_decision_hours: 3.5, avg_process_hours: 1.2 })
-
-    const result = await getDashboardStatsAction()
-
-    const stats = result as Exclude<typeof result, { error: string }>
-    expect(stats.avgDecisionHours).toBe(3.5)
-    expect(stats.avgProcessHours).toBe(1.2)
+    mockRpc.mockRejectedValueOnce(new Error('rede'))
+    expect(await getAdminDashboardAction(filters)).toEqual({ error: 'rede' })
   })
 })

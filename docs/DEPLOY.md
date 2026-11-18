@@ -166,7 +166,9 @@ Os e-mails da aplicação (link de ativação e avisos de pendência) são envia
    - `GOOGLE_SA_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"`
 5. **Edge Function** (`warning-email`): defina `GMAIL_OAUTH_USER`, `GOOGLE_SA_CLIENT_EMAIL`, `GOOGLE_SA_PRIVATE_KEY` e `MAIL_FROM` como **secrets** do Supabase (`supabase secrets set ...`) e redeploy (`supabase functions deploy warning-email`). Ver [JOBS.md](JOBS.md), seção 2.
 
-> Sem `GOOGLE_SA_CLIENT_ID`/`GOOGLE_SA_PRIVATE_KEY`, o envio fica desligado; a criação de usuário ainda funciona e exibe o link de ativação para envio manual.
+> Sem `GOOGLE_SA_CLIENT_ID`/`GOOGLE_SA_PRIVATE_KEY` (nem senha de app), o envio fica desligado; a criação de usuário ainda funciona e exibe o link de ativação para envio manual.
+
+**Alternativa — senha de app** (quando a caixa remetente não está no Workspace, ex.: um `@gmail.com` pessoal, ou está sem o serviço Gmail): ative a verificação em 2 etapas nessa conta, gere uma **senha de app** e configure `SMTP_USER` (a conta), `SMTP_PASS` (a senha) e `MAIL_FROM` = `SMTP_USER` — na Vercel **e** nos secrets da Edge Function (`supabase secrets set SMTP_USER=... SMTP_PASS=... MAIL_FROM=...` + redeploy do `warning-email`). Com `SMTP_USER` + `SMTP_PASS` definidos, os dois lados usam esse login em vez da service account. A Edge Function sempre usa a porta 465 (o Supabase bloqueia 25 e 587).
 
 **E-mails nativos do Supabase** (recuperação de senha, confirmação de troca de e-mail) usam o SMTP configurado em **Project Settings → Authentication → SMTP Settings** — pode apontar para o mesmo `smtp.gmail.com`. Em **URL Configuration**, defina:
 - **Site URL:** `https://seudominio.com.br`
@@ -267,6 +269,7 @@ Como `logvale.com.br` já usa Google Workspace para e-mail, o envio transacional
 1. **Google Cloud Console:** ative a Gmail API, crie uma service account e gere a chave JSON
 2. **Admin Console:** autorize o Unique ID da service account com o escopo `https://mail.google.com/` (Delegação em todo o domínio)
 3. Configure `SMTP_HOST`, `SMTP_PORT`, `MAIL_FROM`, `GMAIL_OAUTH_USER`, `GOOGLE_SA_CLIENT_ID`, `GOOGLE_SA_PRIVATE_KEY` no Vercel; e `GOOGLE_SA_CLIENT_EMAIL` (em vez de `GOOGLE_SA_CLIENT_ID`) nos secrets das Edge Functions (ver 1.9)
+4. Alternativa sem service account: `SMTP_USER` + `SMTP_PASS` (senha de app) nos dois lugares — ver 1.9
 
 > Detalhes e passo a passo completo na seção **1.9**.
 
