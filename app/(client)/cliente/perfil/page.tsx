@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { PageHeader } from '@/components/shared/page-header'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import ProfileSignOut from './profile-sign-out'
+import { depositorCnpjs, formatCnpj, type DepositorCnpjSource } from '@/lib/depositor-cnpjs'
 import { User, Building2 } from 'lucide-react'
 
 export default async function ClientProfilePage() {
@@ -11,13 +12,14 @@ export default async function ClientProfilePage() {
 
   const { data: deps } = await supabase
     .from('client_depositors')
-    .select('depositors!depositor_id(cnpj, razao_social)')
+    .select('depositors!depositor_id(cnpj, razao_social, depositor_cnpjs(cnpj))')
     .eq('client_id', user.id)
 
-  const depositors = (deps ?? []).map((d) => {
-    const dep = d.depositors as unknown as { cnpj: string; razao_social: string } | null
-    return dep
-  }).filter(Boolean) as { cnpj: string; razao_social: string }[]
+  // Todos os CNPJs de cada depositante (principal primeiro) — migration 026.
+  const depositors = (deps ?? []).flatMap((d) => {
+    const dep = d.depositors as unknown as (DepositorCnpjSource & { cnpj: string; razao_social: string }) | null
+    return dep ? [{ cnpj: dep.cnpj, razao_social: dep.razao_social, cnpjs: depositorCnpjs(dep) }] : []
+  })
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -50,9 +52,11 @@ export default async function ClientProfilePage() {
           ) : (
             <ul className="divide-y divide-border">
               {depositors.map((d) => (
-                <li key={d.cnpj} className="flex items-center justify-between py-2.5 text-sm first:pt-0 last:pb-0">
+                <li key={d.cnpj} className="flex items-start justify-between gap-4 py-2.5 text-sm first:pt-0 last:pb-0">
                   <span className="font-medium text-foreground">{d.razao_social}</span>
-                  <span className="font-mono text-xs text-muted-foreground">{formatCnpj(d.cnpj)}</span>
+                  <span className="flex flex-col items-end font-mono text-xs text-muted-foreground">
+                    {d.cnpjs.map((c) => <span key={c}>{formatCnpj(c)}</span>)}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -74,10 +78,4 @@ function InfoRow({ label, value }: { label: string; value: string }) {
       <span className="font-medium text-foreground">{value}</span>
     </div>
   )
-}
-
-function formatCnpj(cnpj: string) {
-  const d = cnpj.replace(/\D/g, '')
-  if (d.length !== 14) return cnpj
-  return `${d.slice(0,2)}.${d.slice(2,5)}.${d.slice(5,8)}/${d.slice(8,12)}-${d.slice(12)}`
 }

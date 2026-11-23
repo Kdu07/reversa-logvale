@@ -23,16 +23,15 @@ vi.mock('@/lib/env', () => ({ env }))
 
 let depositorResult: { data: unknown; error: null } = { data: null, error: null }
 const uploadMock = vi.fn().mockResolvedValue({ error: null })
+const cnpjEqMock = vi.fn()
 
 const mockClient = {
   from: vi.fn((table: string) => {
-    if (table === 'depositors') {
+    if (table === 'depositor_cnpjs') {
       return {
         select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              single: vi.fn().mockResolvedValue(depositorResult),
-            }),
+          eq: cnpjEqMock.mockImplementation(function chain() {
+            return { eq: cnpjEqMock, maybeSingle: vi.fn().mockResolvedValue(depositorResult) }
           }),
         }),
       }
@@ -77,12 +76,32 @@ describe('lookupInvoice (parsing local da chave)', () => {
   })
 
   it('vincula depositante quando o CNPJ emitente está cadastrado', async () => {
-    depositorResult = { data: { id: 'dep-1', razao_social: 'Empresa Teste Ltda' }, error: null }
+    depositorResult = {
+      data: { depositors: { id: 'dep-1', razao_social: 'Empresa Teste Ltda', active: true } },
+      error: null,
+    }
 
     const result = await lookupInvoice(ACCESS_KEY)
 
+    // Busca em depositor_cnpjs: vale qualquer CNPJ do depositante, não só o principal.
+    expect(mockClient.from).toHaveBeenCalledWith('depositor_cnpjs')
+    expect(cnpjEqMock).toHaveBeenCalledWith('cnpj', '12345678000195')
+    // Só o dono ativo — um CNPJ de depositante desativado pode estar em outro (027).
+    expect(cnpjEqMock).toHaveBeenCalledWith('active', true)
     expect(result.depositorId).toBe('dep-1')
     expect(result.depositorName).toBe('Empresa Teste Ltda')
+  })
+
+  it('não sugere depositante inativo', async () => {
+    depositorResult = {
+      data: { depositors: { id: 'dep-1', razao_social: 'Empresa Teste Ltda', active: false } },
+      error: null,
+    }
+
+    const result = await lookupInvoice(ACCESS_KEY)
+
+    expect(result.depositorId).toBeNull()
+    expect(result.depositorName).toBeNull()
   })
 
   it('retorna depositorId null quando o CNPJ não está cadastrado', async () => {

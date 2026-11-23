@@ -39,8 +39,6 @@ function formatRemaining(deadlineFrom: string): string {
   return h >= 1 ? `restam ~${h}h` : 'resta menos de 1h'
 }
 
-const digits = (v: string) => v.replace(/\D/g, '')
-
 interface Props {
   returnId: string
   onClose:  () => void
@@ -110,7 +108,8 @@ export function EditReturnDialog({ returnId, onClose, onSaved }: Props) {
   const cleanKey = normalizeAccessKey(accessKey)
   const cnpjMismatch = useMemo(() => {
     if (cleanKey.length !== 44 || !selectedDepositor) return false
-    return accessKeyEmitterCnpj(cleanKey) !== digits(selectedDepositor.cnpj)
+    // Qualquer CNPJ do depositante vale, não só o principal (migration 026).
+    return !selectedDepositor.cnpjs.includes(accessKeyEmitterCnpj(cleanKey))
   }, [cleanKey, selectedDepositor])
 
   const count     = condition === 'empty' ? 0 : Number(itemCount)

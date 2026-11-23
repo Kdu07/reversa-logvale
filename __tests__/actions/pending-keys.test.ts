@@ -232,6 +232,37 @@ describe('informAccessKeyAction', () => {
     expect(updateMock).not.toHaveBeenCalled()
   })
 
+  it('aceita chave emitida por um CNPJ adicional do depositante', async () => {
+    returnResult = {
+      data: {
+        id: RETURN_ID, depositor_id: 'd-1', access_key: null,
+        depositors: {
+          cnpj: '12345678000195',
+          depositor_cnpjs: [{ cnpj: '12345678000195' }, { cnpj: OTHER_CNPJ_KEY.slice(6, 20) }],
+        },
+      },
+      error: null,
+    }
+    const result = await informAccessKeyAction(RETURN_ID, OTHER_CNPJ_KEY)
+
+    expect(result).toEqual({ ok: true, accessKey: OTHER_CNPJ_KEY })
+    expect(updateMock).toHaveBeenCalledWith(expect.objectContaining({ access_key: OTHER_CNPJ_KEY }))
+  })
+
+  it('continua recusando CNPJ que não está entre os do depositante', async () => {
+    returnResult = {
+      data: {
+        id: RETURN_ID, depositor_id: 'd-1', access_key: null,
+        depositors: { cnpj: '12345678000195', depositor_cnpjs: [{ cnpj: '12345678000195' }, { cnpj: '98765432000110' }] },
+      },
+      error: null,
+    }
+    const result = await informAccessKeyAction(RETURN_ID, OTHER_CNPJ_KEY)
+
+    expect(result).toMatchObject({ error: expect.stringContaining('outro CNPJ') })
+    expect(updateMock).not.toHaveBeenCalled()
+  })
+
   it('grava a chave (normalizada) com a procedência', async () => {
     const pasted = VALID_KEY.replace(/(\d{4})/g, '$1 ').trim()
     const result = await informAccessKeyAction(RETURN_ID, pasted)

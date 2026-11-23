@@ -11,6 +11,7 @@ import {
   type ReturnEditCurrent,
   type ReturnEditInput,
 } from '@/lib/return-edit'
+import { depositorCnpjs, type DepositorCnpjSource } from '@/lib/depositor-cnpjs'
 import type { AuthUser, ReturnStatus } from '@/types'
 
 /**
@@ -28,6 +29,8 @@ export interface EditDepositorOption {
   id:                 string
   name:               string
   cnpj:               string
+  /** Todos os CNPJs do depositante (principal primeiro) — migration 026. */
+  cnpjs:              string[]
   noDecisionDeadline: boolean
 }
 
@@ -92,7 +95,7 @@ export async function getEditReturnDataAction(
         .single(),
       supabase
         .from('depositors')
-        .select('id, razao_social, cnpj, active, no_decision_deadline')
+        .select('id, razao_social, cnpj, active, no_decision_deadline, depositor_cnpjs(cnpj)')
         .order('razao_social'),
     ])
     if (error || !r) return { error: error?.message ?? 'Devolução não encontrada.' }
@@ -104,14 +107,15 @@ export async function getEditReturnDataAction(
     if (!canEdit(g.isManager, row.status)) return { error: OPERATOR_STATUS_ERROR }
 
     // Ativos + o depositante atual (mesmo se inativo, para não sumir do select).
-    const depositors = ((deps ?? []) as {
+    const depositors = ((deps ?? []) as unknown as ({
       id: string; razao_social: string; cnpj: string; active: boolean; no_decision_deadline: boolean | null
-    }[])
+    } & DepositorCnpjSource)[])
       .filter((d) => d.active || d.id === row.depositor_id)
       .map((d) => ({
         id:                 d.id,
         name:               d.razao_social,
         cnpj:               d.cnpj,
+        cnpjs:              depositorCnpjs(d),
         noDecisionDeadline: d.no_decision_deadline === true,
       }))
 

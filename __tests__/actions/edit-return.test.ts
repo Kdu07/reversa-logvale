@@ -58,7 +58,10 @@ const RETURN = {
 
 const DEPOSITORS = [
   { id: 'dep-1', razao_social: 'ACME',       active: true, cnpj: '1', no_decision_deadline: false },
-  { id: 'dep-2', razao_social: 'OUTRA',      active: true, cnpj: '2', no_decision_deadline: false },
+  {
+    id: 'dep-2', razao_social: 'OUTRA', active: true, cnpj: '2', no_decision_deadline: false,
+    depositor_cnpjs: [{ cnpj: '2' }, { cnpj: '22' }],
+  },
   { id: 'dep-3', razao_social: 'BLACKSKULL', active: true, cnpj: '3', no_decision_deadline: true },
 ]
 
@@ -183,6 +186,8 @@ describe('getEditReturnDataAction', () => {
       rv: 'RV-001', depositorId: 'dep-1', deadlineFrom: RETURN.received_at, status: 'awaiting_decision',
     })
     expect(res.data.depositors.map((d) => d.id)).toEqual(['dep-1', 'dep-2', 'dep-3'])
+    // Todos os CNPJs do depositante (principal primeiro); sem o embed, só o principal.
+    expect(res.data.depositors.map((d) => d.cnpjs)).toEqual([['1'], ['2', '22'], ['3']])
   })
 
   it('operador não abre a edição de uma decidida', async () => {

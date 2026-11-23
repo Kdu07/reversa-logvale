@@ -7,6 +7,7 @@ import { getCurrentUser } from '@/lib/supabase/get-current-user'
 import { isSuperUser } from '@/lib/auth/super'
 import { buildSignedUrlMap } from '@/lib/supabase/storage'
 import { normalizeAccessKey, isValidAccessKey, accessKeyEmitterCnpj } from '@/lib/access-key'
+import { depositorCnpjs, type DepositorCnpjSource } from '@/lib/depositor-cnpjs'
 import type {
   IdentifierType, ReturnStatus, ReturnDecision, DecisionSource,
 } from '@/types'
@@ -183,7 +184,7 @@ export async function informAccessKeyAction(
 
     const { data: ret, error: retError } = await admin
       .from('returns')
-      .select('id, depositor_id, access_key, depositors!depositor_id(cnpj)')
+      .select('id, depositor_id, access_key, depositors!depositor_id(cnpj, depositor_cnpjs(cnpj))')
       .eq('id', returnId)
       .maybeSingle()
 
@@ -205,8 +206,9 @@ export async function informAccessKeyAction(
     // Nunca sobrescrever a chave — nem a bipada no recebimento, nem uma já informada.
     if (ret.access_key) return { error: 'Esta devolução já tem a chave de acesso.' }
 
-    const depositorCnpj = (ret.depositors as unknown as { cnpj: string } | null)?.cnpj ?? null
-    if (depositorCnpj && accessKeyEmitterCnpj(accessKey) !== depositorCnpj) {
+    // Qualquer CNPJ do depositante vale (migration 026), não só o principal.
+    const cnpjs = depositorCnpjs(ret.depositors as unknown as DepositorCnpjSource | null)
+    if (cnpjs.length > 0 && !cnpjs.includes(accessKeyEmitterCnpj(accessKey))) {
       return { error: 'Esta chave é de uma NF emitida por outro CNPJ, não pelo depositante desta devolução.' }
     }
 

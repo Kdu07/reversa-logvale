@@ -83,14 +83,19 @@ export async function lookupInvoice(accessKey: string): Promise<InvoiceData> {
 
   const { emitterCnpj, invoiceNumber, emittedAt } = parseAccessKey(accessKey)
 
-  // Identifica o depositante pelo CNPJ do emitente codificado na chave
+  // Identifica o depositante pelo CNPJ do emitente codificado na chave —
+  // qualquer CNPJ do depositante, não só o principal (migration 026). Só os
+  // ativos: um CNPJ de depositante desativado pode estar em outro (027).
   const supabase = adminClient()
-  const { data: depositor } = await supabase
-    .from('depositors')
-    .select('id, razao_social')
+  const { data: cnpjRow } = await supabase
+    .from('depositor_cnpjs')
+    .select('depositors!inner(id, razao_social, active)')
     .eq('cnpj', emitterCnpj)
     .eq('active', true)
-    .single()
+    .maybeSingle()
+  const found = (cnpjRow?.depositors ?? null) as unknown as
+    { id: string; razao_social: string; active: boolean } | null
+  const depositor = found?.active ? found : null
 
   // Busca e persiste XML + DANFE na própria bipagem (decisão: Etapa 1).
   // Falha de rede da NFEio NÃO bloqueia o recebimento — os paths ficam `null`
