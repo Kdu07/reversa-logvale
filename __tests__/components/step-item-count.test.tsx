@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { StepItemCount } from '@/app/(operator)/operador/recebimento/steps/step-item-count'
 
@@ -31,6 +31,32 @@ const quantity = () => screen.getByLabelText('Quantidade de itens')
 
 beforeEach(() => {
   vi.clearAllMocks()
+})
+
+describe('StepItemCount — foco inicial', () => {
+  // O componente foca a quantidade 50 ms depois de montar. Com relógio falso o
+  // teste não depende da velocidade da máquina (era a causa do CI intermitente).
+  // fireEvent (síncrono) em vez de userEvent, que espera timers e trava com eles falsos.
+  beforeEach(() => { vi.useFakeTimers() })
+  afterEach(() => { vi.useRealTimers() })
+
+  it('foca a quantidade ao abrir a etapa', () => {
+    renderStep()
+    expect(quantity()).not.toHaveFocus()
+    act(() => { vi.advanceTimersByTime(60) })
+    expect(quantity()).toHaveFocus()
+  })
+
+  it('não puxa o cursor de volta se o usuário escolheu algo antes dos 50 ms', () => {
+    renderStep({ itemCount: 5 })
+
+    fireEvent.click(damaged()) // antes do foco atrasado disparar
+    const avariados = screen.getByLabelText('Quantos avariados?')
+    expect(avariados).toHaveFocus()
+
+    act(() => { vi.advanceTimersByTime(100) })
+    expect(avariados).toHaveFocus()
+  })
 })
 
 describe('StepItemCount — Etapa 3 (Itens)', () => {

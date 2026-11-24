@@ -53,9 +53,19 @@ export function StepItemCount({ itemCount, damagedItemCount, mismatch, onComplet
   const damagedRef     = useRef<HTMLInputElement>(null)
   const mismatchedRef  = useRef<HTMLInputElement>(null)
   const descriptionRef = useRef<HTMLInputElement>(null)
+  const rootRef        = useRef<HTMLDivElement>(null)
 
+  // Foco inicial na quantidade, com um pequeno atraso (transição entre etapas).
+  // Só age se o cursor ainda não está dentro desta etapa: um clique ou atalho
+  // feito nesses 50 ms (ex.: Avaria, que leva o foco para "Quantos avariados?")
+  // não pode ter o cursor puxado de volta. Era isso que deixava o teste da
+  // Etapa 3 instável no CI.
   useEffect(() => {
-    setTimeout(() => inputRef.current?.focus(), 50)
+    const timer = setTimeout(() => {
+      if (rootRef.current?.contains(document.activeElement)) return
+      inputRef.current?.focus()
+    }, 50)
+    return () => clearTimeout(timer)
   }, [])
 
   const count        = toInt(value)
@@ -165,7 +175,7 @@ export function StepItemCount({ itemCount, damagedItemCount, mismatch, onComplet
   }, [])
 
   return (
-    <div className="space-y-6">
+    <div ref={rootRef} className="space-y-6">
       <div className="space-y-1">
         <h2 className="text-lg font-semibold text-primary">Etapa 3 — Itens</h2>
         <p className="text-sm text-muted-foreground">
