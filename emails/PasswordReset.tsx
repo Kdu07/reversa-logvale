@@ -29,10 +29,15 @@ export function PasswordResetEmail({ name, resetLink, appUrl = '' }: PasswordRes
         <Container style={container}>
           {/* Logo */}
           <Section style={logoSection}>
+            {/* Logo oficial (a mesma do site logvale.com.br): letras brancas + "G"
+                vermelho, feita para fundo escuro. A versão azul (/logvale-logo.png)
+                some sobre o azul-marinho da faixa. width/height fixos para o
+                Outlook, que ignora o height do CSS. */}
             <Img
-              src={`${appUrl}/logvale-logo.png`}
-              alt="Logvale"
-              height="40"
+              src={`${appUrl}/email/logvale-logo-branca.png`}
+              alt="Logvale Operador Logístico"
+              width="200"
+              height="50"
               style={logoImg}
             />
           </Section>
